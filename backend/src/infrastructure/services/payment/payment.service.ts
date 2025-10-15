@@ -54,10 +54,11 @@ export class PaymentService {
       }
 
       // Extract transaction info
-      const transactionDate = new Date(webhookData.transaction_date || webhookData.transactionDate);
-      const transactionContent = webhookData.transaction_content || webhookData.transactionContent || '';
+      // Support multiple field name formats from Sepay
+      const transactionDate = new Date(webhookData.transaction_date || webhookData.transactionDate || Date.now());
+      const transactionContent = webhookData.transaction_content || webhookData.transactionContent || webhookData.content || webhookData.description || '';
       const subAccount = webhookData.sub_account || webhookData.subAccount || '';
-      const amountIn = parseFloat(webhookData.amount_in || webhookData.amountIn || 0);
+      const amountIn = parseFloat(webhookData.amount_in || webhookData.amountIn || webhookData.transferAmount || 0);
       
       // Only process incoming transactions (amountIn > 0)
       if (amountIn <= 0) {
@@ -80,7 +81,7 @@ export class PaymentService {
         accumulated: parseFloat(webhookData.accumulated || 0),
         code: webhookData.code,
         transactionContent,
-        referenceNumber: webhookData.reference_number || webhookData.referenceNumber,
+        referenceNumber: webhookData.reference_number || webhookData.referenceNumber || webhookData.referenceCode || '',
         body: JSON.stringify(webhookData),
       });
 
@@ -116,8 +117,8 @@ export class PaymentService {
       this.logger.log(`Attempting to match transaction content: "${content}"`);
 
       // Extract order code from transaction content
-      // Common formats: "ORD123456", "ORDER123456", "DH123456", etc.
-      const orderCodePattern = /(?:ORD|ORDER|DH)[\-\s]?(\d{6,})/i;
+      // Common formats: "ORD123456", "ORDER123456", "DH123456", "LD123456", etc.
+      const orderCodePattern = /(?:ORD|ORDER|DH|LD)[\-\s]?(\d{6,})/i;
       const match = content.match(orderCodePattern);
 
       if (!match) {

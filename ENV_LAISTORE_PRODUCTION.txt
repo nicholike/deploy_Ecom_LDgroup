@@ -1,0 +1,91 @@
+# ============================================
+# .ENV FILE FOR LAISTORE.ONLINE
+# ============================================
+# File này dùng để tạo .env trên cPanel server
+# Location trên server: /home/username/api/.env
+# ============================================
+
+# ============================================
+# DATABASE CONFIGURATION
+# ============================================
+# QUAN TRỌNG: Thay [CPANEL_USERNAME] bằng username thật của bạn trên cPanel
+# 
+# Ví dụ: Nếu cPanel username là "laistore123", thì dòng dưới sẽ là:
+# DATABASE_URL="mysql://laistore123_mlm_user:Lai712004!@localhost:3306/laistore123_mlm_ecommerce"
+
+DATABASE_URL="mysql://[CPANEL_USERNAME]_mlm_user:Lai712004!@localhost:3306/[CPANEL_USERNAME]_mlm_ecommerce"
+
+# ============================================
+# JWT AUTHENTICATION
+# ============================================
+# ⚠️ QUAN TRỌNG: Đổi thành chuỗi random 32+ ký tự để bảo mật
+# Tạo random: openssl rand -base64 32
+# Hoặc dùng: https://randomkeygen.com/
+
+JWT_SECRET="LaiStore2025SecureRandomJWTKeyPleaseChangeThisTo32CharsOrMore"
+JWT_EXPIRES_IN="7d"
+
+# ============================================
+# SERVER CONFIGURATION
+# ============================================
+NODE_ENV=production
+PORT=3000
+
+# ============================================
+# CORS CONFIGURATION (Frontend domain)
+# ============================================
+CORS_ORIGIN=https://laistore.online,https://www.laistore.online
+
+# ============================================
+# PAYMENT - BIDV BANK ACCOUNT
+# ============================================
+BANK_CODE=BIDV
+BANK_NAME=BIDV
+BANK_ACCOUNT_NUMBER=6201235752
+BANK_ACCOUNT_NAME=DIEP DUC LAI
+
+# ============================================
+# SEPAY PAYMENT GATEWAY
+# ============================================
+# Để trống nếu chưa có account SePay
+# Đăng ký tại: https://my.sepay.vn
+# Sau khi đăng ký, vào Dashboard → API Keys để lấy
+
+SEPAY_API_KEY=
+SEPAY_SECRET_KEY=
+
+# ============================================
+# UPLOAD CONFIGURATION
+# ============================================
+UPLOAD_DIR=uploads
+MAX_FILE_SIZE=5242880
+
+# ============================================
+# HƯỚNG DẪN SỬ DỤNG
+# ============================================
+# 
+# BƯỚC 1: Tìm cPanel username
+# - Đăng nhập cPanel
+# - Góc trên bên phải sẽ hiện username
+# - Hoặc check trong MySQL Databases → tên database sẽ có prefix
+# 
+# BƯỚC 2: Thay thế [CPANEL_USERNAME] trong DATABASE_URL
+# - Ví dụ: nếu username là "laistore"
+# - Thay [CPANEL_USERNAME]_mlm_user → laistore_mlm_user
+# - Thay [CPANEL_USERNAME]_mlm_ecommerce → laistore_mlm_ecommerce
+# 
+# BƯỚC 3: Generate JWT_SECRET mới (bảo mật)
+# - Trên server chạy: openssl rand -base64 32
+# - Copy kết quả vào JWT_SECRET
+# 
+# BƯỚC 4: Copy file này lên server
+# - SSH: nano /home/username/api/.env
+# - Paste nội dung đã update
+# - Ctrl+X, Y, Enter để save
+# 
+# BƯỚC 5: Verify file .env
+# - cat /home/username/api/.env
+# - Check các giá trị đã đúng
+# 
+# ============================================
+

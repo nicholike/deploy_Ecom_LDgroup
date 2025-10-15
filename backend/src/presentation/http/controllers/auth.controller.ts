@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus } from '@n
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { LoginDto, RefreshTokenDto } from '../dto/user/login.dto';
 import { UserResponseDto } from '../dto/user/user-response.dto';
+import { ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto/auth/password.dto';
 import { AuthService } from '@infrastructure/services/auth/auth.service';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
@@ -36,6 +37,24 @@ export class AuthController {
     return this.authService.refreshToken(dto.refreshToken);
   }
 
+  @Post('forgot-password')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiResponse({ status: 200, description: 'Password reset instructions sent' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.requestPasswordReset(dto.email);
+  }
+
+  @Post('reset-password')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using token' })
+  @ApiResponse({ status: 200, description: 'Password reset successful' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.password);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -44,6 +63,16 @@ export class AuthController {
   async getProfile(@CurrentUser('userId') userId: string): Promise<UserResponseDto> {
     const user = await this.userRepository.findById(userId);
     return UserResponseDto.fromDomain(user!);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password for authenticated user' })
+  @ApiResponse({ status: 200, description: 'Password updated successfully' })
+  async changePassword(@CurrentUser('userId') userId: string, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(userId, dto.currentPassword, dto.newPassword);
   }
 
   @Post('logout')
@@ -55,6 +84,6 @@ export class AuthController {
   async logout() {
     // In stateless JWT, logout is handled client-side by removing the token
     // For token blacklisting, implement Redis-based solution
-    return { message: 'Logged out successfully' };
+    return { message: 'Đăng xuất thành công' };
   }
 }

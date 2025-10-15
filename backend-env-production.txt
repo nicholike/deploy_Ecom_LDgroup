@@ -1,0 +1,70 @@
+# ============================================
+# .ENV FILE FOR LAISTORE.ONLINE
+# Production Environment - Backend API
+# ============================================
+# 
+# 📝 HƯỚNG DẪN:
+# 1. Copy toàn bộ nội dung file này
+# 2. SSH vào server: ssh v7jxw6r3e1oc@yourserver.com
+# 3. Tạo file .env: nano /home/v7jxw6r3e1oc/api/.env
+# 4. Paste nội dung bên dưới
+# 5. Ctrl+X, Y, Enter để save
+# 
+# ============================================
+
+# ============================================
+# DATABASE CONFIGURATION
+# ============================================
+DATABASE_URL="mysql://v7jxw6r3e1oc_mlm_user:Lai712004!@localhost:3306/v7jxw6r3e1oc_mlm_ecommerce"
+
+# ============================================
+# JWT AUTHENTICATION
+# ============================================
+# JWT Secret đã được generate random - SECURE
+JWT_SECRET="GOxX/3YdCsBgE6PSRDeKzomxUz+TRwiUEkF8TGm16oE="
+JWT_EXPIRES_IN="7d"
+
+# ============================================
+# SERVER CONFIGURATION
+# ============================================
+NODE_ENV=production
+PORT=3000
+
+# ============================================
+# CORS CONFIGURATION
+# ============================================
+# Frontend domains - comma separated
+CORS_ORIGIN=https://laistore.online,https://www.laistore.online
+
+# ============================================
+# PAYMENT - BIDV BANK ACCOUNT (Original)
+# ============================================
+BANK_CODE=BIDV
+BANK_NAME=BIDV
+BANK_ACCOUNT_NUMBER=6201235752
+BANK_ACCOUNT_NAME=DIEP DUC LAI
+
+# ============================================
+# SEPAY CONFIGURATION
+# ============================================
+# Webhook URL: https://api.laistore.online/api/v1/payment/sepay-webhook
+# 
+# Virtual Account (VA) - Tài khoản ảo SePay
+# VA này sẽ được dùng để tạo QR code cho thanh toán
+SEPAY_VA_NUMBER=96247LAI712004
+SEPAY_VA_ACCOUNT_NAME=Diep Lai
+
+# API Keys (Tùy chọn - chỉ cần nếu dùng VA động)
+SEPAY_API_KEY=
+SEPAY_SECRET_KEY=
+
+# ============================================
+# FILE UPLOAD
+# ============================================
+UPLOAD_DIR=uploads
+MAX_FILE_SIZE=5242880
+
+# ============================================
+# ✅ READY TO USE - NO CHANGES NEEDED!
+# ============================================
+

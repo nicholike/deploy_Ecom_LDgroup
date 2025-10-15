@@ -2,17 +2,34 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import multipart from '@fastify/multipart';
 import { AppModule } from './app.module';
+import { join } from 'path';
 
 async function bootstrap() {
   console.log('🔧 Starting bootstrap...');
-  
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    new FastifyAdapter(),
-  );
-  
+
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+
   console.log('✅ App created');
+
+  // Serve static files
+  console.log('🔧 Setting up static file serving...');
+  await app.register(require('@fastify/static'), {
+    root: join(__dirname, '..', 'uploads'),
+    prefix: '/uploads/',
+  });
+  console.log('✅ Static file serving enabled at /uploads/');
+
+  // Multipart (file upload) support
+  console.log('🔧 Enabling multipart uploads...');
+  await app.register(multipart as any, {
+    limits: {
+      fileSize: 5 * 1024 * 1024, // 5MB
+      files: 1,
+    },
+  });
+  console.log('✅ Multipart uploads enabled');
 
   // Global prefix
   const apiPrefix = process.env.API_PREFIX || '/api/v1';
@@ -24,7 +41,7 @@ async function bootstrap() {
   app.enableCors({
     origin: true, // Allow all origins in development
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
   console.log('✅ CORS enabled');

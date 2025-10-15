@@ -27,7 +27,7 @@ model User {
   avatar    String?
 
   // MLM Structure
-  role         UserRole   @default(CUSTOMER)
+  role         UserRole   @default(F6)
   sponsorId    String?    @map("sponsor_id")
   sponsor      User?      @relation("UserSponsor", fields: [sponsorId], references: [id], onDelete: SetNull)
   downline     User[]     @relation("UserSponsor")
@@ -36,6 +36,13 @@ model User {
   // Status
   status        UserStatus @default(ACTIVE)
   emailVerified Boolean    @default(false) @map("email_verified")
+  lockedAt      DateTime?  @map("locked_at")
+  lockedReason  String?    @map("locked_reason")
+
+  // Purchase Limit (300 products per 30 days from first order)
+  quotaPeriodStart DateTime? @map("quota_period_start") // Start of current 30-day period
+  quotaLimit       Int       @default(300) @map("quota_limit") // Max products allowed
+  quotaUsed        Int       @default(0) @map("quota_used")    // Used in current period
 
   // Timestamps
   createdAt   DateTime  @default(now()) @map("created_at")
@@ -45,9 +52,13 @@ model User {
   // Relations
   ancestorTree   UserTree[] @relation("Ancestor")
   descendantTree UserTree[] @relation("Descendant")
+  cart           Cart?
   orders         Order[]
   commissions    Commission[]
   withdrawals    WithdrawalRequest[]
+  passwordResetTokens PasswordResetToken[]
+  wallet         Wallet?
+  notifications  Notification[]
 
   @@map("users")
   @@index([sponsorId])
@@ -56,11 +67,29 @@ model User {
   @@index([email])
 }
 
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("password_reset_tokens")
+  @@index([userId])
+  @@index([tokenHash])
+}
+
 enum UserRole {
   ADMIN
-  MANAGER
-  DISTRIBUTOR
-  CUSTOMER
+  F1
+  F2
+  F3
+  F4
+  F5
+  F6
 }
 
 enum UserStatus {
@@ -128,15 +157,15 @@ model Product {
   slug        String  @unique
   description String? @db.Text
 
-  // Pricing
-  price     Decimal  @db.Decimal(10, 2)
+  // Pricing (for products without variants)
+  price     Decimal? @db.Decimal(10, 2)
   costPrice Decimal? @map("cost_price") @db.Decimal(10, 2)
   salePrice Decimal? @map("sale_price") @db.Decimal(10, 2)
 
-  // Inventory
-  sku               String @unique
-  stock             Int    @default(0)
-  lowStockThreshold Int    @default(10) @map("low_stock_threshold")
+  // Inventory (for products without variants)
+  sku               String? @unique
+  stock             Int?    @default(0)
+  lowStockThreshold Int?    @default(10) @map("low_stock_threshold")
 
   // Commission
   isCommissionEligible Boolean @default(true) @map("is_commission_eligible")
@@ -161,6 +190,8 @@ model Product {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
+  variants   ProductVariant[]
+  cartItems  CartItem[]
   orderItems OrderItem[]
 
   @@map("products")
@@ -170,11 +201,126 @@ model Product {
   @@index([sku])
 }
 
+model ProductVariant {
+  id        String  @id @default(uuid())
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Variant info
+  size String // "5ml", "20ml", "50ml"
+  sku  String @unique
+
+  // Pricing
+  price     Decimal  @db.Decimal(10, 2)
+  costPrice Decimal? @map("cost_price") @db.Decimal(10, 2)
+  salePrice Decimal? @map("sale_price") @db.Decimal(10, 2)
+
+  // Inventory
+  stock             Int @default(0)
+  lowStockThreshold Int @default(10) @map("low_stock_threshold")
+
+  // Settings
+  isDefault Boolean @default(false) @map("is_default")
+  order     Int     @default(0)
+  active    Boolean @default(true)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  priceTiers PriceTier[]
+
+  @@map("product_variants")
+  @@index([productId])
+  @@index([sku])
+  @@index([active])
+}
+
+// Price Tiers for quantity-based discounts
+model PriceTier {
+  id        String  @id @default(uuid())
+
+  // Link to product variant
+  productVariantId String         @map("product_variant_id")
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  // Quantity range
+  minQuantity Int @map("min_quantity") // Example: 10
+  maxQuantity Int? @map("max_quantity") // Example: 99 (null = unlimited)
+
+  // Price for this tier
+  price Decimal @db.Decimal(10, 2)
+
+  // Display
+  label String? // Example: "Mua 10 giảm 10%"
+  order Int @default(0)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("price_tiers")
+  @@index([productVariantId])
+  @@index([minQuantity])
+}
+
 enum ProductStatus {
   DRAFT
   PUBLISHED
   OUT_OF_STOCK
   DISCONTINUED
+}
+
+// ============================================
+// CART MANAGEMENT
+// ============================================
+
+model Cart {
+  id     String @id @default(uuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  items CartItem[]
+
+  @@map("carts")
+  @@index([userId])
+}
+
+model CartItem {
+  id String @id @default(uuid())
+
+  // Cart
+  cartId String @map("cart_id")
+  cart   Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  // Product (always present)
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Product Variant (optional - only if selecting a specific variant)
+  productVariantId String?         @map("product_variant_id")
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  // Details
+  quantity Int @default(1)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("cart_items")
+  @@index([cartId])
+  @@index([productId])
+  @@index([productVariantId])
+  @@unique([cartId, productId, productVariantId])
 }
 
 // ============================================
@@ -190,11 +336,11 @@ model Order {
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   // Pricing
-  subtotal    Decimal @db.Decimal(10, 2)
-  shippingFee Decimal @default(0) @map("shipping_fee") @db.Decimal(10, 2)
-  tax         Decimal @default(0) @db.Decimal(10, 2)
-  discount    Decimal @default(0) @db.Decimal(10, 2)
-  totalAmount Decimal @map("total_amount") @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(18, 2)
+  shippingFee Decimal @default(0) @map("shipping_fee") @db.Decimal(18, 2)
+  tax         Decimal @default(0) @db.Decimal(18, 2)
+  discount    Decimal @default(0) @db.Decimal(18, 2)
+  totalAmount Decimal @map("total_amount") @db.Decimal(18, 2)
 
   // Status
   status        OrderStatus   @default(PENDING)
@@ -222,8 +368,9 @@ model Order {
   cancelledAt DateTime? @map("cancelled_at")
 
   // Relations
-  items       OrderItem[]
-  commissions Commission[]
+  items            OrderItem[]
+  commissions      Commission[]
+  bankTransactions BankTransaction[]
 
   @@map("orders")
   @@index([userId])
@@ -258,14 +405,21 @@ model OrderItem {
   orderId String @map("order_id")
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  // Product
+  // Product (always present)
   productId String  @map("product_id")
   product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
+  // Product Variant (optional - only if ordered a specific variant)
+  productVariantId String?         @map("product_variant_id")
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  // Variant info snapshot (stored for history)
+  variantSize String? @map("variant_size") // "5ml", "20ml", "50ml"
+
   // Details
   quantity Int
-  price    Decimal @db.Decimal(10, 2) // Price at time of purchase
-  subtotal Decimal @db.Decimal(10, 2) // quantity * price
+  price    Decimal @db.Decimal(18, 2) // Price at time of purchase
+  subtotal Decimal @db.Decimal(18, 2) // quantity * price
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -273,6 +427,7 @@ model OrderItem {
   @@map("order_items")
   @@index([orderId])
   @@index([productId])
+  @@index([productVariantId])
 }
 
 // ============================================
@@ -322,9 +477,9 @@ model Commission {
   level Int
 
   // Calculation
-  orderValue       Decimal @map("order_value") @db.Decimal(10, 2)
+  orderValue       Decimal @map("order_value") @db.Decimal(18, 2)
   commissionRate   Decimal @map("commission_rate") @db.Decimal(5, 2)
-  commissionAmount Decimal @map("commission_amount") @db.Decimal(10, 2)
+  commissionAmount Decimal @map("commission_amount") @db.Decimal(18, 2)
 
   // Period (format: YYYY-MM)
   period String
@@ -371,20 +526,18 @@ model WithdrawalRequest {
   bankInfo Json @map("bank_info")
   // Example: { "bankName": "Vietcombank", "accountNumber": "0123456789", "accountName": "NGUYEN VAN A", "branch": "HCM" }
 
-  // Commission IDs being withdrawn (stored as JSON array)
-  commissionIds Json @map("commission_ids") @db.Json
-  // Example: ["uuid1", "uuid2", "uuid3"]
-
   // Status
   status WithdrawalStatus @default(PENDING)
 
   // Processing
-  processedBy String?   @map("processed_by")
+  processedBy String?   @map("processed_by") // Admin user ID
   processedAt DateTime? @map("processed_at")
+  completedAt DateTime? @map("completed_at") // When money transferred
 
   // Notes
-  userNote  String? @map("user_note") @db.Text
-  adminNote String? @map("admin_note") @db.Text
+  userNote    String? @map("user_note") @db.Text
+  adminNote   String? @map("admin_note") @db.Text
+  rejectReason String? @map("reject_reason") @db.Text // Why rejected
 
   // Timestamps
   requestedAt DateTime @default(now()) @map("requested_at")
@@ -403,4 +556,201 @@ enum WithdrawalStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+// ============================================
+// WALLET MANAGEMENT
+// ============================================
+
+model Wallet {
+  id      String  @id @default(uuid())
+  userId  String  @unique @map("user_id")
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance Decimal @default(0) @db.Decimal(18, 2) // Can be negative
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+  @@index([userId])
+  @@index([balance]) // To find negative balances for admin warning
+}
+
+model WalletTransaction {
+  id       String @id @default(uuid())
+  walletId String @map("wallet_id")
+  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  // Transaction details
+  type        WalletTransactionType
+  amount      Decimal               @db.Decimal(18, 2) // Positive or negative
+  balanceBefore Decimal             @map("balance_before") @db.Decimal(18, 2)
+  balanceAfter  Decimal             @map("balance_after") @db.Decimal(18, 2)
+
+  // References (optional, depends on transaction type)
+  orderId      String? @map("order_id")
+  commissionId String? @map("commission_id")
+  withdrawalId String? @map("withdrawal_id")
+
+  description String?
+  metadata    Json? // Additional data if needed
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("wallet_transactions")
+  @@index([walletId])
+  @@index([type])
+  @@index([orderId])
+  @@index([commissionId])
+  @@index([withdrawalId])
+  @@index([createdAt])
+}
+
+enum WalletTransactionType {
+  COMMISSION_EARNED // +money when order completed
+  COMMISSION_REFUND // -money when order cancelled
+  WITHDRAWAL        // -money when withdrawal completed
+  ADMIN_ADJUSTMENT  // Manual adjustment by admin (+ or -)
+  ORDER_REFUND      // +money when paid order cancelled
+}
+
+// ============================================
+// SYSTEM SETTINGS
+// ============================================
+
+model SystemSetting {
+  id    String @id @default(uuid())
+  key   String @unique // e.g., "default_quota_limit", "shipping_fee", "min_withdrawal_amount"
+  value String @db.Text // JSON string for complex values
+  type  String @default("STRING") // STRING, NUMBER, BOOLEAN, JSON, EMAIL_TEMPLATE
+  
+  category    String  @default("GENERAL") // GENERAL, COMMISSION, EMAIL, BANK, SHIPPING
+  label       String // Human-readable label
+  description String? @db.Text
+  
+  // Validation
+  required Boolean @default(false)
+  editable Boolean @default(true)
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("system_settings")
+  @@index([category])
+  @@index([key])
+}
+
+// ============================================
+// NOTIFICATION SYSTEM
+// ============================================
+
+model Notification {
+  id     String @id @default(uuid())
+  
+  // User receiving notification
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Content
+  type    NotificationType
+  title   String
+  message String           @db.Text
+  
+  // Action link (optional)
+  actionUrl  String? @map("action_url")
+  actionText String? @map("action_text")
+  
+  // Metadata (optional JSON for additional data)
+  metadata Json?
+  
+  // Status
+  read   Boolean   @default(false)
+  readAt DateTime? @map("read_at")
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@map("notifications")
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@index([type])
+}
+
+enum NotificationType {
+  ORDER_CREATED        // Đơn hàng mới được tạo
+  ORDER_CONFIRMED      // Đơn hàng được xác nhận
+  ORDER_SHIPPED        // Đơn hàng đang giao
+  ORDER_DELIVERED      // Đơn hàng đã giao
+  ORDER_CANCELLED      // Đơn hàng bị hủy
+  
+  COMMISSION_EARNED    // Nhận được hoa hồng
+  COMMISSION_PAID      // Hoa hồng được thanh toán
+  
+  WITHDRAWAL_REQUESTED // Yêu cầu rút tiền mới
+  WITHDRAWAL_APPROVED  // Yêu cầu rút tiền được duyệt
+  WITHDRAWAL_REJECTED  // Yêu cầu rút tiền bị từ chối
+  WITHDRAWAL_COMPLETED // Rút tiền thành công
+  
+  NEW_DOWNLINE         // Có F1 mới
+  ACCOUNT_LOCKED       // Tài khoản bị khóa
+  ACCOUNT_UNLOCKED     // Tài khoản được mở khóa
+  
+  SYSTEM_ANNOUNCEMENT  // Thông báo hệ thống
+  PROMOTION            // Khuyến mãi
+  
+  PAYMENT_RECEIVED     // Nhận được thanh toán
+  PAYMENT_CONFIRMED    // Thanh toán được xác nhận
+}
+
+// ============================================
+// PAYMENT & BANK TRANSACTIONS
+// ============================================
+
+model BankTransaction {
+  id String @id @default(uuid())
+  
+  // SePay transaction info
+  sepayTransactionId Int?    @unique @map("sepay_transaction_id")
+  gateway            String  // VCB, ACB, BIDV, etc.
+  transactionDate    DateTime @map("transaction_date")
+  
+  // Bank account info
+  accountNumber String  @map("account_number")
+  subAccount    String? @map("sub_account")
+  
+  // Amount info
+  amountIn    Decimal @map("amount_in") @db.Decimal(18, 2)
+  amountOut   Decimal @map("amount_out") @db.Decimal(18, 2)
+  accumulated Decimal @map("accumulated") @db.Decimal(18, 2)
+  
+  // Transaction details
+  code               String? @db.Text
+  transactionContent String  @map("transaction_content") @db.Text
+  referenceNumber    String? @map("reference_number")
+  body               String? @db.Text // Raw webhook data
+  
+  // Link to order (optional)
+  orderId String? @map("order_id")
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  
+  // Processing status
+  processed   Boolean   @default(false)
+  processedAt DateTime? @map("processed_at")
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("bank_transactions")
+  @@index([orderId])
+  @@index([gateway])
+  @@index([accountNumber])
+  @@index([transactionDate])
+  @@index([processed])
+  @@index([transactionContent(length: 191)])
 }

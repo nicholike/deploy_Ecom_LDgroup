@@ -12,7 +12,7 @@ export class GetUserHandler {
 
   async execute(query: GetUserQuery): Promise<User> {
     const user = await this.userRepository.findById(query.userId);
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }

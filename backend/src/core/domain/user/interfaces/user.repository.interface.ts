@@ -2,6 +2,18 @@ import { User } from '../entities/user.entity';
 import { UserRole, UserStatus } from '@shared/constants/user-roles.constant';
 import { PaginatedResult, PaginationParams } from '@shared/common/pagination.interface';
 
+export interface UserTreeNode {
+  user: User;
+  children: UserTreeNode[];
+}
+
+export interface GetUserTreeOptions {
+  rootId?: string;
+  role?: UserRole;
+  status?: UserStatus;
+  maxDepth?: number;
+}
+
 export interface FindUserOptions extends PaginationParams {
   role?: UserRole;
   status?: UserStatus;
@@ -66,7 +78,17 @@ export interface IUserRepository {
   usernameExists(username: string): Promise<boolean>;
 
   /**
+   * Check if phone number exists
+   */
+  phoneExists(phone: string): Promise<boolean>;
+
+  /**
    * Check if referral code exists
    */
   referralCodeExists(code: string): Promise<boolean>;
+
+  /**
+   * Build an MLM tree using the closure table data
+   */
+  getTree(options?: GetUserTreeOptions): Promise<UserTreeNode[]>;
 }

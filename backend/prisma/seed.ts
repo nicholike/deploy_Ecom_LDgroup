@@ -30,11 +30,13 @@ async function main() {
   console.log('✅ Created admin user:', admin.email);
 
   // Create Commission Configs
+  // Level 1 = Upline trực tiếp: 10%
+  // Level 2 = Upline cấp 2: 4%
+  // Level 3 = Upline cấp 3: 2%
   const commissionConfigs = [
     { level: 1, commissionRate: 10.0 },
-    { level: 2, commissionRate: 7.0 },
-    { level: 3, commissionRate: 5.0 },
-    { level: 4, commissionRate: 3.0 },
+    { level: 2, commissionRate: 4.0 },
+    { level: 3, commissionRate: 2.0 },
   ];
 
   for (const config of commissionConfigs) {

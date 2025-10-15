@@ -1,4 +1,10 @@
-import { Injectable, Inject, ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  ConflictException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { CreateUserCommand } from './create-user.command';
 import { User } from '@core/domain/user/entities/user.entity';
 import { Email } from '@core/domain/user/value-objects/email.vo';
@@ -16,17 +22,16 @@ export class CreateUserHandler {
   ) {}
 
   async execute(command: CreateUserCommand): Promise<User> {
-    // 1. Validate sponsor exists and has permission to create this role
+    // 1. Validate sponsor exists
+    // Note: Sponsor is the referrer in MLM hierarchy, not necessarily the creator
+    // Only ADMIN can create users (enforced by controller guard)
     const sponsor = await this.userRepository.findById(command.sponsorId);
     if (!sponsor) {
       throw new NotFoundException('Sponsor not found');
     }
 
-    if (!sponsor.canCreateRole(command.role)) {
-      throw new ForbiddenException(
-        `${sponsor.role} cannot create users with role ${command.role}`,
-      );
-    }
+    // No need to check sponsor's permission to create role
+    // because only ADMIN (who is creating) has permission to create all roles
 
     // 2. Check email uniqueness
     const emailExists = await this.userRepository.emailExists(command.email);
@@ -42,7 +47,10 @@ export class CreateUserHandler {
 
     // 4. Check phone uniqueness (if provided)
     if (command.phone) {
-      // TODO: Implement phone check if needed
+      const phoneExists = await this.userRepository.phoneExists(command.phone);
+      if (phoneExists) {
+        throw new ConflictException('Phone number already exists');
+      }
     }
 
     // 5. Hash password
@@ -51,7 +59,7 @@ export class CreateUserHandler {
     // 6. Generate unique referral code
     let referralCode: string;
     let codeExists = true;
-    
+
     do {
       referralCode = CryptoUtil.generateReferralCode(command.role.substring(0, 2));
       codeExists = await this.userRepository.referralCodeExists(referralCode);
@@ -70,6 +78,8 @@ export class CreateUserHandler {
       referralCode: ReferralCode.create(referralCode),
       status: UserStatus.ACTIVE,
       emailVerified: false,
+      quotaLimit: 300,
+      quotaUsed: 0,
     });
 
     // 8. Save user

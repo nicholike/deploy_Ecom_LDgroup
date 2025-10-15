@@ -1,0 +1,890 @@
+/* ===================================
+   RESET & BASE
+   =================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ===================================
+   TREE CONTAINER
+   =================================== */
+
+.tree {
+  width: 100%;
+  padding: 60px 40px;
+  overflow: visible;
+  background: transparent;
+  border-radius: 0;
+  min-height: auto;
+  border: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dark .tree {
+  background: transparent;
+}
+
+/* Tree with centered root node */
+.tree-centered > ul {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tree-centered > ul > li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0 !important;
+}
+
+/* Root node không có connector lines */
+.tree-centered > ul > li::before,
+.tree-centered > ul > li::after {
+  display: none !important;
+}
+
+/* ===================================
+   TREE STRUCTURE
+   =================================== */
+
+.tree ul {
+  position: relative;
+  padding-top: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0;
+  list-style: none;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
+  flex-wrap: nowrap;
+}
+
+.tree > ul {
+  padding-top: 0;
+}
+
+.tree li {
+  position: relative;
+  padding: 30px 8px 0 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Transform origin tại điểm kết nối với parent - nơi nhánh mọc ra */
+  transform-origin: top center;
+  /* Smooth organic transition cho node movement */
+  transition: 
+    all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: visible;
+  /* Đảm bảo tất cả li cùng level align top để căn đều */
+  align-self: flex-start;
+  /* Animation cho node - fade in nhẹ nhàng */
+  animation: nodeAppear 0.6s ease-out backwards;
+}
+
+/* Keyframe cho node - FADE IN nhẹ nhàng */
+@keyframes nodeAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Stagger animation - TOÀN BỘ fade in CÙNG LÚC */
+
+/* Child 1: Tất cả fade in cùng lúc */
+.tree-children > li:nth-child(1),
+.tree-children > li:nth-child(1)::before,
+.tree-children > li:nth-child(1)::after {
+  animation-delay: 0.05s;
+}
+
+/* Child 2 */
+.tree-children > li:nth-child(2),
+.tree-children > li:nth-child(2)::before,
+.tree-children > li:nth-child(2)::after {
+  animation-delay: 0.12s;
+}
+
+/* Child 3 */
+.tree-children > li:nth-child(3),
+.tree-children > li:nth-child(3)::before,
+.tree-children > li:nth-child(3)::after {
+  animation-delay: 0.19s;
+}
+
+/* Child 4 */
+.tree-children > li:nth-child(4),
+.tree-children > li:nth-child(4)::before,
+.tree-children > li:nth-child(4)::after {
+  animation-delay: 0.26s;
+}
+
+/* Child 5 */
+.tree-children > li:nth-child(5),
+.tree-children > li:nth-child(5)::before,
+.tree-children > li:nth-child(5)::after {
+  animation-delay: 0.33s;
+}
+
+/* Child 6+ */
+.tree-children > li:nth-child(n+6),
+.tree-children > li:nth-child(n+6)::before,
+.tree-children > li:nth-child(n+6)::after {
+  animation-delay: 0.4s;
+}
+
+.tree li:only-child {
+  padding-top: 0;
+}
+
+/* ===================================
+   CONNECTOR LINES - Elegant Style
+   =================================== */
+
+.tree li::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 30px;
+  border-top: 2px solid #000000;
+  /* Transform origin để grow từ center (parent) ra ngoài */
+  transform-origin: right center;
+  /* Line fade in nhẹ nhàng - 0.6s đồng bộ với boxes */
+  transition: 
+    opacity 0.6s ease-out,
+    transform 0.5s ease-out;
+  animation: lineGrow 0.6s ease-out backwards;
+}
+
+.dark .tree li::before {
+  border-top-color: #ffffff;
+}
+
+.tree li::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 30px;
+  border-top: 2px solid #000000;
+  border-left: 2px solid #000000;
+  /* Transform origin để grow từ center (parent) ra ngoài */
+  transform-origin: left center;
+  /* Line fade in nhẹ nhàng - 0.6s đồng bộ với boxes */
+  transition: 
+    opacity 0.6s ease-out,
+    transform 0.5s ease-out;
+  animation: lineGrow 0.6s ease-out backwards;
+}
+
+.dark .tree li::after {
+  border-top-color: #ffffff;
+  border-left-color: #ffffff;
+}
+
+/* Animation cho connector lines - FADE IN nhẹ nhàng */
+@keyframes lineGrow {
+  0% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+.tree li:only-child::before,
+.tree li:only-child::after {
+  display: none;
+}
+
+.tree li:first-child::before {
+  border: none;
+}
+
+.tree li:first-child::after {
+  border-radius: 8px 0 0 0;
+}
+
+.tree li:last-child::after {
+  border: none;
+}
+
+.tree li:last-child::before {
+  border-right: 2px solid #000000;
+  border-radius: 0 8px 0 0;
+}
+
+.dark .tree li:last-child::before {
+  border-right-color: #ffffff;
+}
+
+.tree ul ul::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 30px;
+  border-left: 2px solid #000000;
+  /* Transform origin tại top - mọc từ parent xuống */
+  transform-origin: top center;
+  /* Vertical line fade in nhẹ nhàng - 0.5s */
+  transition: 
+    opacity 0.5s ease-out,
+    transform 0.5s ease-out;
+  /* Vertical line fade in */
+  animation: verticalLineGrow 0.5s ease-out backwards;
+}
+
+.dark .tree ul ul::before {
+  border-left-color: #ffffff;
+}
+
+/* Animation cho vertical connector - FADE IN nhẹ nhàng */
+@keyframes verticalLineGrow {
+  0% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+/* Ẩn connector line từ parent xuống children khi collapsed */
+.tree-node-collapsed > ul::before {
+  display: none;
+}
+
+/* ===================================
+   NODE CARD - Professional Design
+   =================================== */
+
+.node-card-wrapper {
+  position: relative;
+  display: block;
+  overflow: visible;
+  z-index: 1;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
+.node-card-wrapper:hover {
+  z-index: 99999;
+  isolation: isolate;
+}
+
+.node-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 180px;
+  height: 110px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  /* Smooth organic bounce transition */
+  transition: 
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease-out,
+    border-color 0.3s ease-out;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.node-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+  border-color: #000000;
+}
+
+/* Active state khi click */
+.node-card:active {
+  transform: translateY(-1px) scale(0.98);
+  transition-duration: 0.1s;
+}
+
+.dark .node-card {
+  background: #1a1a1a;
+  border-color: #333333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.dark .node-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+  border-color: #ffffff;
+}
+
+.dark .node-card:active {
+  transform: translateY(-1px) scale(0.98);
+  transition-duration: 0.1s;
+}
+
+/* ===================================
+   NODE CONTENT
+   =================================== */
+
+.node-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  flex-shrink: 0;
+  min-height: 20px;
+  line-height: 1.4;
+}
+
+.dark .node-username {
+  color: #ffffff;
+}
+
+/* ===================================
+   ROLE BADGES
+   =================================== */
+
+.role-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.role-admin {
+  background: #000000;
+  color: white;
+}
+
+.dark .role-admin {
+  background: #ffffff;
+  color: #000000;
+}
+
+.role-distributor {
+  background: #4b5563;
+  color: white;
+}
+
+.dark .role-distributor {
+  background: #d1d5db;
+  color: #000000;
+}
+
+.role-customer {
+  background: #6b7280;
+  color: white;
+}
+
+.dark .role-customer {
+  background: #9ca3af;
+  color: #000000;
+}
+
+.role-default {
+  background: #9ca3af;
+  color: white;
+}
+
+.dark .role-default {
+  background: #6b7280;
+  color: white;
+}
+
+/* ===================================
+   NODE FOOTER
+   =================================== */
+
+.node-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  margin-top: auto;
+}
+
+.dark .node-footer {
+  background: #2a2a2a;
+}
+
+.children-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666666;
+}
+
+.dark .children-info {
+  color: #cccccc;
+}
+
+.footer-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.expand-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: #e0e0e0;
+  color: #000000;
+  cursor: pointer;
+  /* Smooth bounce transition */
+  transition: 
+    background 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 0.3s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+
+.expand-btn:hover {
+  background: #000000;
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.expand-btn:active {
+  transform: scale(0.95);
+  transition-duration: 0.1s;
+}
+
+.dark .expand-btn {
+  background: #404040;
+  color: #ffffff;
+}
+
+.dark .expand-btn:hover {
+  background: #ffffff;
+  color: #000000;
+  transform: scale(1.1);
+}
+
+.expand-icon {
+  width: 14px;
+  height: 14px;
+  /* Smooth rotation với bounce effect */
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+/* ===================================
+   TOOLTIP - Portal (Always on top)
+   =================================== */
+
+.node-tooltip-portal {
+  background: #000000;
+  color: white;
+  padding: 0;
+  border-radius: 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  min-width: 280px;
+  pointer-events: none;
+  border: 2px solid #000000;
+  animation: tooltipFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .node-tooltip-portal {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+.node-tooltip-portal::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: #000000;
+}
+
+.dark .node-tooltip-portal::after {
+  border-top-color: #ffffff;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -90%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+}
+
+.tooltip-content {
+  padding: 16px;
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .tooltip-header {
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+
+.tooltip-header strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tooltip-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+}
+
+/* Sub-item cho breakdown theo nhóm F */
+.tooltip-sub-item {
+  padding-left: 12px;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+/* Divider trong tooltip */
+.tooltip-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 8px 0;
+}
+
+.dark .tooltip-divider {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.tooltip-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.dark .tooltip-label {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.tooltip-value {
+  color: white;
+  font-weight: 600;
+  text-align: right;
+}
+
+.dark .tooltip-value {
+  color: #000000;
+}
+
+/* ===================================
+   CHILDREN LIST - Organic Tree Branch Animation
+   MỌC RA TỪ NHÁNH CHA
+   =================================== */
+
+.tree-children {
+  overflow: visible;
+  /* Transform origin tại điểm kết nối với parent */
+  transform-origin: top center;
+  /* Smooth organic transition - MỌC RA từ parent */
+  transition: 
+    max-height 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.1s,
+    transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-height: 10000px;
+  opacity: 1;
+  /* Mọc ra từ vị trí parent - scale từ 0 lên 1 */
+  transform: translateY(0) scale(1);
+}
+
+/* Collapsed state - THU VÀO NHÁNH CHA */
+.tree-children-collapsed {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  /* Thu vào parent - scale về 0 và di chuyển lên */
+  transform: translateY(-30px) scale(0.1) !important;
+  transition: 
+    max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.05s,
+    opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.6s cubic-bezier(0.6, 0, 0.2, 1) !important;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ===================================
+   COLLAPSED NODE BEHAVIOR - THU VÀO
+   =================================== */
+
+/* Node collapsed - Quay về vị trí đẹp, căn đều với siblings */
+.tree-node-collapsed {
+  /* Flexbox sẽ tự động căn đều */
+  flex-shrink: 1;
+}
+
+/* Node collapsed - children ẩn hoàn toàn */
+.tree-node-collapsed > .tree-children {
+  display: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Khi collapse - TOÀN BỘ fade out theo THỨ TỰ NGƯỢC LẠI */
+
+/* Child 1: Biến cuối cùng */
+.tree-children-collapsed > li:nth-child(1),
+.tree-children-collapsed > li:nth-child(1)::before,
+.tree-children-collapsed > li:nth-child(1)::after {
+  transition: 
+    opacity 0.5s ease-out 0.25s !important,
+    transform 0.5s ease-out 0.25s !important;
+}
+
+/* Child 2: Biến trước child 1 */
+.tree-children-collapsed > li:nth-child(2),
+.tree-children-collapsed > li:nth-child(2)::before,
+.tree-children-collapsed > li:nth-child(2)::after {
+  transition: 
+    opacity 0.5s ease-out 0.18s !important,
+    transform 0.5s ease-out 0.18s !important;
+}
+
+/* Child 3: Biến trước child 2 */
+.tree-children-collapsed > li:nth-child(3),
+.tree-children-collapsed > li:nth-child(3)::before,
+.tree-children-collapsed > li:nth-child(3)::after {
+  transition: 
+    opacity 0.5s ease-out 0.11s !important,
+    transform 0.5s ease-out 0.11s !important;
+}
+
+/* Child 4: Biến trước child 3 */
+.tree-children-collapsed > li:nth-child(4),
+.tree-children-collapsed > li:nth-child(4)::before,
+.tree-children-collapsed > li:nth-child(4)::after {
+  transition: 
+    opacity 0.5s ease-out 0.04s !important,
+    transform 0.5s ease-out 0.04s !important;
+}
+
+/* Child 5+: Biến đầu tiên */
+.tree-children-collapsed > li:nth-child(n+5),
+.tree-children-collapsed > li:nth-child(n+5)::before,
+.tree-children-collapsed > li:nth-child(n+5)::after {
+  transition: 
+    opacity 0.5s ease-out 0s !important,
+    transform 0.5s ease-out 0s !important;
+}
+
+/* ===================================
+   EMPTY STATE
+   =================================== */
+
+.mlm-tree-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 20px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.dark .mlm-tree-empty {
+  color: #9ca3af;
+}
+
+.empty-icon {
+  width: 64px;
+  height: 64px;
+  opacity: 0.4;
+}
+
+/* ===================================
+   SCROLLBAR STYLING
+   =================================== */
+
+.tree::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.tree::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 5px;
+}
+
+.dark .tree::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.tree::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.dark .tree::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.tree::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+  background-clip: padding-box;
+}
+
+.dark .tree::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* ===================================
+   RESPONSIVE DESIGN
+   =================================== */
+
+@media (max-width: 1024px) {
+  .tree {
+    padding: 30px 15px;
+  }
+
+  .tree li {
+    padding: 25px 6px 0 6px;
+  }
+
+  .node-card {
+    width: 170px;
+    height: 105px;
+    padding: 14px 16px;
+    gap: 7px;
+  }
+
+  .node-username {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .tree {
+    padding: 20px 10px;
+  }
+
+  .tree li {
+    padding: 20px 4px 0 4px;
+  }
+
+  .node-card {
+    width: 160px;
+    height: 100px;
+    padding: 12px 14px;
+    gap: 6px;
+  }
+
+  .node-username {
+    font-size: 13px;
+  }
+
+  .role-tag {
+    font-size: 9px;
+    padding: 4px 12px;
+  }
+
+  .children-info {
+    font-size: 10px;
+  }
+
+  .node-footer {
+    padding: 6px 8px;
+  }
+
+  .node-tooltip {
+    min-width: 240px;
+  }
+}
+
+@media (max-width: 480px) {
+  .node-card {
+    width: 150px;
+    height: 95px;
+    padding: 10px 12px;
+  }
+
+  .node-username {
+    font-size: 12px;
+  }
+
+  .node-tooltip {
+    min-width: 200px;
+    font-size: 12px;
+  }
+}

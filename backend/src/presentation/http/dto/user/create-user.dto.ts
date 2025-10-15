@@ -20,7 +20,7 @@ export class CreateUserDto {
   })
   password: string;
 
-  @ApiProperty({ enum: UserRole, example: UserRole.CUSTOMER })
+  @ApiProperty({ enum: UserRole, example: UserRole.F1 })
   @IsEnum(UserRole, { message: 'Invalid user role' })
   role: UserRole;
 
@@ -41,6 +41,6 @@ export class CreateUserDto {
   @ApiPropertyOptional({ example: '+84901234567' })
   @IsOptional()
   @IsString()
-  @Matches(/^\+?[1-9]\d{1,14}$/, { message: 'Invalid phone number format' })
+  @Matches(/^\+?\d{9,15}$/, { message: 'Invalid phone number format' })
   phone?: string;
 }

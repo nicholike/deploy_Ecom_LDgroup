@@ -1,0 +1,406 @@
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma.service';
+import { OrderStatus, PaymentStatus, Prisma, CommissionStatus } from '@prisma/client';
+import { CommissionService } from '@infrastructure/services/commission/commission.service';
+
+const ALLOWED_STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+  [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+  [OrderStatus.SHIPPED]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+  [OrderStatus.DELIVERED]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+  [OrderStatus.COMPLETED]: [OrderStatus.CANCELLED],
+  [OrderStatus.CANCELLED]: [OrderStatus.REFUNDED],
+  [OrderStatus.REFUNDED]: [],
+};
+
+export interface CreateOrderInput {
+  userId: string;
+  items: Array<{
+    productId: string;
+    productVariantId?: string;
+    quantity: number;
+    price: number;
+  }>;
+  subtotal: number;
+  shippingFee?: number;
+  tax?: number;
+  discount?: number;
+  totalAmount: number;
+  shippingAddress?: any;
+  shippingMethod?: string;
+  paymentMethod?: string;
+  customerNote?: string;
+}
+
+@Injectable()
+export class OrderRepository {
+  private readonly logger = new Logger(OrderRepository.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private commissionService: CommissionService,
+  ) {}
+
+  async create(data: CreateOrderInput) {
+    const orderNumber = await this.generateOrderNumber();
+
+    const itemRows = data.items.map((item) => {
+      const priceDecimal = new Prisma.Decimal(item.price);
+      const subtotalDecimal = priceDecimal.mul(item.quantity);
+      return {
+        productId: item.productId,
+        productVariantId: item.productVariantId,
+        variantSize: item.productVariantId ? undefined : null,
+        quantity: item.quantity,
+        price: priceDecimal,
+        subtotal: subtotalDecimal,
+      };
+    });
+
+    const subtotalDecimal = itemRows.reduce(
+      (acc, item) => acc.plus(item.subtotal),
+      new Prisma.Decimal(0),
+    );
+    const shippingFeeDecimal = new Prisma.Decimal(data.shippingFee ?? 0);
+    const taxDecimal = new Prisma.Decimal(data.tax ?? 0);
+    const discountDecimal = new Prisma.Decimal(data.discount ?? 0);
+    const totalAmountDecimal =
+      data.totalAmount !== undefined
+        ? new Prisma.Decimal(data.totalAmount)
+        : subtotalDecimal.plus(shippingFeeDecimal).plus(taxDecimal).minus(discountDecimal);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[OrderRepository] Creating order', {
+        orderNumber,
+        userId: data.userId,
+        itemCount: itemRows.length,
+        subtotal: subtotalDecimal.toString(),
+        shippingFee: shippingFeeDecimal.toString(),
+        tax: taxDecimal.toString(),
+        discount: discountDecimal.toString(),
+        totalAmount: totalAmountDecimal.toString(),
+        items: itemRows.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price.toString(),
+          subtotal: item.subtotal.toString(),
+        })),
+      });
+    }
+
+    return this.prisma.order.create({
+      data: {
+        orderNumber,
+        userId: data.userId,
+        subtotal: subtotalDecimal,
+        shippingFee: shippingFeeDecimal,
+        tax: taxDecimal,
+        discount: discountDecimal,
+        totalAmount: totalAmountDecimal,
+        shippingAddress: data.shippingAddress,
+        shippingMethod: data.shippingMethod,
+        paymentMethod: data.paymentMethod,
+        customerNote: data.customerNote,
+        status: OrderStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        items: {
+          create: itemRows,
+        },
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+            productVariant: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            sponsorId: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findById(id: string) {
+    return this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            product: true,
+            productVariant: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            sponsorId: true,
+            sponsor: {
+              select: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findByOrderNumber(orderNumber: string) {
+    return this.prisma.order.findUnique({
+      where: { orderNumber },
+      include: {
+        items: {
+          include: {
+            product: true,
+            productVariant: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            sponsorId: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findByUserId(userId: string, skip = 0, take = 10) {
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { userId },
+        include: {
+          items: {
+            include: {
+              product: true,
+              productVariant: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.order.count({ where: { userId } }),
+    ]);
+
+    return { data: orders, total };
+  }
+
+  async findAll(skip = 0, take = 10, status?: OrderStatus) {
+    const where = status ? { status } : {};
+
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        include: {
+          items: {
+            include: {
+              product: true,
+              productVariant: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+              sponsorId: true,
+              sponsor: {
+                select: {
+                  id: true,
+                  username: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return { data: orders, total };
+  }
+
+  async updateStatus(id: string, status: OrderStatus) {
+    // Get current order to check previous status
+    const currentOrder = await this.prisma.order.findUnique({
+      where: { id },
+      select: { status: true, userId: true, totalAmount: true },
+    });
+
+    if (!currentOrder) {
+      throw new Error(`Order ${id} not found`);
+    }
+
+    const oldStatus = currentOrder.status;
+
+    if (status === oldStatus) {
+      this.logger.log(`Order ${id} already in status ${status}. No update performed.`);
+      return this.findById(id);
+    }
+
+    // Allow free status transitions per business requirement; admin can correct mistakes.
+
+    this.logger.log(`Updating order ${id} status: ${oldStatus} → ${status}`);
+
+    const updateData: any = { status };
+
+    if (status === OrderStatus.COMPLETED) {
+      updateData.completedAt = new Date();
+    } else if (status === OrderStatus.CANCELLED) {
+      updateData.cancelledAt = new Date();
+    }
+
+    let shouldCalculateCommission = false;
+
+    if (status === OrderStatus.COMPLETED && oldStatus !== OrderStatus.COMPLETED) {
+      const existingActiveCommissions = await this.prisma.commission.count({
+        where: {
+          orderId: id,
+          status: { not: CommissionStatus.CANCELLED },
+        },
+      });
+
+      if (existingActiveCommissions > 0) {
+        this.logger.warn(
+          `Order ${id} đã có ${existingActiveCommissions} hoa hồng được ghi nhận trước đó. Bỏ qua bước tính lại hoa hồng.`,
+        );
+      } else {
+        shouldCalculateCommission = true;
+      }
+    }
+
+    const updatedOrder = await this.prisma.order.update({
+      where: { id },
+      data: updateData,
+      include: {
+        items: {
+          include: {
+            product: true,
+            productVariant: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            sponsorId: true,
+          },
+        },
+      },
+    });
+
+    // COMMISSION LOGIC: Handle commission calculation/refund based on status change
+    try {
+      // Case 1: Order COMPLETED → Calculate and distribute commissions
+      if (shouldCalculateCommission) {
+        this.logger.log(`Order ${id} completed. Calculating commissions...`);
+        await this.commissionService.calculateCommissionsForOrder(
+          id,
+          currentOrder.userId,
+          Number(currentOrder.totalAmount),
+        );
+        this.logger.log(`Commissions calculated for order ${id}`);
+      }
+
+      // Case 2: Order moved FROM COMPLETED to ANY other status → Refund commissions
+      if (oldStatus === OrderStatus.COMPLETED && status !== OrderStatus.COMPLETED) {
+        this.logger.log(`Order ${id} changed from COMPLETED to ${status}. Refunding commissions...`);
+        await this.commissionService.refundCommissionsForOrder(id);
+        this.logger.log(`Commissions refunded for order ${id}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to process commissions for order ${id}:`, error);
+      // Don't throw error - order status update should succeed even if commission processing fails
+      // Admin can manually adjust later if needed
+    }
+
+    return updatedOrder;
+  }
+
+  async updatePaymentStatus(id: string, paymentStatus: PaymentStatus) {
+    const updateData: any = { paymentStatus };
+
+    if (paymentStatus === PaymentStatus.COMPLETED) {
+      updateData.paidAt = new Date();
+    }
+
+    return this.prisma.order.update({
+      where: { id },
+      data: updateData,
+      include: {
+        items: {
+          include: {
+            product: true,
+            productVariant: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            sponsorId: true,
+          },
+        },
+      },
+    });
+  }
+
+  private async generateOrderNumber(): Promise<string> {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+
+    const count = await this.prisma.order.count({
+      where: {
+        createdAt: {
+          gte: new Date(date.setHours(0, 0, 0, 0)),
+        },
+      },
+    });
+
+    const sequence = (count + 1).toString().padStart(5, '0');
+    return `LD${year}${month}${day}${sequence}`;
+  }
+}

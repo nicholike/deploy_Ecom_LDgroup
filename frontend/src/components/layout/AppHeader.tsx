@@ -1,7 +1,5 @@
-'use client';
-
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { useSidebar } from "../../context/SidebarContext";
 import { ThemeToggleButton } from "../common/ThemeToggleButton";
 import NotificationDropdown from "../header/NotificationDropdown";
@@ -86,14 +84,9 @@ const AppHeader: React.FC = () => {
 
           <Link href="/dashboard" className="lg:hidden">
             <img
-              className="dark:hidden"
-              src="/images/logo/logo.svg"
-              alt="Logo"
-            />
-            <img
-              className="hidden dark:block"
-              src="/images/logo/logo-dark.svg"
-              alt="Logo"
+              src="/LOGO_LD%20PERFUME%20OIL%20LUXURY%20(4)_NA%CC%82U%201.svg"
+              alt="LD Perfume Oil Luxury Logo"
+              className="w-auto h-auto max-w-[120px] max-h-8 object-contain"
             />
           </Link>
 

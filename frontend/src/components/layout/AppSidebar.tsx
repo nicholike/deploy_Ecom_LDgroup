@@ -1,21 +1,19 @@
-'use client';
-
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocation } from "react-router-dom";
 
 // Import icons
 import {
-  BoxCubeIcon,
+  BoxIcon,
   CalenderIcon,
   ChevronDownIcon,
+  DollarLineIcon,
   GridIcon,
+  GroupIcon,
   HorizontaLDots,
   ListIcon,
-  PageIcon,
-  PieChartIcon,
+  MailIcon,
   PlugInIcon,
-  TableIcon,
+  TaskIcon,
   UserCircleIcon,
 } from "../../icons";
 import { useSidebar } from "../../context/SidebarContext";
@@ -31,64 +29,70 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/dashboard", pro: false }],
+    path: "/admin/dashboard",
   },
   {
-    icon: <CalenderIcon />,
-    name: "Calendar",
-    path: "/dashboard/calendar",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/dashboard/profile",
-  },
-  {
-    name: "Forms",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/dashboard/form-elements", pro: false }],
-  },
-  {
-    name: "Tables",
-    icon: <TableIcon />,
-    subItems: [{ name: "Basic Tables", path: "/dashboard/basic-tables", pro: false }],
-  },
-  {
-    name: "Pages",
-    icon: <PageIcon />,
+    icon: <BoxIcon />,
+    name: "Sản phẩm",
     subItems: [
-      { name: "Blank Page", path: "/dashboard/blank", pro: false },
-      { name: "404 Error", path: "/dashboard/error-404", pro: false },
+      { name: "Danh sách", path: "/admin/products/list", pro: false },
+      { name: "Thêm mới", path: "/admin/products/add", pro: false },
+      { name: "Danh mục", path: "/admin/products/categories", pro: false },
     ],
+  },
+  {
+    icon: <TaskIcon />,
+    name: "Đơn hàng",
+    path: "/admin/orders",
+  },
+  {
+    icon: <GroupIcon />,
+    name: "Người dùng",
+    path: "/admin/users",
+  },
+  {
+    name: "Tài khoản",
+    icon: <ListIcon />,
+    subItems: [
+      { name: "Tạo tài khoản", path: "/admin/account/create-user", pro: false },
+      { name: "Đổi mật khẩu", path: "/admin/account/change-password", pro: false },
+      { name: "Cây MLM", path: "/admin/account/mlm-tree", pro: false },
+    ],
+  },
+  {
+    icon: <DollarLineIcon />,
+    name: "Hoa hồng",
+    path: "/admin/commissions",
+  },
+  {
+    icon: <MailIcon />,
+    name: "Rút tiền",
+    path: "/admin/withdrawals",
+  },
+  {
+    icon: <PlugInIcon />,
+    name: "Cài đặt",
+    path: "/admin/settings",
   },
 ];
 
 const othersItems: NavItem[] = [
   {
-    icon: <PieChartIcon />,
-    name: "Charts",
-    subItems: [
-      { name: "Line Chart", path: "/dashboard/line-chart", pro: false },
-      { name: "Bar Chart", path: "/dashboard/bar-chart", pro: false },
-    ],
+    icon: <CalenderIcon />,
+    name: "Lịch",
+    path: "/admin/calendar",
   },
   {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
-    subItems: [
-      { name: "Alerts", path: "/dashboard/alerts", pro: false },
-      { name: "Avatar", path: "/dashboard/avatars", pro: false },
-      { name: "Badge", path: "/dashboard/badge", pro: false },
-      { name: "Buttons", path: "/dashboard/buttons", pro: false },
-      { name: "Images", path: "/dashboard/images", pro: false },
-      { name: "Videos", path: "/dashboard/videos", pro: false },
-    ],
+    icon: <UserCircleIcon />,
+    name: "Hồ sơ",
+    path: "/admin/profile",
   },
 ];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
-  const pathname = usePathname();
+  const location = useLocation();
+  const pathname = location.pathname;
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -194,7 +198,7 @@ const AppSidebar: React.FC = () => {
           ) : (
             nav.path && (
               <Link
-                href={nav.path}
+                to={nav.path}
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -231,7 +235,7 @@ const AppSidebar: React.FC = () => {
                 {nav.subItems.map((subItem) => (
                   <li key={subItem.name}>
                     <Link
-                      href={subItem.path}
+                      to={subItem.path}
                       className={`menu-dropdown-item ${
                         isActive(subItem.path)
                           ? "menu-dropdown-item-active"
@@ -294,7 +298,7 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/dashboard">
+        <Link to="/admin/dashboard">
           {isExpanded || isHovered || isMobileOpen ? (
             <>
               <img
@@ -334,7 +338,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Menu"
+                  "Quản lý"
                 ) : (
                   <HorizontaLDots className="size-6" />
                 )}
@@ -350,7 +354,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
+                  "Khác"
                 ) : (
                   <HorizontaLDots />
                 )}

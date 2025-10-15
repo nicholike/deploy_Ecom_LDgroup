@@ -1,5 +1,10 @@
+import * as crypto from 'crypto';
 import { BaseEntity } from '@shared/common/base.entity';
-import { UserRole, UserStatus } from '@shared/constants/user-roles.constant';
+import {
+  UserRole,
+  UserStatus,
+  ROLE_CREATION_PERMISSIONS,
+} from '@shared/constants/user-roles.constant';
 import { Email } from '../value-objects/email.vo';
 import { ReferralCode } from '../value-objects/referral-code.vo';
 
@@ -17,6 +22,11 @@ export interface UserProps {
   status: UserStatus;
   emailVerified: boolean;
   lastLoginAt?: Date;
+  quotaPeriodStart?: Date;
+  quotaLimit: number;
+  quotaUsed: number;
+  lockedAt?: Date | null;
+  lockedReason?: string | null;
 }
 
 export class User extends BaseEntity {
@@ -33,12 +43,7 @@ export class User extends BaseEntity {
   }
 
   // Factory method to reconstitute from database
-  static fromPersistence(
-    id: string,
-    props: UserProps,
-    createdAt: Date,
-    updatedAt: Date,
-  ): User {
+  static fromPersistence(id: string, props: UserProps, createdAt: Date, updatedAt: Date): User {
     return new User(id, props, createdAt, updatedAt);
   }
 
@@ -102,6 +107,26 @@ export class User extends BaseEntity {
     return this.props.lastLoginAt;
   }
 
+  get quotaPeriodStart(): Date | undefined {
+    return this.props.quotaPeriodStart;
+  }
+
+  get quotaLimit(): number {
+    return this.props.quotaLimit;
+  }
+
+  get quotaUsed(): number {
+    return this.props.quotaUsed;
+  }
+
+  get lockedAt(): Date | null | undefined {
+    return this.props.lockedAt;
+  }
+
+  get lockedReason(): string | null | undefined {
+    return this.props.lockedReason;
+  }
+
   // Business methods
   updateProfile(data: {
     firstName?: string;
@@ -151,14 +176,9 @@ export class User extends BaseEntity {
   }
 
   canCreateRole(targetRole: UserRole): boolean {
-    const permissions = {
-      [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.MANAGER],
-      [UserRole.MANAGER]: [UserRole.DISTRIBUTOR],
-      [UserRole.DISTRIBUTOR]: [UserRole.CUSTOMER],
-      [UserRole.CUSTOMER]: [UserRole.CUSTOMER],
-    };
-
-    return permissions[this.props.role]?.includes(targetRole) || false;
+    // Use centralized role creation permissions
+    // Only ADMIN can create all user types (F1, F2, F3, F4, ...)
+    return ROLE_CREATION_PERMISSIONS[this.props.role]?.includes(targetRole) || false;
   }
 
   isActive(): boolean {
@@ -186,6 +206,9 @@ export class User extends BaseEntity {
       status: this.props.status,
       emailVerified: this.props.emailVerified,
       lastLoginAt: this.props.lastLoginAt,
+      quotaPeriodStart: this.props.quotaPeriodStart,
+      quotaLimit: this.props.quotaLimit,
+      quotaUsed: this.props.quotaUsed,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

@@ -1,7 +1,5 @@
-'use client';
-
 import React from 'react';
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 
 export const Header: React.FC = () => {
   return (
@@ -13,23 +11,23 @@ export const Header: React.FC = () => {
         <ul className="offcanvas__widget">
           <li><span className="icon_search search-switch"></span></li>
           <li>
-            <Link href="#"><span className="icon_heart_alt"></span>
+            <Link to="#"><span className="icon_heart_alt"></span>
               <div className="tip">2</div>
             </Link>
           </li>
           <li>
-            <Link href="#"><span className="icon_bag_alt"></span>
+            <Link to="#"><span className="icon_bag_alt"></span>
               <div className="tip">2</div>
             </Link>
           </li>
         </ul>
         <div className="offcanvas__logo">
-          <Link href="/"><img src="/img/logo.png" alt="Logo" /></Link>
+          <Link to="/"><img src="/img/logo.png" alt="Logo" /></Link>
         </div>
         <div id="mobile-menu-wrap"></div>
         <div className="offcanvas__auth">
-          <Link href="/login">Login</Link>
-          <Link href="/register">Register</Link>
+          <Link to="/login">Login</Link>
+          <Link to="/register">Register</Link>
         </div>
       </div>
 
@@ -39,26 +37,26 @@ export const Header: React.FC = () => {
           <div className="row">
             <div className="col-xl-3 col-lg-2">
               <div className="header__logo">
-                <Link href="/"><img src="/img/logo.png" alt="Logo" /></Link>
+                <Link to="/"><img src="/img/logo.png" alt="Logo" /></Link>
               </div>
             </div>
             <div className="col-xl-6 col-lg-7">
               <nav className="header__menu">
                 <ul>
-                  <li className="active"><Link href="/">Home</Link></li>
-                  <li><Link href="/shop?category=women">Women's</Link></li>
-                  <li><Link href="/shop?category=men">Men's</Link></li>
-                  <li><Link href="/shop">Shop</Link></li>
-                  <li><Link href="#">Pages</Link>
+                  <li className="active"><Link to="/">Home</Link></li>
+                  <li><Link to="/shop?category=women">Women's</Link></li>
+                  <li><Link to="/shop?category=men">Men's</Link></li>
+                  <li><Link to="/shop">Shop</Link></li>
+                  <li><Link to="#">Pages</Link>
                     <ul className="dropdown">
-                      <li><Link href="/product/1">Product Details</Link></li>
-                      <li><Link href="/cart">Shop Cart</Link></li>
-                      <li><Link href="/checkout">Checkout</Link></li>
-                      <li><Link href="/blog/1">Blog Details</Link></li>
+                      <li><Link to="/product/1">Product Details</Link></li>
+                      <li><Link to="/cart">Shop Cart</Link></li>
+                      <li><Link to="/checkout">Checkout</Link></li>
+                      <li><Link to="/blog/1">Blog Details</Link></li>
                     </ul>
                   </li>
-                  <li><Link href="/blog">Blog</Link></li>
-                  <li><Link href="/contact">Contact</Link></li>
+                  <li><Link to="/blog">Blog</Link></li>
+                  <li><Link to="/contact">Contact</Link></li>
                 </ul>
               </nav>
             </div>
@@ -71,12 +69,12 @@ export const Header: React.FC = () => {
                 <ul className="header__right__widget">
                   <li><span className="icon_search search-switch"></span></li>
                   <li>
-                    <Link href="#"><span className="icon_heart_alt"></span>
+                    <Link to="#"><span className="icon_heart_alt"></span>
                       <div className="tip">2</div>
                     </Link>
                   </li>
                   <li>
-                    <Link href="/cart"><span className="icon_bag_alt"></span>
+                    <Link to="/cart"><span className="icon_bag_alt"></span>
                       <div className="tip">2</div>
                     </Link>
                   </li>

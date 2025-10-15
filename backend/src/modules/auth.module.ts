@@ -6,6 +6,7 @@ import { AuthController } from '@presentation/http/controllers/auth.controller';
 import { AuthService } from '@infrastructure/services/auth/auth.service';
 import { JwtStrategy } from '@infrastructure/services/auth/jwt.strategy';
 import { UserModule } from './user.module';
+import { PasswordResetTokenRepository } from '@infrastructure/database/repositories/password-reset-token.repository';
 
 @Module({
   imports: [
@@ -23,7 +24,14 @@ import { UserModule } from './user.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    {
+      provide: 'IPasswordResetTokenRepository',
+      useClass: PasswordResetTokenRepository,
+    },
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

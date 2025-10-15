@@ -3,6 +3,17 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { UserModule } from './modules/user.module';
 import { AuthModule } from './modules/auth.module';
+import { ProductModule } from './modules/product.module';
+import { CategoryModule } from './modules/category.module';
+import { CartModule } from './modules/cart.module';
+import { OrderModule } from './modules/order.module';
+import { CommissionModule } from './modules/commission.module';
+import { WalletModule } from './modules/wallet.module';
+import { UploadModule } from './modules/upload.module';
+import { DashboardModule } from './modules/dashboard.module';
+import { SettingsModule } from './modules/settings.module';
+import { NotificationModule } from './modules/notification.module';
+import { PaymentModule } from './modules/payment.module';
 import { PrismaService } from './infrastructure/database/prisma.service';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
@@ -21,6 +32,17 @@ import jwtConfig from './infrastructure/config/jwt.config';
     // Feature modules
     AuthModule,
     UserModule,
+    ProductModule,
+    CategoryModule,
+    CartModule,
+    OrderModule,
+    WalletModule,
+    CommissionModule,
+    PaymentModule,
+    UploadModule,
+    DashboardModule,
+    SettingsModule,
+    NotificationModule,
   ],
   providers: [
     PrismaService,

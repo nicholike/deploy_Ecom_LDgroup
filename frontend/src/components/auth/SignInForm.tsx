@@ -178,7 +178,7 @@ export default function SignInForm() {
 
             <div className="pt-2">
               <Button 
-                className="w-full bg-[#8b5e1e] hover:bg-[#6d4916] text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] uppercase text-sm" 
+                className="w-full !bg-[#8b5e1e] hover:!bg-[#6d4916] text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] uppercase text-sm" 
                 size="sm" 
                 type="submit" 
                 isLoading={isSubmitting}

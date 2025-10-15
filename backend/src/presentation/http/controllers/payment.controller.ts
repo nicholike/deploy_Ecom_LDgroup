@@ -32,10 +32,26 @@ export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   /**
+   * GET /payment/sepay-webhook
+   * Webhook verification endpoint for SePay
+   * SePay may send GET request first to verify the endpoint is accessible
+   */
+  @Public()
+  @Get('sepay-webhook')
+  @HttpCode(HttpStatus.OK)
+  async verifySepayWebhook() {
+    return {
+      success: true,
+      message: 'Webhook endpoint is ready',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
    * POST /payment/sepay-webhook
    * Webhook endpoint to receive payment notifications from SePay
    * Reference: https://sepay.vn/lap-trinh-cong-thanh-toan.html
-   * 
+   *
    * This endpoint is PUBLIC (no authentication required)
    * SePay will send POST request with transaction data
    */

@@ -22,7 +22,6 @@ import { CartRepository } from '@infrastructure/database/repositories/cart.repos
 import { UserRepository } from '@infrastructure/database/repositories/user.repository';
 import { WalletRepository } from '@infrastructure/database/repositories/wallet.repository';
 import { PriceTierRepository } from '@infrastructure/database/repositories/price-tier.repository';
-import { CommissionService } from '@infrastructure/services/commission/commission.service';
 import { OrderStatus, PaymentStatus, WalletTransactionType } from '@prisma/client';
 import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -93,7 +92,6 @@ export class OrderController {
     private readonly userRepository: UserRepository,
     private readonly walletRepository: WalletRepository,
     private readonly priceTierRepository: PriceTierRepository,
-    private readonly commissionService: CommissionService,
   ) {}
 
   @Post()
@@ -302,44 +300,10 @@ export class OrderController {
       throw new HttpException('Order not found', HttpStatus.NOT_FOUND);
     }
 
-    const oldStatus = order.status;
-    const newStatus = dto.status;
+    // Update order status (commission logic handled in repository)
+    const updatedOrder = await this.orderRepository.updateStatus(id, dto.status);
 
-    // Update order status
-    const updatedOrder = await this.orderRepository.updateStatus(id, newStatus);
-
-    // Handle commission logic
-    const wasCompleted = oldStatus === OrderStatus.COMPLETED;
-    const isCompleted = newStatus === OrderStatus.COMPLETED;
-
-    if (!wasCompleted && isCompleted) {
-      // Chuyển từ status khác → COMPLETED: CỘNG hoa hồng
-      try {
-        await this.commissionService.calculateCommissionsForOrder(
-          order.id,
-          order.userId,
-          Number(order.totalAmount),
-        );
-        console.log(`✅ Added commissions for order ${order.id} (${oldStatus} → ${newStatus})`);
-      } catch (error) {
-        console.error('Failed to calculate commissions:', error);
-        // Continue even if commission fails
-      }
-    } else if (wasCompleted && !isCompleted) {
-      // Chuyển từ COMPLETED → status khác: TRỪ hoa hồng
-      try {
-        await this.commissionService.refundCommissionsForOrder(order.id);
-        console.log(`✅ Refunded commissions for order ${order.id} (${oldStatus} → ${newStatus})`);
-      } catch (error) {
-        console.error('Failed to refund commissions:', error);
-        // Continue even if commission refund fails
-      }
-    }
-
-    return {
-      ...updatedOrder,
-      commissionAction: !wasCompleted && isCompleted ? 'added' : wasCompleted && !isCompleted ? 'refunded' : 'none',
-    };
+    return updatedOrder;
   }
 
   @Put(':id/payment-status')
@@ -418,7 +382,7 @@ export class OrderController {
    * - Return quota to user
    */
   private async processCancelOrder(order: any) {
-    // 1. Update order status to CANCELLED
+    // 1. Update order status to CANCELLED (commission refund handled in repository)
     await this.orderRepository.updateStatus(order.id, OrderStatus.CANCELLED);
 
     // 2. If paid, refund to wallet
@@ -432,15 +396,7 @@ export class OrderController {
       });
     }
 
-    // 3. Refund commissions (if any were created)
-    try {
-      await this.commissionService.refundCommissionsForOrder(order.id);
-    } catch (error) {
-      console.error('Failed to refund commissions:', error);
-      // Continue even if commission refund fails
-    }
-
-    // 4. Return quota to user (calculate total quantity from order items)
+    // 3. Return quota to user (calculate total quantity from order items)
     const totalQuantity = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
     const user = await this.userRepository.findById(order.userId);
 

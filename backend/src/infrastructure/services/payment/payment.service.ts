@@ -213,8 +213,8 @@ export class PaymentService {
       bankAccount: {
         accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',
         accountName: process.env.BANK_ACCOUNT_NAME || '',
-        bankCode: process.env.BANK_CODE || 'VCB',
-        bankName: process.env.BANK_NAME || 'Vietcombank',
+        bankCode: process.env.BANK_CODE || 'BIDV',
+        bankName: process.env.BANK_NAME || 'BIDV',
       },
       description: order.orderNumber, // This will be the transfer content
     };

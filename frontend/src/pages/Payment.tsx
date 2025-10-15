@@ -240,7 +240,11 @@ export default function Payment() {
                   src={paymentInfo.qrCodeUrl}
                   alt="QR Code"
                   className="h-full w-full object-contain"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
                   onError={(e) => {
+                    console.error('QR Code load error:', e);
+                    console.log('QR URL:', paymentInfo.qrCodeUrl);
                     e.currentTarget.src = 'https://via.placeholder.com/300x300?text=QR+Code+Error';
                   }}
                 />

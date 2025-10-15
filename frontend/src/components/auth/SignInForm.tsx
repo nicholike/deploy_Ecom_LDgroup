@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "../../icons";
+import { useLocation, useNavigate } from "react-router-dom";
+import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
@@ -44,99 +44,145 @@ export default function SignInForm() {
   };
 
   return (
-    <div className="flex flex-col flex-1">
-      <div className="w-full max-w-md pt-10 mx-auto">
-        <Link
-          to="/admin/dashboard"
-          className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-        >
-          <ChevronLeftIcon className="size-5" />
-          Quay lại dashboard
-        </Link>
+    <div className="relative min-h-screen w-full flex flex-col items-center overflow-hidden">
+      {/* Background Image - Sắc nét */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/login.jpg)' }}
+      >
+        {/* Overlay nhẹ */}
+        <div className="absolute inset-0 bg-black/30"></div>
       </div>
-      <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
-        <div>
-          {/* Logo for mobile view */}
-          <div className="mb-8 lg:hidden flex justify-center">
-            <img
-              src="/LOGO_LD%20PERFUME%20OIL%20LUXURY%20(4)_NA%CC%82U%201.svg"
-              alt="LD Perfume Oil Luxury Logo"
-              width={220}
-              height={70}
-              className="w-auto h-auto max-w-[220px]"
-            />
-          </div>
-          <div className="mb-5 sm:mb-8">
-            <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
+
+      {/* Logo - At top */}
+      <div className="relative z-10 pt-8 sm:pt-12 mb-8 flex justify-center w-full">
+        <img
+          src="/LOGO_LD%20PERFUME%20OIL%20LUXURY%20(4)_NA%CC%82U%201.svg"
+          alt="LD Perfume Oil Luxury Logo"
+          width={350}
+          height={110}
+          className="max-w-[350px] drop-shadow-2xl"
+        />
+      </div>
+
+      {/* Glass Form Container */}
+      <div className="relative z-10 w-full max-w-md mx-4 flex-1 flex items-start justify-center mt-8">
+        {/* Glass Card - CSS.glass effect */}
+        <div 
+          className="p-8 sm:p-10"
+          style={{
+            background: 'rgba(255, 255, 255, 0)',
+            borderRadius: '16px',
+            boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+            backdropFilter: 'blur(3.2px)',
+            WebkitBackdropFilter: 'blur(3.2px)',
+            border: '1px solid rgba(255, 255, 255, 0.42)'
+          }}
+        >
+          {/* Header */}
+          <div className="mb-6 text-center">
+            <h1 className="mb-2 font-bold text-white text-3xl sm:text-4xl drop-shadow-lg">
               Đăng nhập
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-white/80 drop-shadow">
               Nhập email và mật khẩu để đăng nhập vào hệ thống!
             </p>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <Label>
-                Email <span className="text-error-500">*</span>
+              <Label className="text-white/90 font-medium mb-2">
+                Email <span className="text-red-400">*</span>
               </Label>
-              <Input
-                type="email"
-                placeholder="admin@example.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
+              <div 
+                className="overflow-hidden transition-all focus-within:shadow-lg"
+                style={{
+                  background: 'rgba(255, 255, 255, 0)',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+                  backdropFilter: 'blur(3.2px)',
+                  WebkitBackdropFilter: 'blur(3.2px)',
+                  border: '1px solid rgba(255, 255, 255, 0.42)'
+                }}
+              >
+                <Input
+                  type="email"
+                  placeholder="admin@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  className="bg-transparent border-0 text-white placeholder:text-white/70 focus:ring-0"
+                />
+              </div>
             </div>
+
             <div>
-              <Label>
-                Password <span className="text-error-500">*</span>
+              <Label className="text-white/90 font-medium mb-2">
+                Mật khẩu <span className="text-red-400">*</span>
               </Label>
-              <div className="relative">
+              <div 
+                className="relative overflow-hidden transition-all focus-within:shadow-lg"
+                style={{
+                  background: 'rgba(255, 255, 255, 0)',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+                  backdropFilter: 'blur(3.2px)',
+                  WebkitBackdropFilter: 'blur(3.2px)',
+                  border: '1px solid rgba(255, 255, 255, 0.42)'
+                }}
+              >
                 <Input
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
+                  placeholder="Nhập mật khẩu của bạn"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
+                  className="bg-transparent border-0 text-white placeholder:text-white/70 focus:ring-0 pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                  className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2 hover:scale-110 transition-transform"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
-                    <EyeIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
+                    <EyeIcon className="fill-white/80 size-5" />
                   ) : (
-                    <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
+                    <EyeCloseIcon className="fill-white/80 size-5" />
                   )}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-3">
+            <div className="flex items-center justify-between pt-2">
+              <label className="flex items-center gap-3 cursor-pointer">
                 <Checkbox checked={rememberMe} onChange={setRememberMe} />
-                <span className="block font-normal text-gray-700 text-theme-sm dark:text-gray-400">
+                <span className="block font-normal text-white/90 text-sm">
                   Giữ đăng nhập
                 </span>
               </label>
-              <Link
-                to="/forgot-password"
-                className="text-sm text-brand-500 transition-colors hover:text-brand-600 dark:text-brand-400"
+              <a
+                href="/forgot-password"
+                className="text-sm text-white/90 hover:text-white transition-colors underline-offset-4 hover:underline"
               >
                 Quên mật khẩu?
-              </Link>
+              </a>
             </div>
 
             {error && (
-              <p className="text-sm text-error-500" role="alert">
+              <div className="backdrop-blur-md bg-red-500/20 border border-red-400/50 text-white px-4 py-3 rounded-xl text-sm" role="alert">
                 {error}
-              </p>
+              </div>
             )}
 
-            <div>
-              <Button className="w-full" size="sm" type="submit" isLoading={isSubmitting}>
+            <div className="pt-2">
+              <Button 
+                className="w-full bg-[#8b5e1e] hover:bg-[#6d4916] text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] uppercase text-sm" 
+                size="sm" 
+                type="submit" 
+                isLoading={isSubmitting}
+              >
                 Đăng nhập
               </Button>
             </div>

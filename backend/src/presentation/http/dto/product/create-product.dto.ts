@@ -66,6 +66,11 @@ export class CreateProductDto {
   @IsOptional()
   isCommissionEligible?: boolean = true;
 
+  @ApiPropertyOptional({ example: false, default: false, description: 'Mark product as special/featured' })
+  @IsBoolean()
+  @IsOptional()
+  isSpecial?: boolean = false;
+
   @ApiPropertyOptional({ example: ['image1.jpg', 'image2.jpg'] })
   @IsArray()
   @IsString({ each: true })

@@ -78,6 +78,11 @@ export class UpdateProductHandler {
       product.setCommissionEligibility(command.isCommissionEligible);
     }
 
+    // 7.5. Update special status
+    if (command.isSpecial !== undefined) {
+      product.setSpecial(command.isSpecial);
+    }
+
     // 8. Update status
     if (command.status !== undefined) {
       if (command.status === 'PUBLISHED' && product.status !== 'PUBLISHED') {

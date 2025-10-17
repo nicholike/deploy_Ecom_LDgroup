@@ -25,9 +25,25 @@ export class CreateUserHandler {
     // 1. Validate sponsor exists
     // Note: Sponsor is the referrer in MLM hierarchy, not necessarily the creator
     // Only ADMIN can create users (enforced by controller guard)
-    const sponsor = await this.userRepository.findById(command.sponsorId);
-    if (!sponsor) {
-      throw new NotFoundException('Sponsor not found');
+    let sponsorId: string | undefined = command.sponsorId;
+
+    if (command.role === 'ADMIN') {
+      // For ADMIN accounts, find the root admin (first admin created)
+      // New admins will be under the root admin in MLM tree
+      const rootAdmin = await this.userRepository.findRootAdmin();
+
+      if (rootAdmin) {
+        // If root admin exists, new admin becomes child of root admin
+        sponsorId = rootAdmin.id;
+      } else {
+        // This is the first admin (root admin), no sponsor needed
+        sponsorId = undefined;
+      }
+    } else {
+      const sponsor = await this.userRepository.findById(command.sponsorId);
+      if (!sponsor) {
+        throw new NotFoundException('Sponsor not found');
+      }
     }
 
     // No need to check sponsor's permission to create role
@@ -74,7 +90,7 @@ export class CreateUserHandler {
       lastName: command.lastName,
       phone: command.phone,
       role: command.role,
-      sponsorId: command.sponsorId,
+      sponsorId: sponsorId, // undefined for ADMIN
       referralCode: ReferralCode.create(referralCode),
       status: UserStatus.ACTIVE,
       emailVerified: false,
@@ -84,6 +100,9 @@ export class CreateUserHandler {
 
     // 8. Save user
     const savedUser = await this.userRepository.save(user);
+
+    // Note: Wallet will be auto-created when needed (e.g., when user receives first commission)
+    // ADMIN users don't need wallets as they don't earn commissions
 
     return savedUser;
   }

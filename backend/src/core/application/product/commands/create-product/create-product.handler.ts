@@ -97,6 +97,7 @@ export class CreateProductHandler {
       stock: command.stock ?? 999999, // Unlimited stock by default
       lowStockThreshold: command.lowStockThreshold ?? 10,
       isCommissionEligible: command.isCommissionEligible ?? true,
+      isSpecial: command.isSpecial ?? false,
       images: command.images,
       thumbnail: command.thumbnail,
       categoryId: command.categoryId,

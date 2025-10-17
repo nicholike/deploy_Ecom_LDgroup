@@ -23,6 +23,7 @@ export interface ProductProps {
   stock?: number;
   lowStockThreshold?: number;
   isCommissionEligible: boolean;
+  isSpecial: boolean;
   images?: string[];
   thumbnail?: string;
   categoryId?: string;
@@ -88,6 +89,10 @@ export class Product extends BaseEntity {
 
   get isCommissionEligible(): boolean {
     return this.props.isCommissionEligible;
+  }
+
+  get isSpecial(): boolean {
+    return this.props.isSpecial;
   }
 
   get images(): string[] | undefined {
@@ -191,6 +196,11 @@ export class Product extends BaseEntity {
     this.updatedAt = new Date();
   }
 
+  setSpecial(isSpecial: boolean): void {
+    this.props.isSpecial = isSpecial;
+    this.updatedAt = new Date();
+  }
+
   decreaseStock(quantity: number): void {
     // Unlimited stock - không decrease stock
     if (quantity <= 0) {
@@ -256,6 +266,7 @@ export class Product extends BaseEntity {
       stock: this.props.stock,
       lowStockThreshold: this.props.lowStockThreshold,
       isCommissionEligible: this.props.isCommissionEligible,
+      isSpecial: this.props.isSpecial,
       images: this.props.images,
       thumbnail: this.props.thumbnail,
       categoryId: this.props.categoryId,

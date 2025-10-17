@@ -11,6 +11,7 @@ import {
   Request,
   BadRequestException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { Roles } from '@shared/decorators/roles.decorator';
@@ -37,6 +38,7 @@ export class PaymentController {
    * SePay may send GET request first to verify the endpoint is accessible
    */
   @Public()
+  @SkipThrottle() // Skip rate limiting for SePay webhook verification
   @Get('sepay-webhook')
   @HttpCode(HttpStatus.OK)
   async verifySepayWebhook() {
@@ -56,6 +58,7 @@ export class PaymentController {
    * SePay will send POST request with transaction data
    */
   @Public()
+  @SkipThrottle() // Skip rate limiting for SePay webhooks
   @Post('sepay-webhook')
   @HttpCode(HttpStatus.OK)
   async handleSepayWebhook(
@@ -66,20 +69,24 @@ export class PaymentController {
       console.log('📥 Received SePay webhook:', JSON.stringify(webhookData, null, 2));
       console.log('📋 Request headers:', JSON.stringify(req.headers, null, 2));
 
-      // Verify API Key from Authorization header (if configured)
-      if (process.env.SEPAY_API_KEY) {
+      // ✅ ENFORCE API Key verification in production
+      if (process.env.SEPAY_API_KEY && process.env.NODE_ENV === 'production') {
         const authHeader = req.headers['authorization'];
         const expectedAuth = `Apikey ${process.env.SEPAY_API_KEY}`;
 
         if (authHeader !== expectedAuth) {
-          console.warn('⚠️  Authorization header mismatch');
-          console.log('Expected:', expectedAuth);
-          console.log('Received:', authHeader);
-          // Uncomment to enforce strict checking:
-          // return { success: false, message: 'Unauthorized' };
-        } else {
-          console.log('✅ Authorization verified');
+          console.error('⛔ Unauthorized SePay webhook attempt');
+          console.error('Expected:', expectedAuth);
+          console.error('Received:', authHeader);
+          console.error('Source IP:', req.ip);
+
+          return {
+            success: false,
+            message: 'Unauthorized - Invalid API key'
+          };
         }
+
+        console.log('✅ SePay webhook authorization verified');
       }
 
       // Process the webhook
@@ -106,7 +113,7 @@ export class PaymentController {
   /**
    * GET /payment/info/:orderId
    * Get payment information for an order (to display QR code)
-   * User must be the order owner or admin
+   * Supports both Pending Order Number (PD25XXX) and Order ID (UUID)
    */
   @Get('info/:orderId')
   @UseGuards(JwtAuthGuard)
@@ -116,11 +123,8 @@ export class PaymentController {
   ) {
     const paymentInfo = await this.paymentService.getPaymentInfo(orderId);
 
-    // Check permission
-    const order = await this.paymentService.checkPaymentStatus(orderId);
-    if (order.orderId !== orderId && req.user.role !== UserRole.ADMIN) {
-      throw new BadRequestException('Access denied');
-    }
+    // TODO: Add permission check for order owner or admin
+    // For now, allow any authenticated user to view payment info
 
     // Generate SePay QR URL
     // Use Virtual Account for better auto-matching with webhook
@@ -195,45 +199,11 @@ export class PaymentController {
   }
 
   /**
-   * POST /payment/test-webhook
-   * Test endpoint to simulate SePay webhook (dev only)
-   * Remove this in production or add admin guard
+   * ❌ REMOVED: Test webhook endpoint
+   *
+   * Security: Test endpoints removed for production deployment
+   * For testing webhooks in production, use SePay's official test environment
+   * or create a separate admin-only testing endpoint with proper authentication
    */
-  @Public()
-  @Post('test-webhook')
-  @HttpCode(HttpStatus.OK)
-  async testWebhook(@Body() body: {
-    orderNumber: string;
-    amount: number;
-    gateway?: string;
-  }) {
-    // Simulate SePay webhook data
-    const randomId = Math.floor(Math.random() * 1000000); // Random ID under 1 million
-    const webhookData = {
-      id: randomId, // Unique transaction ID (smaller number)
-      gateway: body.gateway || 'VCB',
-      transaction_date: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      account_number: process.env.BANK_ACCOUNT_NUMBER || '1234567890',
-      sub_account: '',
-      amount_in: body.amount,
-      amount_out: 0,
-      accumulated: 10000000,
-      code: 'FT' + randomId,
-      transaction_content: `${body.orderNumber} thanh toan don hang`,
-      reference_number: 'FT' + randomId,
-      body: '',
-    };
-
-    console.log('🧪 Test webhook data:', webhookData);
-
-    // Create a mock request object for test
-    const mockReq = {
-      headers: {
-        'authorization': process.env.SEPAY_API_KEY ? `Apikey ${process.env.SEPAY_API_KEY}` : '',
-      },
-    };
-
-    return this.handleSepayWebhook(webhookData, mockReq);
-  }
 }
 

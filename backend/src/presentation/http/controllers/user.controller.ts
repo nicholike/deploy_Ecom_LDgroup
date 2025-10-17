@@ -31,6 +31,12 @@ import { ListUsersQuery } from '@core/application/user/queries/list-users/list-u
 import { ListUsersHandler } from '@core/application/user/queries/list-users/list-users.handler';
 import { GetUserTreeQuery } from '@core/application/user/queries/get-user-tree/get-user-tree.query';
 import { GetUserTreeHandler } from '@core/application/user/queries/get-user-tree/get-user-tree.handler';
+import { GetPendingUsersQuery } from '@core/application/user/queries/get-pending-users/get-pending-users.query';
+import { GetPendingUsersHandler } from '@core/application/user/queries/get-pending-users/get-pending-users.handler';
+import { ApproveUserCommand } from '@core/application/user/commands/approve-user/approve-user.command';
+import { ApproveUserHandler } from '@core/application/user/commands/approve-user/approve-user.handler';
+import { RejectUserCommand } from '@core/application/user/commands/reject-user/reject-user.command';
+import { RejectUserHandler } from '@core/application/user/commands/reject-user/reject-user.handler';
 import { UserTreeNode } from '@core/domain/user/interfaces/user.repository.interface';
 import { UserRepository } from '@infrastructure/database/repositories/user.repository';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
@@ -52,6 +58,9 @@ export class UserController {
     private readonly getUserHandler: GetUserHandler,
     private readonly listUsersHandler: ListUsersHandler,
     private readonly getUserTreeHandler: GetUserTreeHandler,
+    private readonly getPendingUsersHandler: GetPendingUsersHandler,
+    private readonly approveUserHandler: ApproveUserHandler,
+    private readonly rejectUserHandler: RejectUserHandler,
     private readonly userRepository: UserRepository,
   ) {}
 
@@ -106,6 +115,43 @@ export class UserController {
     };
   }
 
+  @Get('pending')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get pending users awaiting approval (Admin only)' })
+  @ApiResponse({ status: 200 })
+  async getPendingUsers(@Query() query: PaginationDto) {
+    const pendingQuery = new GetPendingUsersQuery(query.page, query.limit, query.search);
+    const result = await this.getPendingUsersHandler.execute(pendingQuery);
+
+    return {
+      data: result.data,  // Returns raw data with sponsor info
+      pagination: result.pagination,
+    };
+  }
+
+  @Get('quota/me')
+  @ApiOperation({ summary: 'Get purchase quota info for current user' })
+  @ApiResponse({ status: 200 })
+  async getMyQuota(@CurrentUser('userId') userId: string) {
+    const quota = await this.userRepository.getQuotaInfo(userId);
+    if (!quota) {
+      throw new HttpException('Không tìm thấy người dùng', HttpStatus.NOT_FOUND);
+    }
+
+    const now = new Date();
+    const isPeriodExpired = quota.quotaPeriodEnd && now > quota.quotaPeriodEnd;
+
+    return {
+      ...quota,
+      isPeriodExpired,
+      message: isPeriodExpired
+        ? 'Kỳ hạn mua hàng của bạn đã hết. Đặt đơn hàng tiếp theo để bắt đầu kỳ hạn 30 ngày mới.'
+        : quota.quotaPeriodStart
+        ? `Bạn có thể mua thêm ${quota.quotaRemaining} sản phẩm cho đến ${quota.quotaPeriodEnd?.toISOString().split('T')[0]}`
+        : 'Chưa có kỳ hạn mua hàng. Đơn hàng đầu tiên của bạn sẽ bắt đầu kỳ hạn 30 ngày.',
+    };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, type: UserResponseDto })
@@ -153,29 +199,6 @@ export class UserController {
     await this.deleteUserHandler.execute(command);
   }
 
-  @Get('quota/me')
-  @ApiOperation({ summary: 'Get purchase quota info for current user' })
-  @ApiResponse({ status: 200 })
-  async getMyQuota(@CurrentUser('userId') userId: string) {
-    const quota = await this.userRepository.getQuotaInfo(userId);
-    if (!quota) {
-      throw new HttpException('Không tìm thấy người dùng', HttpStatus.NOT_FOUND);
-    }
-
-    const now = new Date();
-    const isPeriodExpired = quota.quotaPeriodEnd && now > quota.quotaPeriodEnd;
-
-    return {
-      ...quota,
-      isPeriodExpired,
-      message: isPeriodExpired
-        ? 'Kỳ hạn mua hàng của bạn đã hết. Đặt đơn hàng tiếp theo để bắt đầu kỳ hạn 30 ngày mới.'
-        : quota.quotaPeriodStart
-        ? `Bạn có thể mua thêm ${quota.quotaRemaining} sản phẩm cho đến ${quota.quotaPeriodEnd?.toISOString().split('T')[0]}`
-        : 'Chưa có kỳ hạn mua hàng. Đơn hàng đầu tiên của bạn sẽ bắt đầu kỳ hạn 30 ngày.',
-    };
-  }
-
   @Post('quota/:userId/reset')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Reset user quota (Admin only)' })
@@ -189,6 +212,47 @@ export class UserController {
     return {
       message: 'Đã đặt lại hạn mức thành công',
       userId,
+    };
+  }
+
+  @Post(':id/approve')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Approve pending user (Admin only)' })
+  @ApiResponse({ status: 200 })
+  async approveUser(
+    @Param('id') id: string,
+    @CurrentUser('userId') adminId: string,
+  ) {
+    const command = new ApproveUserCommand(id, adminId);
+    const user = await this.approveUserHandler.execute(command);
+
+    return {
+      message: 'Đã phê duyệt tài khoản thành công',
+      user: UserResponseDto.fromDomain(user),
+    };
+  }
+
+  @Post(':id/reject')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reject pending user (Admin only)' })
+  @ApiResponse({ status: 200 })
+  async rejectUser(
+    @Param('id') id: string,
+    @CurrentUser('userId') adminId: string,
+    @Body() body: { reason: string },
+  ) {
+    if (!body.reason || body.reason.trim().length === 0) {
+      throw new HttpException('Lý do từ chối là bắt buộc', HttpStatus.BAD_REQUEST);
+    }
+
+    const command = new RejectUserCommand(id, adminId, body.reason);
+    const user = await this.rejectUserHandler.execute(command);
+
+    return {
+      message: 'Đã từ chối tài khoản',
+      user: UserResponseDto.fromDomain(user),
     };
   }
 

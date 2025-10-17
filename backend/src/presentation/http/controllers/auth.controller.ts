@@ -3,12 +3,15 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { LoginDto, RefreshTokenDto } from '../dto/user/login.dto';
 import { UserResponseDto } from '../dto/user/user-response.dto';
 import { ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto/auth/password.dto';
+import { RegisterDto } from '../dto/auth/register.dto';
 import { AuthService } from '@infrastructure/services/auth/auth.service';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { Public } from '@shared/decorators/public.decorator';
 import { IUserRepository } from '@core/domain/user/interfaces/user.repository.interface';
 import { Inject } from '@nestjs/common';
+import { RegisterUserHandler } from '@core/application/user/commands/register-user/register-user.handler';
+import { RegisterUserCommand } from '@core/application/user/commands/register-user/register-user.command';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -17,7 +20,32 @@ export class AuthController {
     private readonly authService: AuthService,
     @Inject('IUserRepository')
     private readonly userRepository: IUserRepository,
+    private readonly registerUserHandler: RegisterUserHandler,
   ) {}
+
+  @Post('register')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Public user registration (requires referral code)' })
+  @ApiResponse({ status: 201, description: 'Registration successful - waiting for admin approval' })
+  async register(@Body() dto: RegisterDto) {
+    const command = new RegisterUserCommand(
+      dto.email,
+      dto.username,
+      dto.password,
+      dto.referralCode,
+      dto.firstName,
+      dto.lastName,
+      dto.phone,
+    );
+
+    const user = await this.registerUserHandler.execute(command);
+
+    return {
+      message: 'Đăng ký thành công! Tài khoản của bạn đang chờ phê duyệt từ quản trị viên.',
+      user: UserResponseDto.fromDomain(user),
+    };
+  }
 
   @Post('login')
   @Public()

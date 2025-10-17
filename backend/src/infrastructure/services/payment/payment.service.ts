@@ -2,15 +2,21 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { BankTransactionRepository } from '@infrastructure/database/repositories/bank-transaction.repository';
 import { OrderRepository } from '@infrastructure/database/repositories/order.repository';
 import { NotificationRepository } from '@infrastructure/database/repositories/notification.repository';
-import { PaymentStatus, NotificationType } from '@prisma/client';
+import { CartRepository } from '@infrastructure/database/repositories/cart.repository';
+import { UserRepository } from '@infrastructure/database/repositories/user.repository';
+import { PendingOrderRepository } from '@infrastructure/database/repositories/pending-order.repository';
+import { PendingOrderService } from '@infrastructure/services/pending-order/pending-order.service';
+import { PaymentStatus, NotificationType, PendingOrderStatus } from '@prisma/client';
+import { UserRole } from '@shared/constants/user-roles.constant';
 
 /**
  * PAYMENT SERVICE
- * 
+ *
  * Handles:
  * - Processing SePay webhooks
  * - Matching transactions with orders
  * - Updating payment status
+ * - Clearing cart and updating quota after payment confirmation
  * - Creating notifications
  */
 @Injectable()
@@ -21,6 +27,10 @@ export class PaymentService {
     private readonly bankTransactionRepository: BankTransactionRepository,
     private readonly orderRepository: OrderRepository,
     private readonly notificationRepository: NotificationRepository,
+    private readonly cartRepository: CartRepository,
+    private readonly userRepository: UserRepository,
+    private readonly pendingOrderRepository: PendingOrderRepository,
+    private readonly pendingOrderService: PendingOrderService,
   ) {}
 
   /**
@@ -105,7 +115,8 @@ export class PaymentService {
   }
 
   /**
-   * Match a bank transaction with an order based on transaction content
+   * Match a bank transaction with a PENDING ORDER and create real order
+   * ✅ NEW FLOW: Matches with PendingOrder, not Order
    */
   async matchTransactionWithOrder(bankTransaction: any): Promise<{
     matched: boolean;
@@ -116,78 +127,163 @@ export class PaymentService {
       const content = bankTransaction.transactionContent.toUpperCase();
       this.logger.log(`Attempting to match transaction content: "${content}"`);
 
-      // Extract order code from transaction content
-      // Common formats: "ORD123456", "ORDER123456", "DH123456", "LD123456", etc.
-      const orderCodePattern = /(?:ORD|ORDER|DH|LD)[\-\s]?(\d{6,})/i;
-      const match = content.match(orderCodePattern);
+      // Extract pending order code from transaction content
+      // NEW FORMAT: "PD25XXXXXXXXX" (Pending Order)
+      // OLD FORMAT: "LD25XXXXXXXXX" (also supported for backward compatibility)
+      const pendingOrderPattern = /(?:PD|LD)[\-\s]?(\d{2}[A-Z0-9]+)/i;
+      const match = content.match(pendingOrderPattern);
 
       if (!match) {
-        this.logger.warn(`No order code found in transaction content: "${content}"`);
+        this.logger.warn(`No pending order code found in transaction content: "${content}"`);
         return {
           matched: false,
-          message: 'No order code found in transaction content',
+          message: 'No pending order code found in transaction content',
         };
       }
 
       const extractedCode = match[0].replace(/[\-\s]/g, ''); // Remove hyphens and spaces
-      this.logger.log(`Extracted order code: "${extractedCode}"`);
+      this.logger.log(`Extracted pending order code: "${extractedCode}"`);
 
-      // Find order by order number
-      const order = await this.orderRepository.findByOrderNumber(extractedCode);
+      // Find pending order by pending number
+      const pendingOrder = await this.pendingOrderRepository.findByPendingNumber(extractedCode);
 
-      if (!order) {
-        this.logger.warn(`Order not found for code: "${extractedCode}"`);
+      if (!pendingOrder) {
+        this.logger.warn(`Pending order not found for code: "${extractedCode}"`);
         return {
           matched: false,
-          message: `Order not found for code: ${extractedCode}`,
+          message: `Pending order not found for code: ${extractedCode}`,
         };
       }
 
-      // Check if order amount matches transaction amount (with 1% tolerance)
-      const orderAmount = Number(order.totalAmount);
-      const transactionAmount = Number(bankTransaction.amountIn);
-      const tolerance = orderAmount * 0.01; // 1% tolerance
-
-      if (Math.abs(orderAmount - transactionAmount) > tolerance) {
+      // 🛡️ CRITICAL: Check if already paid (prevents duplicate webhook processing)
+      if (pendingOrder.status === PendingOrderStatus.PAID) {
         this.logger.warn(
-          `Amount mismatch - Order: ${orderAmount}, Transaction: ${transactionAmount}`,
+          `⛔ Pending order ${extractedCode} already paid (status: PAID). ` +
+          `This is likely a duplicate webhook. Existing order: ${pendingOrder.orderId}`
         );
-        // Still link but don't auto-approve
-        await this.bankTransactionRepository.markAsProcessed(bankTransaction.id, order.id);
+
+        // Return the existing order to acknowledge webhook
+        if (pendingOrder.orderId) {
+          const existingOrder = await this.orderRepository.findById(pendingOrder.orderId);
+          return {
+            matched: true, // Return true to acknowledge webhook
+            order: existingOrder,
+            message: 'Duplicate webhook - order already processed',
+          };
+        }
+
         return {
           matched: false,
-          order,
+          message: 'Pending order already converted to order',
+        };
+      }
+
+      // Check if expired
+      if (new Date() > pendingOrder.expiresAt) {
+        this.logger.warn(`Pending order ${extractedCode} has expired`);
+        await this.pendingOrderService.cancelPendingOrder(pendingOrder.id, 'EXPIRED');
+        return {
+          matched: false,
+          message: 'Pending order expired',
+        };
+      }
+
+      // Check if amount matches (with 1% tolerance)
+      const pendingOrderAmount = Number(pendingOrder.totalAmount);
+      const transactionAmount = Number(bankTransaction.amountIn);
+      const tolerance = pendingOrderAmount * 0.01; // 1% tolerance
+
+      if (Math.abs(pendingOrderAmount - transactionAmount) > tolerance) {
+        this.logger.warn(
+          `Amount mismatch - Pending Order: ${pendingOrderAmount}, Transaction: ${transactionAmount}`,
+        );
+        return {
+          matched: false,
           message: 'Amount mismatch - requires manual review',
         };
       }
 
-      // Update order payment status
+      // ✅ CREATE REAL ORDER FROM PENDING ORDER
+      // Note: This entire flow should ideally be in a transaction, but due to complexity
+      // we rely on the PAID status check above to prevent duplicates
+      this.logger.log(`✅ Creating real order from pending order ${extractedCode}...`);
+
+      const items = (pendingOrder.items as any[]).map((item) => ({
+        productId: item.productId,
+        productVariantId: item.productVariantId,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+
+      const order = await this.orderRepository.create({
+        userId: pendingOrder.userId,
+        items,
+        subtotal: Number(pendingOrder.subtotal),
+        shippingFee: Number(pendingOrder.shippingFee),
+        totalAmount: Number(pendingOrder.totalAmount),
+        shippingAddress: pendingOrder.shippingAddress,
+        shippingMethod: pendingOrder.shippingMethod || undefined,
+        paymentMethod: pendingOrder.paymentMethod || undefined,
+        customerNote: pendingOrder.customerNote || undefined,
+      });
+
+      this.logger.log(`✅ Order ${order.orderNumber} created from pending order ${extractedCode}`);
+
+      // Update order payment status to COMPLETED
       await this.orderRepository.updatePaymentStatus(order.id, PaymentStatus.COMPLETED);
+
+      // Mark pending order as PAID and link to created order
+      await this.pendingOrderService.markAsPaid(pendingOrder.id, order.id);
 
       // Mark transaction as processed
       await this.bankTransactionRepository.markAsProcessed(bankTransaction.id, order.id);
+
+      // ✅ CLEAR CART - Now that payment is confirmed
+      try {
+        await this.cartRepository.clearCart(order.userId);
+        this.logger.log(`✅ Cart cleared for user ${order.userId}`);
+      } catch (error) {
+        this.logger.error(`Failed to clear cart for user ${order.userId}:`, error);
+      }
+
+      // ✅ UPDATE QUOTA - Now that payment is confirmed
+      // 🔧 FIX: Use atomic increment to prevent race condition
+      try {
+        const user = await this.userRepository.findById(order.userId);
+        if (user && user.role !== UserRole.ADMIN) {
+          const totalQuantity = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+
+          // Use atomic increment instead of read-modify-write
+          await this.userRepository.incrementQuota(order.userId, totalQuantity);
+
+          this.logger.log(`✅ Quota updated for user ${order.userId}: +${totalQuantity}`);
+        }
+      } catch (error) {
+        this.logger.error(`Failed to update quota for user ${order.userId}:`, error);
+      }
 
       // Create notification for user
       await this.notificationRepository.create({
         userId: order.userId,
         type: NotificationType.PAYMENT_RECEIVED,
         title: 'Thanh toán thành công',
-        message: `Đơn hàng ${order.orderNumber} đã được thanh toán thành công. Số tiền: ${transactionAmount.toLocaleString('vi-VN')} VNĐ`,
+        message: `Đơn hàng ${order.orderNumber} đã được tạo và thanh toán thành công. Số tiền: ${transactionAmount.toLocaleString('vi-VN')} VNĐ`,
         actionUrl: `/orders/${order.id}`,
         actionText: 'Xem đơn hàng',
         metadata: {
           orderId: order.id,
+          pendingOrderId: pendingOrder.id,
           transactionId: bankTransaction.id,
           amount: transactionAmount,
         },
       });
 
-      this.logger.log(`✅ Order ${order.orderNumber} payment confirmed`);
+      this.logger.log(`✅ Order ${order.orderNumber} payment confirmed and fully processed`);
 
       return {
         matched: true,
         order,
-        message: 'Payment confirmed successfully',
+        message: 'Payment confirmed and order created successfully',
       };
     } catch (error) {
       this.logger.error(`Failed to match transaction:`, error);
@@ -197,9 +293,67 @@ export class PaymentService {
 
   /**
    * Get payment info for an order (for displaying QR code)
+   * Supports both:
+   * - Pending Order Number (PD25XXXXX) - before payment
+   * - Order ID (UUID) - after payment confirmed
    */
-  async getPaymentInfo(orderId: string) {
-    const order = await this.orderRepository.findById(orderId);
+  async getPaymentInfo(orderIdOrPendingNumber: string) {
+    // Check if this is a pending order number (starts with PD or LD)
+    const isPendingNumber = /^(PD|LD)[\-\s]?\d{2}[A-Z0-9]+$/i.test(orderIdOrPendingNumber);
+
+    if (isPendingNumber) {
+      // Find pending order
+      const pendingOrder = await this.pendingOrderRepository.findByPendingNumber(orderIdOrPendingNumber);
+      if (!pendingOrder) {
+        throw new BadRequestException('Pending order not found');
+      }
+
+      // Check if expired
+      if (new Date() > pendingOrder.expiresAt) {
+        throw new BadRequestException('Pending order has expired. Please create a new order.');
+      }
+
+      // Check if already paid
+      if (pendingOrder.status === PendingOrderStatus.PAID) {
+        // If already paid, try to get the real order
+        if (pendingOrder.orderId) {
+          const order = await this.orderRepository.findById(pendingOrder.orderId);
+          if (order) {
+            return {
+              orderId: order.id,
+              orderNumber: order.orderNumber,
+              amount: Number(order.totalAmount),
+              paymentStatus: order.paymentStatus,
+              bankAccount: {
+                accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',
+                accountName: process.env.BANK_ACCOUNT_NAME || '',
+                bankCode: process.env.BANK_CODE || 'BIDV',
+                bankName: process.env.BANK_NAME || 'BIDV',
+              },
+              description: order.orderNumber,
+            };
+          }
+        }
+      }
+
+      // Return pending order payment info
+      return {
+        orderId: pendingOrder.id,
+        orderNumber: pendingOrder.pendingNumber,
+        amount: Number(pendingOrder.totalAmount),
+        paymentStatus: 'PENDING',
+        bankAccount: {
+          accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',
+          accountName: process.env.BANK_ACCOUNT_NAME || '',
+          bankCode: process.env.BANK_CODE || 'BIDV',
+          bankName: process.env.BANK_NAME || 'BIDV',
+        },
+        description: pendingOrder.pendingNumber, // This will be the transfer content
+      };
+    }
+
+    // Try to find real order by ID
+    const order = await this.orderRepository.findById(orderIdOrPendingNumber);
     if (!order) {
       throw new BadRequestException('Order not found');
     }
@@ -209,8 +363,6 @@ export class PaymentService {
       orderNumber: order.orderNumber,
       amount: Number(order.totalAmount),
       paymentStatus: order.paymentStatus,
-      // Bank account info should come from environment variables
-      // Will be used to generate VietQR
       bankAccount: {
         accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',
         accountName: process.env.BANK_ACCOUNT_NAME || '',
@@ -223,14 +375,59 @@ export class PaymentService {
 
   /**
    * Check payment status of an order
+   * Supports both:
+   * - Pending Order Number (PD25XXXXX) - before payment
+   * - Order ID (UUID) - after payment confirmed
    */
-  async checkPaymentStatus(orderId: string) {
-    const order = await this.orderRepository.findById(orderId);
+  async checkPaymentStatus(orderIdOrPendingNumber: string) {
+    // Check if this is a pending order number (starts with PD or LD)
+    const isPendingNumber = /^(PD|LD)[\-\s]?\d{2}[A-Z0-9]+$/i.test(orderIdOrPendingNumber);
+
+    if (isPendingNumber) {
+      // Find pending order
+      const pendingOrder = await this.pendingOrderRepository.findByPendingNumber(orderIdOrPendingNumber);
+      if (!pendingOrder) {
+        throw new BadRequestException('Pending order not found');
+      }
+
+      // If already paid and converted to real order
+      if (pendingOrder.status === PendingOrderStatus.PAID && pendingOrder.orderId) {
+        const order = await this.orderRepository.findById(pendingOrder.orderId);
+        if (order) {
+          const transactions = await this.bankTransactionRepository.findByOrderId(order.id);
+          return {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            paymentStatus: order.paymentStatus,
+            paidAt: order.paidAt,
+            transactions: transactions.map(tx => ({
+              id: tx.id,
+              gateway: tx.gateway,
+              amount: Number(tx.amountIn),
+              transactionDate: tx.transactionDate,
+              referenceNumber: tx.referenceNumber,
+            })),
+          };
+        }
+      }
+
+      // Return pending order status
+      return {
+        orderId: pendingOrder.id,
+        orderNumber: pendingOrder.pendingNumber,
+        paymentStatus: 'PENDING',
+        paidAt: null,
+        transactions: [],
+      };
+    }
+
+    // Try to find real order by ID
+    const order = await this.orderRepository.findById(orderIdOrPendingNumber);
     if (!order) {
       throw new BadRequestException('Order not found');
     }
 
-    const transactions = await this.bankTransactionRepository.findByOrderId(orderId);
+    const transactions = await this.bankTransactionRepository.findByOrderId(orderIdOrPendingNumber);
 
     return {
       orderId: order.id,

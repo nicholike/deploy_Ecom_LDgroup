@@ -63,6 +63,37 @@ export interface IUserRepository {
   save(user: User): Promise<User>;
 
   /**
+   * Update user with partial data
+   */
+  update(id: string, data: Partial<{
+    username?: string;
+    passwordHash?: string;
+    role?: UserRole;
+    sponsorId?: string | null;
+    status?: UserStatus;
+    firstName?: string | null;
+    lastName?: string | null;
+    phone?: string | null;
+    avatar?: string | null;
+    emailVerified?: boolean;
+    quotaLimit?: number;
+    quotaUsed?: number;
+    quotaPeriodStart?: Date | null;
+    lockedAt?: Date | null;
+    lockedReason?: string | null;
+    approvedAt?: Date | null;
+    approvedBy?: string | null;
+    rejectedAt?: Date | null;
+    rejectedBy?: string | null;
+    rejectionReason?: string | null;
+  }>): Promise<User>;
+
+  /**
+   * Create UserTree entries for a newly approved user
+   */
+  createUserTreeEntries(userId: string): Promise<void>;
+
+  /**
    * Delete user (soft delete)
    */
   delete(id: string): Promise<void>;
@@ -88,7 +119,22 @@ export interface IUserRepository {
   referralCodeExists(code: string): Promise<boolean>;
 
   /**
+   * Find root admin (first admin created, no sponsor)
+   */
+  findRootAdmin(): Promise<User | null>;
+
+  /**
    * Build an MLM tree using the closure table data
    */
   getTree(options?: GetUserTreeOptions): Promise<UserTreeNode[]>;
+
+  /**
+   * 🔧 ATOMIC: Increment quota (prevents race condition)
+   */
+  incrementQuota(userId: string, amount: number): Promise<void>;
+
+  /**
+   * 🔧 ATOMIC: Decrement quota (prevents race condition)
+   */
+  decrementQuota(userId: string, amount: number): Promise<void>;
 }

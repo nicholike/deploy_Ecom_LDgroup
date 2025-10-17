@@ -48,6 +48,27 @@ export class CommissionService {
     this.logger.log(`Calculating commissions for order ${orderId}, buyer: ${buyerUserId}, value: ${orderValue}`);
 
     try {
+      // 🛡️ CRITICAL: Check if commissions EVER existed for this order (including CANCELLED)
+      // This prevents double-payment attacks via state transitions
+      const existingCommissions = await this.commissionRepository.findByOrderId(orderId);
+
+      if (existingCommissions.length > 0) {
+        const commissionIds = existingCommissions.map(c => c.id).join(', ');
+        const statuses = existingCommissions.map(c => c.status).join(', ');
+
+        this.logger.error(
+          `⛔ BLOCKED: Order ${orderId} already has ${existingCommissions.length} commission record(s)! ` +
+          `Commission IDs: [${commissionIds}], Statuses: [${statuses}]. ` +
+          `This prevents double-payment from multiple COMPLETED transitions.`
+        );
+
+        // Throw error instead of silently returning to catch bugs in calling code
+        throw new Error(
+          `Commission calculation blocked: Order ${orderId} already has commission records. ` +
+          `Cannot recalculate to prevent double-payment.`
+        );
+      }
+
       // Get upline chain (max 3 levels)
       const uplineChain = await this.userRepository.findUplineChain(buyerUserId, 3);
 
@@ -75,18 +96,36 @@ export class CommissionService {
           `Level ${level}: User ${uplineUser.username} (${uplineUser.id}) receives ${commissionAmount} (${rate}%)`,
         );
 
-        // Create commission record
-        const commission = await this.commissionRepository.create({
-          userId: uplineUser.id,
-          orderId,
-          fromUserId: buyerUserId,
-          level,
-          orderValue,
-          commissionRate: rate,
-          commissionAmount,
-          period,
-          status: CommissionStatus.APPROVED, // Auto approved
-        });
+        // Create commission record with error handling for unique constraint
+        let commission;
+        try {
+          commission = await this.commissionRepository.create({
+            userId: uplineUser.id,
+            orderId,
+            fromUserId: buyerUserId,
+            level,
+            orderValue,
+            commissionRate: rate,
+            commissionAmount,
+            period,
+            status: CommissionStatus.APPROVED, // Auto approved
+          });
+        } catch (error: any) {
+          // Catch database unique constraint violation (last line of defense)
+          if (error.code === 'P2002' || error.message?.includes('Unique constraint')) {
+            this.logger.error(
+              `⛔ DATABASE BLOCKED: Duplicate commission detected by unique constraint! ` +
+              `Order: ${orderId}, User: ${uplineUser.id}, Level: ${level}. ` +
+              `This should never happen if application logic is correct!`
+            );
+            throw new Error(
+              `Duplicate commission blocked by database constraint. ` +
+              `Order: ${orderId}, User: ${uplineUser.id}, Level: ${level}`
+            );
+          }
+          // Re-throw other errors
+          throw error;
+        }
 
         commissions.push(commission);
 
@@ -100,7 +139,7 @@ export class CommissionService {
           description: `Commission from order ${orderId} (Level ${level}, ${rate}%)`,
         });
 
-        this.logger.log(`Added ${commissionAmount} to wallet of user ${uplineUser.id}`);
+        this.logger.log(`✅ Added ${commissionAmount} to wallet of user ${uplineUser.id}`);
       }
 
       this.logger.log(`Successfully calculated ${commissions.length} commissions for order ${orderId}`);
@@ -126,9 +165,21 @@ export class CommissionService {
         return;
       }
 
-      this.logger.log(`Found ${commissions.length} commission(s) to refund`);
+      this.logger.log(`Found ${commissions.length} commission(s) to check for refund`);
 
-      for (const commission of commissions) {
+      // ✅ FIX: Only refund commissions that are NOT already CANCELLED
+      const commissionsToRefund = commissions.filter(
+        (c) => c.status !== CommissionStatus.CANCELLED
+      );
+
+      if (commissionsToRefund.length === 0) {
+        this.logger.log(`All commissions for order ${orderId} are already refunded. Skipping.`);
+        return;
+      }
+
+      this.logger.log(`Refunding ${commissionsToRefund.length} commission(s)`);
+
+      for (const commission of commissionsToRefund) {
         // Update commission status to CANCELLED
         await this.commissionRepository.updateStatus(
           commission.id,
@@ -137,6 +188,8 @@ export class CommissionService {
         );
 
         // Deduct from wallet (negative amount)
+        // ⚠️ This CAN make wallet negative if user already withdrew
+        // This is INTENTIONAL - business logic to prevent fraud
         await this.walletRepository.addTransaction({
           userId: commission.userId,
           type: WalletTransactionType.COMMISSION_REFUND,
@@ -147,11 +200,13 @@ export class CommissionService {
         });
 
         this.logger.log(
-          `Refunded ${commission.commissionAmount} from wallet of user ${commission.userId}`,
+          `✅ Refunded ${commission.commissionAmount} from wallet of user ${commission.userId}`,
         );
       }
 
-      this.logger.log(`Successfully refunded ${commissions.length} commissions for order ${orderId}`);
+      this.logger.log(
+        `✅ Commission refund completed for order ${orderId}: ${commissionsToRefund.length} commission(s) refunded`
+      );
     } catch (error) {
       this.logger.error(`Failed to refund commissions for order ${orderId}:`, error);
       throw error;

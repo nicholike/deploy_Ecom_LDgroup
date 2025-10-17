@@ -23,6 +23,7 @@ export class CreateProductCommand {
     public readonly salePrice?: number,
     public readonly lowStockThreshold?: number,
     public readonly isCommissionEligible?: boolean,
+    public readonly isSpecial?: boolean,
     public readonly images?: string[],
     public readonly thumbnail?: string,
     public readonly categoryId?: string,

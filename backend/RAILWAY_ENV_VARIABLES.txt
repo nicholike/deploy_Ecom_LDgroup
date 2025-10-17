@@ -1,0 +1,79 @@
+===========================================
+RAILWAY ENVIRONMENT VARIABLES
+Copy-paste từng dòng vào Railway Variables tab
+===========================================
+
+NODE_ENV=production
+
+PORT=3000
+
+API_PREFIX=/api/v1
+
+JWT_SECRET=kYmdf+wj1kCxpnSAnQII9Dw6ZDKPk51cHrnnzmj+lL4=
+
+JWT_EXPIRES_IN=1d
+
+JWT_REFRESH_SECRET=sGRb/7+24LLzQRUrTPsy5vrvRx72IL+h6Do6ewSdq0s=
+
+JWT_REFRESH_EXPIRES_IN=7d
+
+BCRYPT_SALT_ROUNDS=12
+
+RATE_LIMIT_TTL=60
+
+RATE_LIMIT_MAX=100
+
+CORS_ORIGIN=https://your-frontend-domain.vercel.app
+
+SEPAY_API_KEY=H+sJyl+wt8fwNrqliLOx/E97gw/3QV3zzHtyZswzoK0=
+
+BANK_ACCOUNT_NUMBER=6201235752
+
+BANK_ACCOUNT_NAME=DIEP DUC LAI
+
+BANK_CODE=BIDV
+
+BANK_NAME=BIDV - Ngân hàng TMCP Đầu tư và Phát triển Việt Nam
+
+SEPAY_VA_NUMBER=96247LAI712004
+
+SEPAY_VA_ACCOUNT_NAME=Diep Lai
+
+DEFAULT_COMMISSION_RATE_F1=10
+
+DEFAULT_COMMISSION_RATE_F2=4
+
+DEFAULT_COMMISSION_RATE_F3=2
+
+DEFAULT_COMMISSION_RATE_F4=0
+
+UPLOAD_DIR=./uploads
+
+MAX_FILE_SIZE=5242880
+
+===========================================
+⚠️ IMPORTANT NOTES:
+===========================================
+
+1. DATABASE_URL - KHÔNG CẦN ADD!
+   Railway sẽ tự động inject khi bạn add MySQL service
+
+2. CORS_ORIGIN - PHẢI UPDATE!
+   Thay "your-frontend-domain.vercel.app" bằng domain frontend thực
+
+3. Sau khi paste xong, Railway sẽ tự động redeploy
+
+===========================================
+SePay Webhook Configuration:
+===========================================
+
+URL: https://YOUR-BACKEND.up.railway.app/api/v1/payment/sepay-webhook
+
+Method: POST
+
+Authorization Header:
+Apikey H+sJyl+wt8fwNrqliLOx/E97gw/3QV3zzHtyZswzoK0=
+
+(Format: "Apikey YOUR_KEY" - không có Bearer)
+
+===========================================

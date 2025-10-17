@@ -36,6 +36,9 @@ export class ProductResponseDto {
   @ApiProperty()
   isCommissionEligible: boolean;
 
+  @ApiProperty()
+  isSpecial: boolean;
+
   @ApiPropertyOptional()
   images?: string[];
 
@@ -96,6 +99,7 @@ export class ProductResponseDto {
     dto.stock = product.stock ?? 0;
     dto.lowStockThreshold = product.lowStockThreshold ?? 0;
     dto.isCommissionEligible = product.isCommissionEligible;
+    dto.isSpecial = product.isSpecial;
     dto.images = product.images;
     dto.thumbnail = product.thumbnail;
     dto.categoryId = product.categoryId;

@@ -13,6 +13,21 @@ async function bootstrap() {
 
   console.log('✅ App created');
 
+  // Security headers with Helmet
+  console.log('🔧 Setting up security headers...');
+  await app.register(require('@fastify/helmet'), {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: [`'self'`],
+        styleSrc: [`'self'`, `'unsafe-inline'`],
+        imgSrc: [`'self'`, 'data:', 'https:'],
+        scriptSrc: [`'self'`],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Allow embedding for QR codes
+  });
+  console.log('✅ Security headers enabled');
+
   // Serve static files
   console.log('🔧 Setting up static file serving...');
   await app.register(require('@fastify/static'), {
@@ -38,13 +53,17 @@ async function bootstrap() {
 
   // CORS
   console.log('🔧 Setting up CORS...');
+  const corsOrigin = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+    : ['http://localhost:3000', 'http://localhost:3001']; // Default for dev
+
   app.enableCors({
-    origin: true, // Allow all origins in development
+    origin: corsOrigin, // ✅ Only allow specified origins
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-  console.log('✅ CORS enabled');
+  console.log('✅ CORS enabled for origins:', corsOrigin);
 
   // Global validation pipe
   console.log('🔧 Setting up validation pipe...');

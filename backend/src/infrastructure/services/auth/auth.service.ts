@@ -12,6 +12,7 @@ import * as bcrypt from 'bcrypt';
 import { IPasswordResetTokenRepository } from '@core/domain/auth/interfaces/password-reset-token.repository.interface';
 import { PasswordResetToken } from '@core/domain/auth/entities/password-reset-token.entity';
 import { CryptoUtil } from '@shared/utils/crypto.util';
+import { UserStatus } from '@shared/constants/user-roles.constant';
 
 export interface LoginResult {
   accessToken: string;
@@ -21,6 +22,7 @@ export interface LoginResult {
     email: string;
     username: string;
     role: string;
+    referralCode?: string;
   };
 }
 
@@ -44,9 +46,45 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
-    // 2. Check if user is active
+    // 2. Check user status with specific messages
+    if (user.isPending()) {
+      throw new UnauthorizedException(
+        'Tài khoản đang chờ phê duyệt từ quản trị viên. Vui lòng đợi thông báo qua email.'
+      );
+    }
+
+    if (user.isRejected()) {
+      const reason = user.rejectionReason
+        ? ` Lý do: ${user.rejectionReason}`
+        : '';
+      throw new UnauthorizedException(
+        `Tài khoản đã bị từ chối.${reason} Bạn có thể đăng ký lại với email khác.`
+      );
+    }
+
+    // Check specific status for better error messages
+    if (user.status === UserStatus.BANNED) {
+      const reason = user.lockedReason ? ` Lý do: ${user.lockedReason}` : '';
+      throw new UnauthorizedException(
+        `Tài khoản của bạn đã bị cấm vĩnh viễn.${reason} Vui lòng liên hệ quản trị viên để biết thêm chi tiết.`
+      );
+    }
+
+    if (user.status === UserStatus.SUSPENDED) {
+      const reason = user.lockedReason ? ` Lý do: ${user.lockedReason}` : '';
+      throw new UnauthorizedException(
+        `Tài khoản của bạn đã bị tạm ngưng.${reason} Vui lòng liên hệ quản trị viên để được mở lại.`
+      );
+    }
+
+    if (user.status === UserStatus.INACTIVE) {
+      throw new UnauthorizedException(
+        'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên để kích hoạt lại.'
+      );
+    }
+
     if (!user.isActive()) {
-      throw new UnauthorizedException('Tài khoản đã bị vô hiệu hóa');
+      throw new UnauthorizedException('Tài khoản không thể đăng nhập. Vui lòng liên hệ quản trị viên.');
     }
 
     // 3. Verify password
@@ -80,6 +118,7 @@ export class AuthService {
         email: user.email.value,
         username: user.username,
         role: user.role,
+        referralCode: user.referralCode.value,
       },
     };
   }

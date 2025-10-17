@@ -9,10 +9,12 @@ export enum UserRole {
 }
 
 export enum UserStatus {
+  PENDING = 'PENDING',       // New user waiting for admin approval
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
   SUSPENDED = 'SUSPENDED',
   BANNED = 'BANNED',
+  REJECTED = 'REJECTED',     // Registration rejected by admin
 }
 
 // Role hierarchy for permission checks (higher number = higher level)

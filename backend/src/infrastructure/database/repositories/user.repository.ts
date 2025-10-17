@@ -88,6 +88,11 @@ export class UserRepository implements IUserRepository {
               username: true,
               firstName: true,
               lastName: true,
+              email: true,
+              phone: true,
+              referralCode: true,
+              role: true,
+              status: true,
             },
           },
         },
@@ -166,48 +171,51 @@ export class UserRepository implements IUserRepository {
         },
       });
 
-      // Create user tree entry for self-reference
-      const selfEntryExists = await this.prisma.userTree.findUnique({
-        where: {
-          ancestor_descendant: {
-            ancestor: saved.id,
-            descendant: saved.id,
-          },
-        },
-      });
-
-      if (!selfEntryExists) {
-        await this.prisma.userTree.create({
-          data: {
-            ancestor: saved.id,
-            descendant: saved.id,
-            level: 0,
+      // ONLY create UserTree entries for ACTIVE users
+      // PENDING users will have tree created when approved via ApproveUserHandler
+      if (saved.status === UserStatus.ACTIVE) {
+        const selfEntryExists = await this.prisma.userTree.findUnique({
+          where: {
+            ancestor_descendant: {
+              ancestor: saved.id,
+              descendant: saved.id,
+            },
           },
         });
 
-        // Create tree entries for all ancestors
-        if (saved.sponsorId) {
-          const ancestorTrees = await this.prisma.userTree.findMany({
-            where: { descendant: saved.sponsorId },
+        if (!selfEntryExists) {
+          await this.prisma.userTree.create({
+            data: {
+              ancestor: saved.id,
+              descendant: saved.id,
+              level: 0,
+            },
           });
 
-          const treesToCreate = ancestorTrees.some((entry) => entry.ancestor === saved.sponsorId)
-            ? ancestorTrees
-            : [
-                ...ancestorTrees,
-                {
-                  ancestor: saved.sponsorId,
-                  descendant: saved.sponsorId,
-                  level: 0,
-                },
-              ];
-
-          for (const ancestorTree of treesToCreate) {
-            await this.createTreeLinkSafe({
-              ancestor: ancestorTree.ancestor,
-              descendant: saved.id,
-              level: ancestorTree.level + 1,
+          // Create tree entries for all ancestors
+          if (saved.sponsorId) {
+            const ancestorTrees = await this.prisma.userTree.findMany({
+              where: { descendant: saved.sponsorId },
             });
+
+            const treesToCreate = ancestorTrees.some((entry) => entry.ancestor === saved.sponsorId)
+              ? ancestorTrees
+              : [
+                  ...ancestorTrees,
+                  {
+                    ancestor: saved.sponsorId,
+                    descendant: saved.sponsorId,
+                    level: 0,
+                  },
+                ];
+
+            for (const ancestorTree of treesToCreate) {
+              await this.createTreeLinkSafe({
+                ancestor: ancestorTree.ancestor,
+                descendant: saved.id,
+                level: ancestorTree.level + 1,
+              });
+            }
           }
         }
       }
@@ -251,6 +259,20 @@ export class UserRepository implements IUserRepository {
       where: { referralCode: code.toUpperCase() },
     });
     return count > 0;
+  }
+
+  async findRootAdmin(): Promise<User | null> {
+    const data = await this.prisma.user.findFirst({
+      where: {
+        role: UserRole.ADMIN,
+        sponsorId: null,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return data ? this.toDomain(data) : null;
   }
 
   private async createTreeLinkSafe(data: { ancestor: string; descendant: string; level: number }): Promise<void> {
@@ -419,9 +441,13 @@ export class UserRepository implements IUserRepository {
   }
 
   /**
-   * Update user fields (for quota, etc.)
+   * Update user fields (for quota, re-registration, approval, etc.)
    */
   async update(id: string, data: Partial<{
+    username: string;
+    passwordHash: string;
+    role: UserRole;
+    sponsorId: string | null;
     quotaPeriodStart: Date | null;
     quotaLimit: number;
     quotaUsed: number;
@@ -430,8 +456,14 @@ export class UserRepository implements IUserRepository {
     phone: string;
     avatar: string;
     status: UserStatus;
+    emailVerified: boolean;
     lockedAt: Date | null;
     lockedReason: string | null;
+    approvedAt: Date | null;
+    approvedBy: string | null;
+    rejectedAt: Date | null;
+    rejectedBy: string | null;
+    rejectionReason: string | null;
   }>): Promise<User> {
     const updated = await this.prisma.user.update({
       where: { id },
@@ -484,6 +516,96 @@ export class UserRepository implements IUserRepository {
     });
 
     return wallet ? Number(wallet.balance) : 0;
+  }
+
+  /**
+   * Create UserTree entries for a user (used when approving PENDING users)
+   * Creates self-reference + links to all ancestors via sponsor
+   */
+  async createUserTreeEntries(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, sponsorId: true },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // 1. Create self-reference (level 0)
+    await this.createTreeLinkSafe({
+      ancestor: user.id,
+      descendant: user.id,
+      level: 0,
+    });
+
+    // 2. Create tree entries for all ancestors
+    if (user.sponsorId) {
+      const ancestorTrees = await this.prisma.userTree.findMany({
+        where: { descendant: user.sponsorId },
+      });
+
+      const treesToCreate = ancestorTrees.some((entry) => entry.ancestor === user.sponsorId)
+        ? ancestorTrees
+        : [
+            ...ancestorTrees,
+            {
+              ancestor: user.sponsorId,
+              descendant: user.sponsorId,
+              level: 0,
+            },
+          ];
+
+      for (const ancestorTree of treesToCreate) {
+        await this.createTreeLinkSafe({
+          ancestor: ancestorTree.ancestor,
+          descendant: user.id,
+          level: ancestorTree.level + 1,
+        });
+      }
+    }
+  }
+
+  /**
+   * 🔧 ATOMIC: Increment quota (prevents race condition)
+   * Use this instead of read-modify-write pattern
+   */
+  async incrementQuota(userId: string, amount: number): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        quotaUsed: {
+          increment: amount,
+        },
+      },
+    });
+  }
+
+  /**
+   * 🔧 ATOMIC: Decrement quota (prevents race condition)
+   * Use this instead of read-modify-write pattern
+   * Ensures quotaUsed never goes below 0
+   */
+  async decrementQuota(userId: string, amount: number): Promise<void> {
+    // Get current quota first to ensure we don't go negative
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { quotaUsed: true },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Calculate new quota (max 0 to prevent negative)
+    const newQuota = Math.max(0, user.quotaUsed - amount);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        quotaUsed: newQuota,
+      },
+    });
   }
 
   /**
@@ -597,6 +719,11 @@ export class UserRepository implements IUserRepository {
         quotaUsed: data.quotaUsed ?? 0,
         lockedAt: data.lockedAt,
         lockedReason: data.lockedReason,
+        approvedAt: data.approvedAt,
+        approvedBy: data.approvedBy,
+        rejectedAt: data.rejectedAt,
+        rejectedBy: data.rejectedBy,
+        rejectionReason: data.rejectionReason,
       },
       data.createdAt,
       data.updatedAt,

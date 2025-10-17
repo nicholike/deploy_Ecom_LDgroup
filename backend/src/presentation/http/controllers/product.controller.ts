@@ -30,7 +30,12 @@ import { GetProductHandler } from '@core/application/product/queries/get-product
 import { ListProductsQuery } from '@core/application/product/queries/list-products/list-products.query';
 import { ListProductsHandler } from '@core/application/product/queries/list-products/list-products.handler';
 import { IProductVariantRepository } from '@core/domain/product/interfaces/product-variant.repository.interface';
+import { IProductRepository } from '@core/domain/product/interfaces/product.repository.interface';
 import { PriceTierRepository } from '@infrastructure/database/repositories/price-tier.repository';
+import { ProductVariant } from '@core/domain/product/entities/product-variant.entity';
+import { SKU } from '@core/domain/product/value-objects/sku.vo';
+import { Price } from '@core/domain/product/value-objects/price.vo';
+import { CreateProductVariantDto, ProductVariantResponseDto } from '../dto/product/product-variant.dto';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { Roles } from '@shared/decorators/roles.decorator';
@@ -86,6 +91,8 @@ export class ProductController {
     private readonly deleteProductHandler: DeleteProductHandler,
     private readonly getProductHandler: GetProductHandler,
     private readonly listProductsHandler: ListProductsHandler,
+    @Inject('IProductRepository')
+    private readonly productRepository: IProductRepository,
     @Inject('IProductVariantRepository')
     private readonly productVariantRepository: IProductVariantRepository,
     private readonly priceTierRepository: PriceTierRepository,
@@ -107,6 +114,7 @@ export class ProductController {
       dto.salePrice,
       dto.lowStockThreshold,
       dto.isCommissionEligible,
+      dto.isSpecial,
       dto.images,
       dto.thumbnail,
       dto.categoryId,
@@ -187,7 +195,17 @@ export class ProductController {
     const query = new GetProductQuery(id);
     const product = await this.getProductHandler.execute(query);
     const variants = await this.productVariantRepository.findByProductId(product.id);
-    return ProductResponseDto.fromDomain(product, variants);
+    
+    // Fetch category if product has categoryId
+    let category = undefined;
+    if (product.categoryId) {
+      category = await this.prisma.category.findUnique({
+        where: { id: product.categoryId },
+        select: { id: true, name: true, slug: true },
+      });
+    }
+    
+    return ProductResponseDto.fromDomain(product, variants, category || undefined);
   }
 
   @Get('by-slug/:slug')
@@ -198,7 +216,17 @@ export class ProductController {
     const query = new GetProductQuery(undefined, slug);
     const product = await this.getProductHandler.execute(query);
     const variants = await this.productVariantRepository.findByProductId(product.id);
-    return ProductResponseDto.fromDomain(product, variants);
+    
+    // Fetch category if product has categoryId
+    let category = undefined;
+    if (product.categoryId) {
+      category = await this.prisma.category.findUnique({
+        where: { id: product.categoryId },
+        select: { id: true, name: true, slug: true },
+      });
+    }
+    
+    return ProductResponseDto.fromDomain(product, variants, category || undefined);
   }
 
   @Get('by-sku/:sku')
@@ -209,7 +237,17 @@ export class ProductController {
     const query = new GetProductQuery(undefined, undefined, sku);
     const product = await this.getProductHandler.execute(query);
     const variants = await this.productVariantRepository.findByProductId(product.id);
-    return ProductResponseDto.fromDomain(product, variants);
+    
+    // Fetch category if product has categoryId
+    let category = undefined;
+    if (product.categoryId) {
+      category = await this.prisma.category.findUnique({
+        where: { id: product.categoryId },
+        select: { id: true, name: true, slug: true },
+      });
+    }
+    
+    return ProductResponseDto.fromDomain(product, variants, category || undefined);
   }
 
   @Put(':id')
@@ -227,6 +265,7 @@ export class ProductController {
       dto.stock,
       dto.lowStockThreshold,
       dto.isCommissionEligible,
+      dto.isSpecial,
       dto.images,
       dto.thumbnail,
       dto.categoryId,
@@ -327,6 +366,43 @@ export class ProductController {
   // ============================================
   // VARIANT MANAGEMENT ENDPOINTS
   // ============================================
+
+  @Post(':productId/variants')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Add new variant to existing product (Admin only)' })
+  @ApiResponse({ status: 201 })
+  async addVariant(
+    @Param('productId') productId: string,
+    @Body() dto: CreateProductVariantDto,
+  ) {
+    // Check if product exists
+    const product = await this.productRepository.findById(productId);
+    if (!product) {
+      throw new HttpException('Không tìm thấy sản phẩm', HttpStatus.NOT_FOUND);
+    }
+
+    // Create new variant
+    const variant = ProductVariant.create({
+      productId: productId,
+      size: dto.size,
+      sku: SKU.create(dto.sku),
+      price: Price.create(dto.price),
+      costPrice: dto.costPrice ? Price.create(dto.costPrice) : undefined,
+      salePrice: dto.salePrice ? Price.create(dto.salePrice) : undefined,
+      stock: dto.stock ?? 999999,
+      lowStockThreshold: dto.lowStockThreshold ?? 10,
+      isDefault: dto.isDefault ?? false,
+      order: dto.order ?? 1,
+      active: true,
+    });
+
+    const savedVariant = await this.productVariantRepository.save(variant);
+
+    return {
+      message: 'Đã thêm biến thể sản phẩm thành công',
+      data: ProductVariantResponseDto.fromDomain(savedVariant),
+    };
+  }
 
   @Patch('variants/:variantId')
   @Roles(UserRole.ADMIN)

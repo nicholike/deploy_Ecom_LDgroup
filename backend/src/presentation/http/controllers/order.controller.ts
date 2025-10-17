@@ -22,6 +22,7 @@ import { CartRepository } from '@infrastructure/database/repositories/cart.repos
 import { UserRepository } from '@infrastructure/database/repositories/user.repository';
 import { WalletRepository } from '@infrastructure/database/repositories/wallet.repository';
 import { PriceTierRepository } from '@infrastructure/database/repositories/price-tier.repository';
+import { PendingOrderService } from '@infrastructure/services/pending-order/pending-order.service';
 import { OrderStatus, PaymentStatus, WalletTransactionType } from '@prisma/client';
 import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -92,26 +93,39 @@ export class OrderController {
     private readonly userRepository: UserRepository,
     private readonly walletRepository: WalletRepository,
     private readonly priceTierRepository: PriceTierRepository,
+    private readonly pendingOrderService: PendingOrderService,
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create order from cart with price tiers & quota update' })
-  @ApiResponse({ status: 201 })
+  @ApiOperation({ summary: 'Create pending order from cart (NEW: No real order until payment)' })
+  @ApiResponse({ status: 201, description: 'Pending order created. User must pay within 30 minutes.' })
   async createOrder(
     @CurrentUser('userId') userId: string,
     @CurrentUser('role') userRole: string,
     @Body() dto: CreateOrderDto,
   ) {
+    /**
+     * ✅ NEW FLOW (Prevents quota bypass):
+     * 1. Create PendingOrder (NOT Order)
+     * 2. User redirected to payment page
+     * 3. If user pays → Webhook creates real Order
+     * 4. If no payment within 30 min → PendingOrder expires
+     *
+     * Cart and quota are NOT touched until payment confirmed!
+     */
+
     // Get cart
     const cart = await this.cartRepository.getCartByUserId(userId);
     if (!cart || cart.items.length === 0) {
-      throw new Error('Cart is empty');
+      throw new HttpException('Giỏ hàng trống', HttpStatus.BAD_REQUEST);
     }
 
     // Calculate total quantity
     const totalQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
     // Check quota for non-admin users
+    // NOTE: We still check quota here, but we DON'T update it
+    // This prevents creating a pending order that would exceed quota
     if (userRole !== UserRole.ADMIN) {
       const user = await this.userRepository.findById(userId);
       if (!user) {
@@ -147,75 +161,26 @@ export class OrderController {
       // Check if exceeds limit
       if (totalQuantity > quotaInfo.quotaRemaining) {
         throw new HttpException(
-          `Cannot place order. Exceeds purchase limit by ${totalQuantity - quotaInfo.quotaRemaining} products. (Remaining: ${quotaInfo.quotaRemaining})`,
+          `Không thể đặt hàng. Vượt quá giới hạn ${totalQuantity - quotaInfo.quotaRemaining} sản phẩm. (Còn lại: ${quotaInfo.quotaRemaining})`,
           HttpStatus.BAD_REQUEST,
         );
       }
     }
 
-    // Calculate totals with price tiers
-    const items = await Promise.all(
-      cart.items.map(async (item) => {
-        let price: number;
-
-        // If has variant, try to get tier price
-        if (item.productVariantId) {
-          const tierPrice = await this.priceTierRepository.getPriceForQuantity(
-            item.productVariantId,
-            item.quantity,
-          );
-
-          if (tierPrice !== null) {
-            price = tierPrice;
-          } else {
-            // Fallback to variant price
-            price = Number(item.productVariant?.salePrice || item.productVariant?.price);
-          }
-        } else {
-          // No variant, use product price
-          price = Number(item.product.salePrice || item.product.price);
-        }
-
-        return {
-          productId: item.productId,
-          productVariantId: item.productVariantId || undefined,
-          quantity: item.quantity,
-          price,
-        };
-      }),
-    );
-
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const shippingFee = 0; // Free shipping for now
-    const totalAmount = subtotal + shippingFee;
-
-    // Create order
-    const order = await this.orderRepository.create({
+    // Create PendingOrder (will be converted to Order after payment)
+    const pendingOrder = await this.pendingOrderService.createPendingOrderFromCart({
       userId,
-      items,
-      subtotal,
-      shippingFee,
-      totalAmount,
       shippingAddress: dto.shippingAddress,
       shippingMethod: dto.shippingMethod,
       paymentMethod: dto.paymentMethod,
       customerNote: dto.customerNote,
     });
 
-    // Update quota for non-admin users
-    if (userRole !== UserRole.ADMIN) {
-      const user = await this.userRepository.findById(userId);
-      if (user) {
-        await this.userRepository.update(userId, {
-          quotaUsed: user.quotaUsed + totalQuantity,
-        });
-      }
-    }
-
-    // Clear cart
-    await this.cartRepository.clearCart(userId);
-
-    return order;
+    return {
+      ...pendingOrder,
+      message: 'Pending order created. Please complete payment within 30 minutes.',
+      expiresIn: '30 minutes',
+    };
   }
 
   @Get()
@@ -344,7 +309,8 @@ export class OrderController {
       );
     }
 
-    return this.processCancelOrder(order);
+    // Use transactional cancelOrder method
+    return this.orderRepository.cancelOrder(id, this.walletRepository, this.userRepository);
   }
 
   @Post(':id/admin-cancel')
@@ -371,51 +337,14 @@ export class OrderController {
       throw new HttpException('Order is already cancelled', HttpStatus.BAD_REQUEST);
     }
 
-    return this.processCancelOrder(order);
+    // Use transactional cancelOrder method
+    return this.orderRepository.cancelOrder(id, this.walletRepository, this.userRepository);
   }
 
   /**
-   * Process order cancellation
-   * - Update order status to CANCELLED
-   * - Refund to wallet if paid
-   * - Refund commissions
-   * - Return quota to user
+   * ❌ DEPRECATED: Replaced by OrderRepository.cancelOrder()
+   * Old non-transactional method - DO NOT USE
+   * Kept for reference only
    */
-  private async processCancelOrder(order: any) {
-    // 1. Update order status to CANCELLED (commission refund handled in repository)
-    await this.orderRepository.updateStatus(order.id, OrderStatus.CANCELLED);
-
-    // 2. If paid, refund to wallet
-    if (order.paymentStatus === PaymentStatus.COMPLETED && order.paidAt) {
-      await this.walletRepository.addTransaction({
-        userId: order.userId,
-        type: WalletTransactionType.ORDER_REFUND,
-        amount: Number(order.totalAmount),
-        orderId: order.id,
-        description: `Refund for cancelled order #${order.orderNumber}`,
-      });
-    }
-
-    // 3. Return quota to user (calculate total quantity from order items)
-    const totalQuantity = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
-    const user = await this.userRepository.findById(order.userId);
-
-    if (user && user.quotaUsed > 0) {
-      const newQuotaUsed = Math.max(0, user.quotaUsed - totalQuantity);
-      await this.userRepository.update(user.id, {
-        quotaUsed: newQuotaUsed,
-      });
-    }
-
-    // Get updated order
-    const updatedOrder = await this.orderRepository.findById(order.id);
-
-    return {
-      message: 'Order cancelled successfully',
-      order: updatedOrder,
-      refunded: order.paymentStatus === PaymentStatus.COMPLETED,
-      refundAmount: order.paymentStatus === PaymentStatus.COMPLETED ? Number(order.totalAmount) : 0,
-      quotaReturned: totalQuantity,
-    };
-  }
+  // private async processCancelOrder(order: any) { ... }
 }

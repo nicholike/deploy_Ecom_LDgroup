@@ -61,6 +61,21 @@ export class WalletRepository {
     const balanceBefore = Number(wallet.balance);
     const balanceAfter = balanceBefore + data.amount;
 
+    // ⚠️ ALLOW NEGATIVE BALANCE
+    // Business logic: User can withdraw commission before order is cancelled
+    // This creates negative balance as a penalty for fraud prevention
+    // Admin should monitor and handle negative balances manually
+
+    // Log warning if balance goes negative
+    if (balanceAfter < 0 && balanceBefore >= 0) {
+      console.warn(
+        `⚠️ WALLET GOING NEGATIVE: ` +
+        `User ${data.userId} balance: ${balanceBefore} → ${balanceAfter}. ` +
+        `Type: ${data.type}, Amount: ${data.amount}, ` +
+        `Description: ${data.description || 'N/A'}`
+      );
+    }
+
     // Update wallet balance and create transaction in a transaction
     const [transaction] = await this.prisma.$transaction([
       this.prisma.walletTransaction.create({

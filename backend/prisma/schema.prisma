@@ -34,10 +34,17 @@ model User {
   referralCode String     @unique @map("referral_code")
 
   // Status
-  status        UserStatus @default(ACTIVE)
+  status        UserStatus @default(PENDING)
   emailVerified Boolean    @default(false) @map("email_verified")
   lockedAt      DateTime?  @map("locked_at")
   lockedReason  String?    @map("locked_reason")
+
+  // Approval Workflow
+  approvedAt      DateTime? @map("approved_at")
+  approvedBy      String?   @map("approved_by")
+  rejectedAt      DateTime? @map("rejected_at")
+  rejectedBy      String?   @map("rejected_by")
+  rejectionReason String?   @map("rejection_reason") @db.Text
 
   // Purchase Limit (300 products per 30 days from first order)
   quotaPeriodStart DateTime? @map("quota_period_start") // Start of current 30-day period
@@ -53,6 +60,7 @@ model User {
   ancestorTree   UserTree[] @relation("Ancestor")
   descendantTree UserTree[] @relation("Descendant")
   cart           Cart?
+  pendingOrders  PendingOrder[]
   orders         Order[]
   commissions    Commission[]
   withdrawals    WithdrawalRequest[]
@@ -60,11 +68,20 @@ model User {
   wallet         Wallet?
   notifications  Notification[]
 
+  // Approval tracking (admin who approved/rejected users)
+  approvedByUser User?  @relation("ApprovedUsers", fields: [approvedBy], references: [id], onDelete: SetNull)
+  rejectedByUser User?  @relation("RejectedUsers", fields: [rejectedBy], references: [id], onDelete: SetNull)
+  usersApproved  User[] @relation("ApprovedUsers")
+  usersRejected  User[] @relation("RejectedUsers")
+
   @@map("users")
   @@index([sponsorId])
   @@index([referralCode])
   @@index([role])
   @@index([email])
+  @@index([status])
+  @@index([approvedAt])
+  @@index([rejectedAt])
 }
 
 model PasswordResetToken {
@@ -93,10 +110,12 @@ enum UserRole {
 }
 
 enum UserStatus {
+  PENDING       // New user waiting for admin approval
   ACTIVE
   INACTIVE
   SUSPENDED
   BANNED
+  REJECTED      // Registration rejected by admin
 }
 
 // MLM Tree - Closure Table for efficient tree queries
@@ -169,6 +188,9 @@ model Product {
 
   // Commission
   isCommissionEligible Boolean @default(true) @map("is_commission_eligible")
+
+  // Special Product
+  isSpecial Boolean @default(false) @map("is_special")
 
   // Media
   images    Json?    @db.Json  // Store as JSON array
@@ -327,6 +349,65 @@ model CartItem {
 // ORDER MANAGEMENT
 // ============================================
 
+// PendingOrder - Temporary storage for checkout before payment
+model PendingOrder {
+  id            String   @id @default(uuid())
+  pendingNumber String   @unique @map("pending_number") // Format: PD25XXXXXXXXX
+
+  // Customer
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Cart snapshot (JSON)
+  items Json // Snapshot of cart items with pricing
+
+  // Pricing
+  subtotal    Decimal @db.Decimal(18, 2)
+  shippingFee Decimal @default(0) @map("shipping_fee") @db.Decimal(18, 2)
+  tax         Decimal @default(0) @db.Decimal(18, 2)
+  discount    Decimal @default(0) @db.Decimal(18, 2)
+  totalAmount Decimal @map("total_amount") @db.Decimal(18, 2)
+
+  // Shipping info
+  shippingAddress Json? @map("shipping_address")
+  shippingMethod  String? @map("shipping_method")
+
+  // Payment
+  paymentMethod String? @map("payment_method")
+
+  // Notes
+  customerNote String? @map("customer_note") @db.Text
+
+  // Status
+  status PendingOrderStatus @default(AWAITING_PAYMENT)
+
+  // Link to created order (after payment confirmed)
+  orderId String? @unique @map("order_id")
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  // Expiry (auto-cancel after 30 minutes)
+  expiresAt DateTime @map("expires_at")
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at")
+  paidAt      DateTime? @map("paid_at")
+  cancelledAt DateTime? @map("cancelled_at")
+
+  @@map("pending_orders")
+  @@index([userId])
+  @@index([pendingNumber])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([createdAt])
+}
+
+enum PendingOrderStatus {
+  AWAITING_PAYMENT // Waiting for payment
+  PAID             // Payment confirmed, order created
+  EXPIRED          // Expired without payment
+  CANCELLED        // Cancelled by user or system
+}
+
 model Order {
   id          String @id @default(uuid())
   orderNumber String @unique @map("order_number")
@@ -368,6 +449,7 @@ model Order {
   cancelledAt DateTime? @map("cancelled_at")
 
   // Relations
+  pendingOrder     PendingOrder?
   items            OrderItem[]
   commissions      Commission[]
   bankTransactions BankTransaction[]
@@ -497,6 +579,7 @@ model Commission {
   paidAt       DateTime? @map("paid_at")
 
   @@map("commissions")
+  @@unique([orderId, userId, level], name: "unique_commission_order_user_level")
   @@index([userId, period])
   @@index([orderId])
   @@index([status])
@@ -699,10 +782,12 @@ enum NotificationType {
   NEW_DOWNLINE         // Có F1 mới
   ACCOUNT_LOCKED       // Tài khoản bị khóa
   ACCOUNT_UNLOCKED     // Tài khoản được mở khóa
-  
+  ACCOUNT_APPROVED     // Tài khoản được phê duyệt
+  ACCOUNT_REJECTED     // Tài khoản bị từ chối
+
   SYSTEM_ANNOUNCEMENT  // Thông báo hệ thống
   PROMOTION            // Khuyến mãi
-  
+
   PAYMENT_RECEIVED     // Nhận được thanh toán
   PAYMENT_CONFIRMED    // Thanh toán được xác nhận
 }

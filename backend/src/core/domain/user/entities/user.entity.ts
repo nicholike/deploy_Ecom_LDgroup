@@ -27,6 +27,12 @@ export interface UserProps {
   quotaUsed: number;
   lockedAt?: Date | null;
   lockedReason?: string | null;
+  // Approval workflow
+  approvedAt?: Date | null;
+  approvedBy?: string | null;
+  rejectedAt?: Date | null;
+  rejectedBy?: string | null;
+  rejectionReason?: string | null;
 }
 
 export class User extends BaseEntity {
@@ -127,6 +133,26 @@ export class User extends BaseEntity {
     return this.props.lockedReason;
   }
 
+  get approvedAt(): Date | null | undefined {
+    return this.props.approvedAt;
+  }
+
+  get approvedBy(): string | null | undefined {
+    return this.props.approvedBy;
+  }
+
+  get rejectedAt(): Date | null | undefined {
+    return this.props.rejectedAt;
+  }
+
+  get rejectedBy(): string | null | undefined {
+    return this.props.rejectedBy;
+  }
+
+  get rejectionReason(): string | null | undefined {
+    return this.props.rejectionReason;
+  }
+
   // Business methods
   updateProfile(data: {
     firstName?: string;
@@ -157,7 +183,7 @@ export class User extends BaseEntity {
   }
 
   activate(): void {
-    if (this.props.status === UserStatus.INACTIVE) {
+    if (this.props.status === UserStatus.INACTIVE || this.props.status === UserStatus.PENDING) {
       this.props.status = UserStatus.ACTIVE;
       this.updatedAt = new Date();
     }
@@ -175,6 +201,28 @@ export class User extends BaseEntity {
     this.updatedAt = new Date();
   }
 
+  // Approval workflow methods
+  approve(adminId: string): void {
+    if (this.props.status !== UserStatus.PENDING) {
+      throw new Error('Can only approve users with PENDING status');
+    }
+    this.props.status = UserStatus.ACTIVE;
+    this.props.approvedAt = new Date();
+    this.props.approvedBy = adminId;
+    this.updatedAt = new Date();
+  }
+
+  reject(adminId: string, reason: string): void {
+    if (this.props.status !== UserStatus.PENDING) {
+      throw new Error('Can only reject users with PENDING status');
+    }
+    this.props.status = UserStatus.REJECTED;
+    this.props.rejectedAt = new Date();
+    this.props.rejectedBy = adminId;
+    this.props.rejectionReason = reason;
+    this.updatedAt = new Date();
+  }
+
   canCreateRole(targetRole: UserRole): boolean {
     // Use centralized role creation permissions
     // Only ADMIN can create all user types (F1, F2, F3, F4, ...)
@@ -185,8 +233,31 @@ export class User extends BaseEntity {
     return this.props.status === UserStatus.ACTIVE;
   }
 
+  isPending(): boolean {
+    return this.props.status === UserStatus.PENDING;
+  }
+
+  isRejected(): boolean {
+    return this.props.status === UserStatus.REJECTED;
+  }
+
   isAdmin(): boolean {
     return this.props.role === UserRole.ADMIN;
+  }
+
+  // Static method to calculate downline role based on sponsor role
+  // F1 -> F2, F2 -> F3, ..., F6 -> F6 (stays at F6)
+  static calculateDownlineRole(sponsorRole: UserRole): UserRole {
+    const roleMap: Record<UserRole, UserRole> = {
+      [UserRole.ADMIN]: UserRole.F1,  // Admin creates F1
+      [UserRole.F1]: UserRole.F2,
+      [UserRole.F2]: UserRole.F3,
+      [UserRole.F3]: UserRole.F4,
+      [UserRole.F4]: UserRole.F5,
+      [UserRole.F5]: UserRole.F6,
+      [UserRole.F6]: UserRole.F6,     // F6 stays at F6 (lowest level)
+    };
+    return roleMap[sponsorRole];
   }
 
   // Convert to plain object for persistence
@@ -209,6 +280,13 @@ export class User extends BaseEntity {
       quotaPeriodStart: this.props.quotaPeriodStart,
       quotaLimit: this.props.quotaLimit,
       quotaUsed: this.props.quotaUsed,
+      lockedAt: this.props.lockedAt,
+      lockedReason: this.props.lockedReason,
+      approvedAt: this.props.approvedAt,
+      approvedBy: this.props.approvedBy,
+      rejectedAt: this.props.rejectedAt,
+      rejectedBy: this.props.rejectedBy,
+      rejectionReason: this.props.rejectionReason,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

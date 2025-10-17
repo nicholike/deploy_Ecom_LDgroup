@@ -30,6 +30,7 @@ export class ProductRepository implements IProductRepository {
         stock: data.stock,
         lowStockThreshold: data.lowStockThreshold,
         isCommissionEligible: data.isCommissionEligible,
+        isSpecial: data.isSpecial,
         images: data.images || [],
         thumbnail: data.thumbnail,
         categoryId: data.categoryId,
@@ -142,6 +143,7 @@ export class ProductRepository implements IProductRepository {
         stock: data.stock,
         lowStockThreshold: data.lowStockThreshold,
         isCommissionEligible: data.isCommissionEligible,
+        isSpecial: data.isSpecial,
         images: data.images || [],
         thumbnail: data.thumbnail,
         categoryId: data.categoryId,
@@ -220,11 +222,25 @@ export class ProductRepository implements IProductRepository {
 
   // Helper method to convert Prisma model to Domain entity
   private toDomain(prismaProduct: any): Product {
+    // Handle null/empty slug by creating from product name
+    let slug: Slug;
+    if (prismaProduct.slug && prismaProduct.slug.length > 0) {
+      try {
+        slug = Slug.fromString(prismaProduct.slug);
+      } catch (error) {
+        // If slug is invalid, create from name
+        slug = Slug.create(prismaProduct.name || `product-${prismaProduct.id}`);
+      }
+    } else {
+      // If slug is null/empty, create from name
+      slug = Slug.create(prismaProduct.name || `product-${prismaProduct.id}`);
+    }
+
     return Product.fromPersistence(
       prismaProduct.id,
       {
         name: prismaProduct.name,
-        slug: Slug.fromString(prismaProduct.slug),
+        slug,
         description: prismaProduct.description,
         price: prismaProduct.price ? Price.create(Number(prismaProduct.price)) : undefined,
         costPrice: prismaProduct.costPrice ? Price.create(Number(prismaProduct.costPrice)) : undefined,
@@ -233,6 +249,7 @@ export class ProductRepository implements IProductRepository {
         stock: prismaProduct.stock,
         lowStockThreshold: prismaProduct.lowStockThreshold,
         isCommissionEligible: prismaProduct.isCommissionEligible,
+        isSpecial: prismaProduct.isSpecial ?? false,
         images: Array.isArray(prismaProduct.images) ? prismaProduct.images : [],
         thumbnail: prismaProduct.thumbnail,
         categoryId: prismaProduct.categoryId,

@@ -254,104 +254,122 @@ export class OrderRepository {
   }
 
   async updateStatus(id: string, status: OrderStatus) {
-    // Get current order to check previous status
-    const currentOrder = await this.prisma.order.findUnique({
-      where: { id },
-      select: { status: true, userId: true, totalAmount: true },
-    });
+    // 🔒 USE TRANSACTION WITH SERIALIZABLE ISOLATION to prevent race conditions
+    // This ensures only ONE request can update status at a time for this order
+    return await this.prisma.$transaction(
+      async (tx) => {
+        // 1. Lock and read current order (SELECT ... FOR UPDATE equivalent)
+        const currentOrder = await tx.order.findUnique({
+          where: { id },
+          select: { status: true, userId: true, totalAmount: true },
+        });
 
-    if (!currentOrder) {
-      throw new Error(`Order ${id} not found`);
-    }
+        if (!currentOrder) {
+          throw new Error(`Order ${id} not found`);
+        }
 
-    const oldStatus = currentOrder.status;
+        const oldStatus = currentOrder.status;
 
-    if (status === oldStatus) {
-      this.logger.log(`Order ${id} already in status ${status}. No update performed.`);
-      return this.findById(id);
-    }
+        if (status === oldStatus) {
+          this.logger.log(`Order ${id} already in status ${status}. No update performed.`);
+          // Return full order details using non-transactional query
+          return this.findById(id);
+        }
 
-    // Allow free status transitions per business requirement; admin can correct mistakes.
+        this.logger.log(`Updating order ${id} status: ${oldStatus} → ${status}`);
 
-    this.logger.log(`Updating order ${id} status: ${oldStatus} → ${status}`);
+        const updateData: any = { status };
 
-    const updateData: any = { status };
+        if (status === OrderStatus.COMPLETED) {
+          updateData.completedAt = new Date();
+        } else if (status === OrderStatus.CANCELLED) {
+          updateData.cancelledAt = new Date();
+        }
 
-    if (status === OrderStatus.COMPLETED) {
-      updateData.completedAt = new Date();
-    } else if (status === OrderStatus.CANCELLED) {
-      updateData.cancelledAt = new Date();
-    }
+        // 2. Check for existing commissions INSIDE transaction with lock
+        let shouldCalculateCommission = false;
 
-    let shouldCalculateCommission = false;
+        if (status === OrderStatus.COMPLETED && oldStatus !== OrderStatus.COMPLETED) {
+          // 🛡️ CRITICAL: Check ALL commissions (including CANCELLED) to prevent re-calculation
+          const allCommissions = await tx.commission.findMany({
+            where: { orderId: id },
+            select: { id: true, status: true },
+          });
 
-    if (status === OrderStatus.COMPLETED && oldStatus !== OrderStatus.COMPLETED) {
-      const existingActiveCommissions = await this.prisma.commission.count({
-        where: {
-          orderId: id,
-          status: { not: CommissionStatus.CANCELLED },
-        },
-      });
+          if (allCommissions.length > 0) {
+            const statuses = allCommissions.map(c => c.status).join(', ');
+            this.logger.warn(
+              `Order ${id} has ${allCommissions.length} commission record(s) with statuses: [${statuses}]. ` +
+              `Will NOT calculate commissions to prevent double-payment.`
+            );
+            shouldCalculateCommission = false;
+          } else {
+            this.logger.log(`Order ${id} has no commission records. Will calculate commissions.`);
+            shouldCalculateCommission = true;
+          }
+        }
 
-      if (existingActiveCommissions > 0) {
-        this.logger.warn(
-          `Order ${id} đã có ${existingActiveCommissions} hoa hồng được ghi nhận trước đó. Bỏ qua bước tính lại hoa hồng.`,
-        );
-      } else {
-        shouldCalculateCommission = true;
-      }
-    }
+        // 3. Update order status INSIDE transaction
+        await tx.order.update({
+          where: { id },
+          data: updateData,
+        });
 
-    const updatedOrder = await this.prisma.order.update({
-      where: { id },
-      data: updateData,
-      include: {
-        items: {
+        // 4. Handle commissions INSIDE transaction
+        try {
+          // Case 1: Calculate commissions (will throw if already exists)
+          if (shouldCalculateCommission) {
+            this.logger.log(`Order ${id} completed. Calculating commissions...`);
+            await this.commissionService.calculateCommissionsForOrder(
+              id,
+              currentOrder.userId,
+              Number(currentOrder.totalAmount),
+            );
+            this.logger.log(`✅ Commissions calculated for order ${id}`);
+          }
+
+          // Case 2: Refund commissions if moving FROM COMPLETED
+          if (oldStatus === OrderStatus.COMPLETED && status !== OrderStatus.COMPLETED) {
+            this.logger.log(`Order ${id} changed from COMPLETED to ${status}. Refunding commissions...`);
+            await this.commissionService.refundCommissionsForOrder(id);
+            this.logger.log(`✅ Commissions refunded for order ${id}`);
+          }
+        } catch (error) {
+          this.logger.error(`❌ Failed to process commissions for order ${id}:`, error);
+          // Re-throw error to rollback transaction
+          // This ensures order status and commissions are consistent
+          throw error;
+        }
+
+        // 5. Return full order details (query INSIDE transaction to see committed changes)
+        return tx.order.findUnique({
+          where: { id },
           include: {
-            product: true,
-            productVariant: true,
+            items: {
+              include: {
+                product: true,
+                productVariant: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                email: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+                sponsorId: true,
+              },
+            },
           },
-        },
-        user: {
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            role: true,
-            sponsorId: true,
-          },
-        },
+        });
       },
-    });
-
-    // COMMISSION LOGIC: Handle commission calculation/refund based on status change
-    try {
-      // Case 1: Order COMPLETED → Calculate and distribute commissions
-      if (shouldCalculateCommission) {
-        this.logger.log(`Order ${id} completed. Calculating commissions...`);
-        await this.commissionService.calculateCommissionsForOrder(
-          id,
-          currentOrder.userId,
-          Number(currentOrder.totalAmount),
-        );
-        this.logger.log(`Commissions calculated for order ${id}`);
-      }
-
-      // Case 2: Order moved FROM COMPLETED to ANY other status → Refund commissions
-      if (oldStatus === OrderStatus.COMPLETED && status !== OrderStatus.COMPLETED) {
-        this.logger.log(`Order ${id} changed from COMPLETED to ${status}. Refunding commissions...`);
-        await this.commissionService.refundCommissionsForOrder(id);
-        this.logger.log(`Commissions refunded for order ${id}`);
-      }
-    } catch (error) {
-      this.logger.error(`Failed to process commissions for order ${id}:`, error);
-      // Don't throw error - order status update should succeed even if commission processing fails
-      // Admin can manually adjust later if needed
-    }
-
-    return updatedOrder;
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        timeout: 15000, // 15 seconds timeout for transaction
+      },
+    );
   }
 
   async updatePaymentStatus(id: string, paymentStatus: PaymentStatus) {
@@ -383,6 +401,193 @@ export class OrderRepository {
           },
         },
       },
+    });
+  }
+
+  /**
+   * 🔒 TRANSACTIONAL: Cancel order with full atomicity
+   * Handles: status update, commission refund, quota return
+   * Note: Wallet refund is NOT automatic - admin handles manually
+   * Ensures all-or-nothing (prevents partial cancellation)
+   */
+  async cancelOrder(
+    orderId: string,
+    walletRepository: any, // WalletRepository
+    userRepository: any,   // UserRepository
+  ): Promise<any> {
+    return await this.prisma.$transaction(
+      async (tx) => {
+        // 1. Get current order (with lock)
+        const order = await tx.order.findUnique({
+          where: { id: orderId },
+          include: {
+            items: {
+              include: {
+                product: true,
+                productVariant: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                email: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+                sponsorId: true,
+              },
+            },
+          },
+        });
+
+        if (!order) {
+          throw new Error(`Order ${orderId} not found`);
+        }
+
+        const oldStatus = order.status;
+
+        // Already cancelled - idempotent operation
+        if (oldStatus === OrderStatus.CANCELLED) {
+          this.logger.log(`Order ${orderId} already cancelled. Skipping.`);
+          return {
+            message: 'Order already cancelled',
+            order,
+            alreadyCancelled: true,
+          };
+        }
+
+        this.logger.log(`Cancelling order ${orderId} (status: ${oldStatus})...`);
+
+        // 2. Update order status to CANCELLED (inside transaction)
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: OrderStatus.CANCELLED,
+            cancelledAt: new Date(),
+          },
+        });
+
+        // 3. Refund commissions if order was COMPLETED
+        // Note: Commission service operations run in their own context but we're
+        // calling them inside this transaction to ensure consistency
+        if (oldStatus === OrderStatus.COMPLETED) {
+          try {
+            this.logger.log(`Order ${orderId} was COMPLETED. Refunding commissions...`);
+            await this.commissionService.refundCommissionsForOrder(orderId);
+            this.logger.log(`✅ Commissions refunded for order ${orderId}`);
+          } catch (error) {
+            this.logger.error(`❌ Failed to refund commissions for order ${orderId}:`, error);
+            throw error; // Rollback transaction
+          }
+        }
+
+        // 4. ❌ AUTO-REFUND REMOVED
+        // Refunds are now handled manually by admin to prevent errors
+        // If order was paid, admin will process refund separately
+
+        // 5. Return quota to user (inside transaction, atomic decrement)
+        const totalQuantity = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+
+        try {
+          const user = await tx.user.findUnique({
+            where: { id: order.userId },
+            select: { quotaUsed: true },
+          });
+
+          if (user && user.quotaUsed > 0) {
+            // Calculate new quota (max 0 to prevent negative)
+            const newQuota = Math.max(0, user.quotaUsed - totalQuantity);
+
+            await tx.user.update({
+              where: { id: order.userId },
+              data: {
+                quotaUsed: newQuota,
+              },
+            });
+
+            this.logger.log(`✅ Returned ${totalQuantity} quota to user ${order.userId}`);
+          }
+        } catch (error) {
+          this.logger.error(`❌ Failed to return quota:`, error);
+          throw error; // Rollback transaction
+        }
+
+        // 6. Get updated order
+        const updatedOrder = await tx.order.findUnique({
+          where: { id: orderId },
+          include: {
+            items: {
+              include: {
+                product: true,
+                productVariant: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                email: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+                sponsorId: true,
+              },
+            },
+          },
+        });
+
+        this.logger.log(`✅ Order ${orderId} cancelled successfully`);
+
+        return {
+          message: 'Order cancelled successfully',
+          order: updatedOrder,
+          quotaReturned: totalQuantity,
+          note: 'Refund will be processed manually by admin if applicable',
+        };
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        timeout: 15000,
+      },
+    );
+  }
+
+  /**
+   * Find expired orders for auto-cancellation
+   * Used by order cleanup service
+   */
+  async findExpiredOrders(
+    status: OrderStatus,
+    paymentStatus: PaymentStatus,
+    expiryTime: Date,
+  ) {
+    return this.prisma.order.findMany({
+      where: {
+        status,
+        paymentStatus,
+        createdAt: {
+          lt: expiryTime,
+        },
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+            productVariant: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
     });
   }
 

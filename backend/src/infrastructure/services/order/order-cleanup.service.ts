@@ -22,9 +22,10 @@ export class OrderCleanupService {
    * Scheduled job to cancel expired unpaid orders
    * Runs every 5 minutes
    *
-   * ✅ ENABLED: @nestjs/schedule installed and configured
+   * ⚠️ DISABLED: Cron temporarily disabled for Railway deployment
+   * TODO: Re-enable after fixing crypto issue
    */
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  // @Cron(CronExpression.EVERY_5_MINUTES)
   async cancelExpiredOrders() {
     this.logger.log('🔍 Checking for expired unpaid orders...');
 

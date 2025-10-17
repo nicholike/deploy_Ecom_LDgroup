@@ -24,9 +24,10 @@ export class PendingOrderCleanupService {
    * Cleanup expired pending orders
    * Runs every 5 minutes
    *
-   * ✅ ENABLED: @nestjs/schedule installed and configured
+   * ⚠️ DISABLED: Cron temporarily disabled for Railway deployment
+   * TODO: Re-enable after fixing crypto issue
    */
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  // @Cron(CronExpression.EVERY_5_MINUTES)
   async handleExpiredPendingOrders() {
     this.logger.log('🔍 Running scheduled cleanup for expired pending orders...');
 

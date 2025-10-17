@@ -447,7 +447,7 @@ export default function OrdersManagement() {
                 </header>
 
                 {expandedGroups[group.userId] && (
-                <div id={`orders-group-${group.userId}`} className="overflow-x-auto">
+                <div id={`orders-group-${group.userId}`} className="max-h-[400px] overflow-y-auto overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-900/40">
                       <tr>

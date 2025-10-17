@@ -213,146 +213,159 @@ export default function Payment() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 py-8 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="mx-auto max-w-4xl px-4">
-        {/* Header */}
-        <div className="mb-6 flex items-center gap-4">
-          <button
-            onClick={() => navigate('/cart-checkout')}
-            className="rounded-lg p-2 text-gray-600 transition hover:bg-white/50 dark:text-gray-400 dark:hover:bg-gray-800/50"
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Thanh toán đơn hàng</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Mã đơn: {paymentInfo.orderNumber}</p>
-          </div>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* QR Code Section */}
-          <div className="rounded-2xl bg-white p-6 shadow-lg dark:bg-gray-800">
-            <h2 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">Quét mã QR để thanh toán</h2>
-
-            <div className="relative mx-auto w-full max-w-sm">
-              <div className="overflow-hidden rounded-xl border-4 border-blue-500 bg-white p-4">
-                <img
-                  src={paymentInfo.qrCodeUrl}
-                  alt="QR Code"
-                  className="h-full w-full object-contain"
-                  crossOrigin="anonymous"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    console.error('QR Code load error:', e);
-                    console.log('QR URL:', paymentInfo.qrCodeUrl);
-                    e.currentTarget.src = 'https://via.placeholder.com/300x300?text=QR+Code+Error';
-                  }}
-                />
-              </div>
-
+    <div 
+      className="min-h-screen flex items-center justify-center px-4 py-10"
+      style={{ background: 'linear-gradient(180deg, #e6ebf3 0%, #f7f9fc 100%)' }}
+    >
+      <div 
+        className="max-w-4xl w-full border border-blue-400 rounded-md p-6 bg-white bg-opacity-70"
+        style={{ backdropFilter: 'saturate(180%) blur(20px)' }}
+      >
+        <h2 className="text-center font-semibold text-sm mb-6">
+          Thanh toán qua chuyển khoản ngân hàng
+        </h2>
+        
+        <div className="flex flex-col md:flex-row md:space-x-8">
+          {/* Left side - QR Code */}
+          <div className="flex-1 flex flex-col items-center">
+            <p className="text-xs text-center mb-3 px-2 md:px-0">
+              Cách 1: Mở app ngân hàng/ Ví và <span className="font-semibold">quét mã QR</span>
+            </p>
+            
+            <div className="relative border border-green-600 w-72 h-72 flex flex-col items-center justify-center">
+              {/* Corner decorations */}
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-green-600 rounded-tl"></div>
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-green-600 rounded-tr"></div>
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-green-600 rounded-bl"></div>
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-green-600 rounded-br"></div>
+              
+              {/* QR Code Image */}
+              <img
+                src={paymentInfo.qrCodeUrl}
+                alt="QR Code"
+                className="w-56 h-56 object-contain"
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  console.error('QR Code load error:', e);
+                  console.log('QR URL:', paymentInfo.qrCodeUrl);
+                  e.currentTarget.src = 'https://via.placeholder.com/224x224?text=QR+Code+Error';
+                }}
+              />
+              
+              {/* Checking overlay */}
               {checking && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/80 backdrop-blur-sm dark:bg-gray-800/80">
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
                   <div className="text-center">
                     <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-600" />
-                    <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Đang kiểm tra thanh toán...
+                    <p className="mt-2 text-xs font-medium text-gray-700">
+                      Đang kiểm tra...
                     </p>
                   </div>
                 </div>
               )}
             </div>
-
-            <div className="mt-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-              <p className="text-center text-sm text-blue-700 dark:text-blue-300">
-                📱 Mở app ngân hàng và quét mã QR để thanh toán
-              </p>
-            </div>
+            
+            <button
+              onClick={() => {
+                const link = document.createElement('a');
+                link.href = paymentInfo.qrCodeUrl;
+                link.download = `QR_${paymentInfo.orderNumber}.png`;
+                link.click();
+              }}
+              className="mt-4 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold rounded px-3 py-1 flex items-center space-x-2"
+              type="button"
+            >
+              <Copy className="h-3 w-3" />
+              <span>Tải ảnh QR</span>
+            </button>
           </div>
 
-          {/* Bank Info Section */}
-          <div className="space-y-4">
-            {/* Amount */}
-            <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-lg">
-              <p className="text-sm opacity-90">Số tiền cần thanh toán</p>
-              <p className="mt-1 text-3xl font-bold">{formatCurrency(paymentInfo.amount)}</p>
-            </div>
-
-            {/* Bank Details */}
-            <div className="rounded-2xl bg-white p-6 shadow-lg dark:bg-gray-800">
-              <h3 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">Thông tin chuyển khoản</h3>
-
-              <div className="space-y-4">
-                {/* Bank Name */}
-                <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Ngân hàng</label>
-                  <div className="mt-1 flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700">
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {paymentInfo.bankAccount.bankName}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Account Number */}
-                <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Số tài khoản</label>
-                  <div className="mt-1 flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700">
-                    <span className="font-mono text-lg font-bold text-gray-900 dark:text-white">
-                      {paymentInfo.bankAccount.accountNumber}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(paymentInfo.bankAccount.accountNumber, 'số tài khoản')}
-                      className="rounded-md p-2 text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
-                    >
-                      <Copy className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Account Name */}
-                <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Chủ tài khoản</label>
-                  <div className="mt-1 flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700">
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {paymentInfo.bankAccount.accountName}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Transfer Content */}
-                <div>
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Nội dung chuyển khoản</label>
-                  <div className="mt-1 flex items-center justify-between rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
-                    <span className="font-mono font-bold text-yellow-900 dark:text-yellow-300">
-                      {paymentInfo.description}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(paymentInfo.description, 'nội dung')}
-                      className="rounded-md p-2 text-yellow-700 transition hover:bg-yellow-100 dark:text-yellow-400 dark:hover:bg-yellow-900/30"
-                    >
-                      <Copy className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <p className="mt-2 text-xs text-red-600 dark:text-red-400">
-                    ⚠️ Vui lòng nhập chính xác nội dung để hệ thống tự động xác nhận thanh toán
-                  </p>
-                </div>
+          {/* Right side - Bank Info */}
+          <div className="flex-1 mt-8 md:mt-0">
+            <p className="text-xs text-center md:text-left mb-3 px-2 md:px-0">
+              Cách 2: Chuyển khoản <span className="font-semibold">thủ công</span> theo thông tin
+            </p>
+            
+            <div className="border border-gray-300 rounded-md overflow-hidden text-xs">
+              <div className="bg-gray-100 text-center text-teal-700 font-semibold py-1 px-2">
+                {paymentInfo.bankAccount.bankName}
               </div>
+              
+              <table className="w-full border-collapse">
+                <tbody>
+                  <tr className="border-t border-gray-300">
+                    <td className="py-2 px-3 w-28">Ngân hàng</td>
+                    <td className="py-2 px-3 font-semibold">{paymentInfo.bankAccount.bankName}</td>
+                  </tr>
+                  
+                  <tr className="border-t border-gray-300">
+                    <td className="py-2 px-3 w-28">Thụ hưởng</td>
+                    <td className="py-2 px-3 font-semibold">{paymentInfo.bankAccount.accountName}</td>
+                  </tr>
+                  
+                  <tr className="border-t border-gray-300">
+                    <td className="py-2 px-3 w-28">Số tài khoản</td>
+                    <td className="py-2 px-3 font-semibold flex items-center space-x-2">
+                      <span>{paymentInfo.bankAccount.accountNumber}</span>
+                      <button
+                        onClick={() => copyToClipboard(paymentInfo.bankAccount.accountNumber, 'số tài khoản')}
+                        className="text-blue-500 text-xs flex items-center space-x-1 hover:underline"
+                        type="button"
+                      >
+                        <Copy className="h-3 w-3" />
+                        <span>Sao chép</span>
+                      </button>
+                    </td>
+                  </tr>
+                  
+                  <tr className="border-t border-gray-300">
+                    <td className="py-2 px-3 w-28">Số tiền</td>
+                    <td className="py-2 px-3 font-semibold flex items-center space-x-2">
+                      <span>{formatCurrency(paymentInfo.amount)}</span>
+                      <button
+                        onClick={() => copyToClipboard(paymentInfo.amount.toString(), 'số tiền')}
+                        className="text-blue-500 text-xs flex items-center space-x-1 hover:underline"
+                        type="button"
+                      >
+                        <Copy className="h-3 w-3" />
+                        <span>Sao chép</span>
+                      </button>
+                    </td>
+                  </tr>
+                  
+                  <tr className="border-t border-gray-300">
+                    <td className="py-2 px-3 w-28">Nội dung CK</td>
+                    <td className="py-2 px-3 font-semibold flex items-center space-x-2">
+                      <span>{paymentInfo.description}</span>
+                      <button
+                        onClick={() => copyToClipboard(paymentInfo.description, 'nội dung')}
+                        className="text-blue-500 text-xs flex items-center space-x-1 hover:underline"
+                        type="button"
+                      >
+                        <Copy className="h-3 w-3" />
+                        <span>Sao chép</span>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-
-            {/* Status */}
-            <div className="rounded-lg bg-gray-100 p-4 text-center dark:bg-gray-800">
-              <div className="flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Đang chờ thanh toán... (tự động cập nhật)
-                </p>
-              </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Hệ thống sẽ tự động xác nhận sau khi bạn chuyển khoản thành công
+            
+            <div className="mt-3 bg-yellow-100 border border-yellow-300 rounded px-3 py-2 text-xs text-yellow-900 flex items-start space-x-2">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <p className="leading-tight">
+                <span className="font-semibold">Lưu ý:</span> Vui lòng giữ nguyên nội dung chuyển khoản{' '}
+                <span className="font-semibold">{paymentInfo.description}</span> để xác nhận thanh toán tự động.
               </p>
             </div>
           </div>
         </div>
+        
+        <p className="text-center text-xs mt-6 flex items-center justify-center gap-2">
+          Trạng thái: Chờ thanh toán
+          <Loader2 className="h-3 w-3 animate-spin" />
+        </p>
       </div>
     </div>
   );

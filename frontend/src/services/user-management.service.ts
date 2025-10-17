@@ -231,6 +231,99 @@ export const UserManagementService = {
     );
     return response;
   },
+
+  // ========================================
+  // PENDING USERS - APPROVAL WORKFLOW
+  // ========================================
+  async getPendingUsers(params: { page?: number; limit?: number; search?: string }): Promise<{
+    data: Array<{
+      id: string;
+      email: string;
+      username: string;
+      firstName: string | null;
+      lastName: string | null;
+      role: string;
+      referralCode: string;
+      sponsor: {
+        id: string;
+        username: string;
+        role: string;
+        firstName: string | null;
+        lastName: string | null;
+        email: string;
+        phone: string | null;
+        referralCode: string;
+        status: string;
+      } | null;
+      createdAt: string;
+    }>;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+
+    const url = `/users/pending?${queryParams.toString()}`;
+    const response = await apiClient<{
+      data: Array<{
+        id: string;
+        email: string;
+        username: string;
+        firstName: string | null;
+        lastName: string | null;
+        role: string;
+        referralCode: string;
+        sponsor: {
+          id: string;
+          username: string;
+          role: string;
+          firstName: string | null;
+          lastName: string | null;
+          email: string;
+          phone: string | null;
+          referralCode: string;
+          status: string;
+        } | null;
+        createdAt: string;
+      }>;
+      pagination: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
+    }>(url, { method: 'GET', authToken: getAuthToken() });
+    return response;
+  },
+
+  async approveUser(userId: string): Promise<{ message: string }> {
+    const response = await apiClient<{ message: string }>(
+      `/users/${userId}/approve`,
+      {
+        method: 'POST',
+        authToken: getAuthToken(),
+      }
+    );
+    return response;
+  },
+
+  async rejectUser(userId: string, reason: string): Promise<{ message: string }> {
+    const response = await apiClient<{ message: string }>(
+      `/users/${userId}/reject`,
+      {
+        method: 'POST',
+        body: { reason },
+        authToken: getAuthToken(),
+      }
+    );
+    return response;
+  },
 };
 
 

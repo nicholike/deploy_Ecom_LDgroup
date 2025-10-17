@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import SignIn from "./pages/AuthPages/SignIn";
+import SignUp from "./pages/AuthPages/SignUp";
 import ForgotPassword from "./pages/AuthPages/ForgotPassword";
 import ResetPassword from "./pages/AuthPages/ResetPassword";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -40,6 +41,7 @@ import { ToastProvider } from "./context/ToastContext";
 import OrdersManagement from "./pages/Orders/OrdersManagement";
 import Settings from "./pages/Settings/Settings";
 import UserManagement from "./pages/Users/UserManagement";
+import PendingUsers from "./pages/Users/PendingUsers";
 import Payment from "./pages/Payment";
 
 const AppContent: React.FC = () => {
@@ -62,6 +64,7 @@ const AppContent: React.FC = () => {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/cart" element={<CartCheckout />} />
@@ -107,7 +110,8 @@ const AppContent: React.FC = () => {
           
           {/* User Management Route */}
           <Route path="users" element={<UserManagement />} />
-          
+          <Route path="users/pending" element={<PendingUsers />} />
+
           {/* Settings Route */}
           <Route path="settings" element={<Settings />} />
         </Route>

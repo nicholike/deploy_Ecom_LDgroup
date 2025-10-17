@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string;
   username: string;
   role: string;
+  referralCode?: string;
   firstName?: string;
   lastName?: string;
   fullName?: string;
@@ -34,7 +35,29 @@ export interface ChangePasswordResponse {
   message: string;
 }
 
+export interface RegisterData {
+  email: string;
+  username: string;
+  password: string;
+  referralCode: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}
+
+export interface RegisterResponse {
+  message: string;
+  user: AuthUser;
+}
+
 export const authService = {
+  register(data: RegisterData) {
+    return apiClient<RegisterResponse>("/auth/register", {
+      method: "POST",
+      body: data,
+    });
+  },
+
   login(email: string, password: string) {
     return apiClient<LoginResponse>("/auth/login", {
       method: "POST",

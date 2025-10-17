@@ -1,9 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import Label from "../form/Label";
-import Input from "../form/input/InputField";
-import Button from "../ui/button/Button";
 import { useAuth } from "../../context/AuthContext";
+import { getFormErrorMessage } from "../../shared/errorTranslator";
 
 const ResetPasswordForm: React.FC = () => {
   const location = useLocation();
@@ -22,10 +20,31 @@ const ResetPasswordForm: React.FC = () => {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+    if (!token || token.trim().length === 0) {
+      setError("Vui lòng nhập Token đặt lại mật khẩu!");
       return;
     }
+
+    if (!password || password.length === 0) {
+      setError("Vui lòng nhập Mật khẩu mới!");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Mật khẩu phải có ít nhất 8 ký tự!");
+      return;
+    }
+
+    if (!confirmPassword || confirmPassword.length === 0) {
+      setError("Vui lòng nhập Xác nhận mật khẩu!");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp!");
+      return;
+    }
+
     setError(null);
     setMessage(null);
     setIsSubmitting(true);
@@ -36,7 +55,7 @@ const ResetPasswordForm: React.FC = () => {
       setPassword("");
       setConfirmPassword("");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unable to reset password";
+      const errorMessage = getFormErrorMessage(err);
       setError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -44,80 +63,129 @@ const ResetPasswordForm: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col flex-1">
-      <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
-        <div>
-          <div className="mb-5 sm:mb-8">
-            <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Reset Password
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Choose a new password for your account.
-            </p>
+    <div className="relative min-h-screen w-full flex flex-col items-center px-2.5 overflow-hidden pt-1 md:pt-16">
+      {/* Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat -z-10"
+        style={{ backgroundImage: 'url(/login.jpg)' }}
+      />
+
+      {/* Logo */}
+      <div className="relative z-10 mb-1 md:mb-12 flex justify-center">
+        <img
+          src="/LOGO_LD%20PERFUME%20OIL%20LUXURY%20(4)_NA%CC%82U%201.svg"
+          alt="LD Perfume Oil Luxury Logo"
+          width={300}
+          height={90}
+          className="max-w-[300px] drop-shadow-2xl"
+        />
+      </div>
+
+      {/* Glassmorphism Wrapper */}
+      <div
+        className="w-full max-w-lg rounded-2xl px-12 py-8 text-center transition-all duration-300"
+        style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.37)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 12px 48px rgba(0, 0, 0, 0.5)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.37)';
+        }}
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          {/* Title */}
+          <h2 className="text-4xl mb-6 text-white tracking-wide">Đặt lại mật khẩu</h2>
+
+          {/* Description */}
+          <p className="text-white/80 text-sm mb-8 text-left">
+            Nhập token đặt lại mật khẩu và mật khẩu mới cho tài khoản của bạn.
+          </p>
+
+          {/* Token Input Field */}
+          <div className="relative border-b-2 border-white/30 my-5">
+            <input
+              type="text"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              autoComplete="off"
+              placeholder=" "
+              className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-base text-white px-0 peer"
+            />
+            <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
+              Token đặt lại mật khẩu *
+            </label>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <Label>
-                Reset token <span className="text-error-500">*</span>
-              </Label>
-              <Input
-                placeholder="Paste the token you received"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label>
-                New password <span className="text-error-500">*</span>
-              </Label>
-              <Input
+          {/* New Password Input Field */}
+          <div className="relative border-b-2 border-white/30 my-5">
+            <input
                 type="password"
-                placeholder="Enter a new password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label>
-                Confirm password <span className="text-error-500">*</span>
-              </Label>
-              <Input
-                type="password"
-                placeholder="Re-enter the new password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                required
-              />
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              placeholder=" "
+              className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-base text-white px-0 peer"
+            />
+            <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
+              Mật khẩu mới *
+            </label>
             </div>
 
+          {/* Confirm Password Input Field */}
+          <div className="relative border-b-2 border-white/30 my-5">
+            <input
+                type="password"
+                value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              placeholder=" "
+              className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-base text-white px-0 peer"
+            />
+            <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
+              Xác nhận mật khẩu mới *
+            </label>
+            </div>
+
+          {/* Error Message */}
             {error && (
-              <p className="text-sm text-error-500" role="alert">
+            <div className="mb-5 backdrop-blur-md bg-red-500/20 border border-red-400/50 text-white px-4 py-3 rounded-xl text-sm whitespace-pre-line text-left">
                 {error}
-              </p>
+            </div>
             )}
 
+          {/* Success Message */}
             {message && (
-              <div className="p-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg dark:border-green-800 dark:bg-green-900/30 dark:text-green-300">
-                {message}
+            <div className="mb-5 backdrop-blur-md bg-green-500/20 border border-green-400/50 text-white px-4 py-3 rounded-xl text-sm text-left">
+              ✅ {message}
+              <p className="mt-2 text-xs">Đang chuyển hướng đến trang đăng nhập...</p>
               </div>
             )}
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <Button type="submit" size="sm" className="w-full sm:w-auto" isLoading={isSubmitting}>
-                Reset password
-              </Button>
-              <Link
-                to="/login"
-                className="text-sm text-brand-500 transition-colors hover:text-brand-600 dark:text-brand-400"
-              >
-                Back to sign in
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-[#8b5e1e] text-white font-semibold border-none py-4 cursor-pointer rounded-full text-base transition-all duration-300 hover:bg-[#6f4715] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}
+          </button>
+
+          {/* Back to Login Link */}
+          <div className="text-center mt-8 text-white">
+            <p className="text-sm">
+              Nhớ mật khẩu?{" "}
+              <Link to="/login" className="text-white no-underline hover:underline">
+                Đăng nhập ngay
               </Link>
+            </p>
             </div>
           </form>
-        </div>
       </div>
     </div>
   );

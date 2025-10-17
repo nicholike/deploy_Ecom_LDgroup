@@ -46,6 +46,7 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<ProductResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [variantsWithTiers, setVariantsWithTiers] = useState<ProductVariant[]>([]);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -59,6 +60,30 @@ export default function ProductDetails() {
         setLoading(true);
         const result = await ProductService.getProduct(id);
         setProduct(result);
+        
+        // Load price tiers for each variant
+        if (result.variants && result.variants.length > 0) {
+          const variantsWithPriceTiers = await Promise.all(
+            result.variants.map(async (variant) => {
+              if (variant.id) {
+                try {
+                  const response = await ProductService.getPriceTiers(variant.id);
+                  const fetchedTiers = (response as any)?.data || response;
+                  return {
+                    ...variant,
+                    priceTiers: Array.isArray(fetchedTiers) && fetchedTiers.length > 0 ? fetchedTiers : [],
+                  };
+                } catch (error) {
+                  console.error(`Failed to fetch price tiers for variant ${variant.id}:`, error);
+                  return { ...variant, priceTiers: [] };
+                }
+              }
+              return { ...variant, priceTiers: [] };
+            })
+          );
+          setVariantsWithTiers(variantsWithPriceTiers);
+        }
+        
         setError(null);
       } catch (err: any) {
         console.error("Failed to load product:", err);
@@ -72,14 +97,14 @@ export default function ProductDetails() {
   }, [id]);
 
   const sortedVariants = useMemo(() => {
-    if (!product?.variants) return [];
-    const variants = [...product.variants];
+    if (variantsWithTiers.length === 0) return [];
+    const variants = [...variantsWithTiers];
     return variants.sort((a, b) => {
       if (a.isDefault && !b.isDefault) return -1;
       if (!a.isDefault && b.isDefault) return 1;
       return (a.order ?? 0) - (b.order ?? 0);
     });
-  }, [product?.variants]);
+  }, [variantsWithTiers]);
 
   return (
     <>
@@ -203,13 +228,10 @@ export default function ProductDetails() {
                               SKU
                             </th>
                             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-                              Price
+                              Qty ≥ 10 (₫)
                             </th>
                             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-                              Sale Price
-                            </th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-                              Stock
+                              Qty ≥ 100 (₫)
                             </th>
                             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
                               Default
@@ -217,37 +239,39 @@ export default function ProductDetails() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900/40">
-                          {sortedVariants.map((variant) => (
-                            <tr
-                              key={variant.id ?? variant.sku}
-                              className={variant.isDefault ? "bg-brand-50/50 dark:bg-brand-900/10" : ""}
-                            >
-                              <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                {variant.size || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                {variant.sku || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                {formatCurrency(variant.price)}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                {formatCurrency(variant.salePrice)}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                {variant.stock ?? "—"}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                {variant.isDefault ? (
-                                  <span className="inline-flex rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-600 dark:bg-brand-900/30 dark:text-brand-200">
-                                    Default
-                                  </span>
-                                ) : (
-                                  "—"
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                          {sortedVariants.map((variant) => {
+                            const tier10 = variant.priceTiers?.find((tier) => tier.minQuantity === 10);
+                            const tier100 = variant.priceTiers?.find((tier) => tier.minQuantity === 100);
+                            
+                            return (
+                              <tr
+                                key={variant.id ?? variant.sku}
+                                className={variant.isDefault ? "bg-brand-50/50 dark:bg-brand-900/10" : ""}
+                              >
+                                <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                  {variant.size || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                  {variant.sku || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                  {tier10 ? formatCurrency(tier10.price) : "—"}
+                                </td>
+                                <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                  {tier100 ? formatCurrency(tier100.price) : "—"}
+                                </td>
+                                <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                  {variant.isDefault ? (
+                                    <span className="inline-flex rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-600 dark:bg-brand-900/30 dark:text-brand-200">
+                                      Default
+                                    </span>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

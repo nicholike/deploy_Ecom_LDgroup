@@ -601,8 +601,11 @@ const UserManagement: React.FC = () => {
                     <th className="w-[18%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Người dùng
                     </th>
-                    <th className="w-[13%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[11%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Username
+                    </th>
+                    <th className="w-[10%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                      Mã giới thiệu
                     </th>
                     <th className="w-[8%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Cấp độ
@@ -616,7 +619,7 @@ const UserManagement: React.FC = () => {
                     <th className="w-[13%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Ngày tạo
                     </th>
-                    <th className="w-[20%] px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[25%] px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Thao tác
                     </th>
                   </tr>
@@ -641,6 +644,11 @@ const UserManagement: React.FC = () => {
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {user.username}
                       </td>
+                      <td className="px-4 py-3">
+                        <code className="rounded bg-gray-100 px-2 py-1 text-xs font-mono text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                          {user.referralCode || '—'}
+                        </code>
+                      </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getFlevelColor(user.role)}`}>
                           {getFlevelFromRole(user.role)}
@@ -664,7 +672,7 @@ const UserManagement: React.FC = () => {
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                         {formatDate(user.createdAt)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="w-[25%] px-4 py-3">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleViewDetails(user)}
@@ -842,6 +850,12 @@ const UserDetailModal: React.FC<{
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Username:</span>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{userDetail.username || user.username || '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Mã giới thiệu:</span>
+                    <code className="rounded bg-gray-100 px-2 py-1 text-xs font-mono text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                      {userDetail.referralCode || user.referralCode || '—'}
+                    </code>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Họ tên:</span>

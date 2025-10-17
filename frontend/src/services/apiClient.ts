@@ -57,11 +57,27 @@ export async function apiClient<TResponse = unknown>(
   };
 
   if (!response.ok) {
-    const message =
-      (data && typeof data === "object" && "message" in data && data.message) ||
-      response.statusText ||
-      "Request failed";
-    throw new Error(String(message));
+    // Extract error message from various response formats
+    let message = "Request failed";
+    
+    if (data && typeof data === "object") {
+      // Format 1: { "error": { "message": "..." } }
+      if ("error" in data && data.error && typeof data.error === "object" && "message" in data.error) {
+        message = String(data.error.message);
+      }
+      // Format 2: { "message": "..." }
+      else if ("message" in data && data.message) {
+        message = String(data.message);
+      }
+      // Format 3: fallback to statusText
+      else {
+        message = response.statusText || "Request failed";
+      }
+    } else {
+      message = response.statusText || "Request failed";
+    }
+    
+    throw new Error(message);
   }
 
   return unwrapPayload();

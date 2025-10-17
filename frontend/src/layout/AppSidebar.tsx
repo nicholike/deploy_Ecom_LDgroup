@@ -32,6 +32,11 @@ const navItems: NavItem[] = [
     path: "/admin/dashboard",
   },
   {
+    icon: <TaskIcon />,
+    name: "Đơn hàng",
+    path: "/admin/orders",
+  },
+  {
     icon: <BoxIcon />,
     name: "Sản phẩm",
     subItems: [
@@ -41,51 +46,45 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    icon: <TaskIcon />,
-    name: "Đơn hàng",
-    path: "/admin/orders",
-  },
-  {
     icon: <GroupIcon />,
-    name: "Người dùng",
-    path: "/admin/users",
-  },
-  {
-    name: "Tài khoản",
-    icon: <ListIcon />,
+    name: "Quản lý người dùng",
     subItems: [
+      { name: "Danh sách người dùng", path: "/admin/users", pro: false },
+      { name: "Chờ duyệt", path: "/admin/users/pending", pro: false, new: true },
       { name: "Tạo tài khoản", path: "/admin/account/create-user", pro: false },
-      { name: "Đổi mật khẩu", path: "/admin/account/change-password", pro: false },
       { name: "Cây MLM", path: "/admin/account/mlm-tree", pro: false },
     ],
   },
   {
     icon: <DollarLineIcon />,
-    name: "Quản lý Ví",
-    path: "/admin/wallet-management",
-  },
-  {
-    icon: <MailIcon />,
-    name: "Rút tiền",
-    path: "/admin/withdrawals",
+    name: "Tài chính",
+    subItems: [
+      { name: "Quản lý ví", path: "/admin/wallet-management", pro: false },
+      { name: "Yêu cầu rút tiền", path: "/admin/withdrawals", pro: false },
+    ],
   },
   {
     icon: <PlugInIcon />,
-    name: "Cài đặt",
+    name: "Cài đặt hệ thống",
     path: "/admin/settings",
   },
 ];
 
 const othersItems: NavItem[] = [
   {
+    icon: <UserCircleIcon />,
+    name: "Hồ sơ cá nhân",
+    path: "/admin/profile",
+  },
+  {
+    icon: <ListIcon />,
+    name: "Đổi mật khẩu",
+    path: "/admin/account/change-password",
+  },
+  {
     icon: <CalenderIcon />,
     name: "Lịch",
     path: "/admin/calendar",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Hồ sơ",
-    path: "/admin/profile",
   },
 ];
 
@@ -329,7 +328,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Quản lý"
+                  "QUẢN LÝ"
                 ) : (
                   <HorizontaLDots className="size-6" />
                 )}
@@ -345,7 +344,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Khác"
+                  "CÁ NHÂN"
                 ) : (
                   <HorizontaLDots />
                 )}

@@ -65,6 +65,7 @@ export interface CreateProductRequest {
   metaDescription?: string;
   variants?: ProductVariant[];
   isCommissionEligible?: boolean;
+  isSpecial?: boolean;
 }
 
 export interface ProductResponse {
@@ -79,6 +80,7 @@ export interface ProductResponse {
   stock?: number;
   lowStockThreshold?: number;
   isCommissionEligible: boolean;
+  isSpecial: boolean;
   images?: string[];
   thumbnail?: string;
   categoryId?: string;

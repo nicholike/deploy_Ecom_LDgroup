@@ -118,6 +118,7 @@ export default function AddProduct() {
     metaTitle: "",
     metaDescription: "",
     variants: [],
+    isSpecial: false,
   });
 
   useEffect(() => {
@@ -141,6 +142,13 @@ export default function AddProduct() {
     setFormData((prev) => ({
       ...prev,
       [name]: type === "number" ? (value ? Number(value) : undefined) : value,
+    }));
+  };
+
+  const handleSpecialCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      isSpecial: e.target.checked,
     }));
   };
 
@@ -306,91 +314,124 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
     setLoading(true);
 
     try {
-      if (!baseSKU || baseSKU.trim() === "") {
-        alert("Please enter Base SKU");
-        setLoading(false);
-        return;
-      }
+      // Special product validation
+      if (formData.isSpecial) {
+        if (!formData.sku || formData.sku.trim() === "") {
+          alert("Please enter SKU for special product");
+          setLoading(false);
+          return;
+        }
+        if (!formData.price || formData.price <= 0) {
+          alert("Please enter price for special product");
+          setLoading(false);
+          return;
+        }
 
-      const hydratedVariants = variants.map((variant) => ({
-        ...variant,
-        size: variant.size.trim(),
-        sku: variant.sku.trim(),
-      }));
+        const productData: CreateProductRequest = {
+          name: formData.name,
+          description: formData.description || undefined,
+          price: formData.price,
+          sku: formData.sku.trim(),
+          thumbnail: formData.thumbnail || undefined,
+          images: formData.images && formData.images.length > 0 ? formData.images : undefined,
+          categoryId: formData.categoryId || undefined,
+          status: saveAsDraft ? ("DRAFT" as ProductStatus) : formData.status,
+          metaTitle: formData.metaTitle || undefined,
+          metaDescription: formData.metaDescription || undefined,
+          isSpecial: true,
+        };
 
-      const validVariants = hydratedVariants.filter((variant) => {
-        const tier10 = variant.priceTiers?.find((tier) => tier.minQuantity === 10);
-        return variant.sku !== "" && Number(tier10?.price) > 0;
-      });
+        await ProductService.createProduct(productData);
+        alert("Special product created successfully!");
+      } else {
+        // Normal product with variants
+        if (!baseSKU || baseSKU.trim() === "") {
+          alert("Please enter Base SKU");
+          setLoading(false);
+          return;
+        }
 
-      if (validVariants.length === 0) {
-        alert("Please fill in at least one variant with SKU and Price");
-        setLoading(false);
-        return;
-      }
+        const hydratedVariants = variants.map((variant) => ({
+          ...variant,
+          size: variant.size.trim(),
+          sku: variant.sku.trim(),
+        }));
 
-      const hasDefault = validVariants.some((variant) => variant.isDefault);
-      const normalisedVariants = hasDefault
-        ? validVariants
-        : validVariants.map((variant, index) =>
-            index === 0 ? { ...variant, isDefault: true } : variant,
+        const validVariants = hydratedVariants.filter((variant) => {
+          const tier10 = variant.priceTiers?.find((tier) => tier.minQuantity === 10);
+          return variant.sku !== "" && Number(tier10?.price) > 0;
+        });
+
+        if (validVariants.length === 0) {
+          alert("Please fill in at least one variant with SKU and Price");
+          setLoading(false);
+          return;
+        }
+
+        const hasDefault = validVariants.some((variant) => variant.isDefault);
+        const normalisedVariants = hasDefault
+          ? validVariants
+          : validVariants.map((variant, index) =>
+              index === 0 ? { ...variant, isDefault: true } : variant,
+            );
+
+        const requestVariants = normalisedVariants.map((variant) => {
+          const tier10 = variant.priceTiers?.find((tier) => tier.minQuantity === 10);
+          const priceForRequest =
+            Number(tier10?.price) > 0 ? Number(tier10?.price) : Number(variant.price) || 0;
+
+          return sanitizeVariantForRequest({
+            ...variant,
+            price: priceForRequest,
+          } as ProductVariant);
+        });
+
+        const productData: CreateProductRequest = {
+          name: formData.name,
+          description: formData.description || undefined,
+          thumbnail: formData.thumbnail || undefined,
+          images: formData.images && formData.images.length > 0 ? formData.images : undefined,
+          categoryId: formData.categoryId || undefined,
+          status: saveAsDraft ? ("DRAFT" as ProductStatus) : formData.status,
+          metaTitle: formData.metaTitle || undefined,
+          metaDescription: formData.metaDescription || undefined,
+          variants: requestVariants,
+          isSpecial: false,
+        };
+
+        const result: ProductResponse = await ProductService.createProduct(productData);
+
+        // Save price tiers SEQUENTIALLY to avoid transaction conflicts
+        const tierErrors: string[] = [];
+        const createdVariants = Array.isArray(result.variants) ? result.variants : [];
+
+        for (const createdVariant of createdVariants) {
+          const sourceVariant = normalisedVariants.find(
+            (variant) => variant.sku === createdVariant.sku,
           );
 
-      const requestVariants = normalisedVariants.map((variant) => {
-        const tier10 = variant.priceTiers?.find((tier) => tier.minQuantity === 10);
-        const priceForRequest =
-          Number(tier10?.price) > 0 ? Number(tier10?.price) : Number(variant.price) || 0;
+          if (!sourceVariant || !createdVariant.id) {
+            continue;
+          }
 
-        return sanitizeVariantForRequest({
-          ...variant,
-          price: priceForRequest,
-        } as ProductVariant);
-      });
+          const tiers = extractTierPrices(sourceVariant);
+          if (tiers.length === 0) {
+            continue;
+          }
 
-      const productData: CreateProductRequest = {
-        name: formData.name,
-        description: formData.description || undefined,
-        thumbnail: formData.thumbnail || undefined,
-        images: formData.images && formData.images.length > 0 ? formData.images : undefined,
-        categoryId: formData.categoryId || undefined,
-        status: saveAsDraft ? ("DRAFT" as ProductStatus) : formData.status,
-        metaTitle: formData.metaTitle || undefined,
-        metaDescription: formData.metaDescription || undefined,
-        variants: requestVariants,
-      };
-
-      const result: ProductResponse = await ProductService.createProduct(productData);
-
-      // Save price tiers SEQUENTIALLY to avoid transaction conflicts
-      const tierErrors: string[] = [];
-      const createdVariants = Array.isArray(result.variants) ? result.variants : [];
-
-      for (const createdVariant of createdVariants) {
-        const sourceVariant = normalisedVariants.find(
-          (variant) => variant.sku === createdVariant.sku,
-        );
-
-        if (!sourceVariant || !createdVariant.id) {
-          continue;
+          try {
+            await ProductService.setVariantPriceTiers(createdVariant.id, tiers);
+          } catch (error: any) {
+            console.error("Failed to save price tiers:", error);
+            tierErrors.push(error?.message || "Failed to save price tiers");
+          }
         }
 
-        const tiers = extractTierPrices(sourceVariant);
-        if (tiers.length === 0) {
-          continue;
+        if (tierErrors.length > 0) {
+          alert(`Product created but failed to save all price tiers:\n${tierErrors.join("\n")}`);
+        } else {
+          alert("Product created successfully!");
         }
-
-        try {
-          await ProductService.setVariantPriceTiers(createdVariant.id, tiers);
-        } catch (error: any) {
-          console.error("Failed to save price tiers:", error);
-          tierErrors.push(error?.message || "Failed to save price tiers");
-        }
-      }
-
-      if (tierErrors.length > 0) {
-        alert(`Product created but failed to save all price tiers:\n${tierErrors.join("\n")}`);
-      } else {
-        alert("Product created successfully!");
       }
 
       setFormData({
@@ -408,6 +449,7 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
         metaTitle: "",
         metaDescription: "",
         variants: [],
+        isSpecial: false,
       });
       setBaseSKU("");
       setVariants(buildDefaultVariants());
@@ -504,11 +546,79 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
 
             <section className={cardClasses}>
               <div className="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
-                <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                  Product Type
+                </h2>
+              </div>
+              <div className="px-6 py-6">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.isSpecial || false}
+                    onChange={handleSpecialCheckbox}
+                    className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                  />
                   <div>
-                    <h2 className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                      Product Variants & Tier Pricing
-                    </h2>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                      Sản phẩm đặc biệt
+                    </span>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Sản phẩm đặc biệt không có variants, hiển thị đầu tiên phía client
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            {formData.isSpecial ? (
+              <section className={cardClasses}>
+                <div className="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+                  <h2 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                    Special Product Pricing
+                  </h2>
+                </div>
+                <div className="space-y-4 px-6 py-6">
+                  <div>
+                    <label htmlFor="special-sku" className={labelClasses}>
+                      SKU *
+                    </label>
+                    <input
+                      id="special-sku"
+                      name="sku"
+                      type="text"
+                      placeholder="e.g., SPECIAL-GIFT-01"
+                      className={inputClasses}
+                      value={formData.sku}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="special-price" className={labelClasses}>
+                      Price (₫) *
+                    </label>
+                    <input
+                      id="special-price"
+                      name="price"
+                      type="number"
+                      min={0}
+                      placeholder="e.g., 100000"
+                      className={inputClasses}
+                      value={formData.price || ""}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <section className={cardClasses}>
+                <div className="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                        Product Variants & Tier Pricing
+                      </h2>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       Thiết lập giá cơ bản và giá ưu đãi khi mua từ 10 / 100 sản phẩm.
                     </p>
@@ -624,39 +734,42 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
                 </p>
               </div>
             </section>
+            )}
           </div>
 
           <aside className="space-y-6">
-            <section className={cardClasses}>
-              <div className="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
-                <h2 className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                  Product SKU
-                </h2>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Base SKU for auto-generating variant SKUs
-                </p>
-              </div>
-              <div className="space-y-4 px-6 py-6">
-                <div>
-                  <label htmlFor="base-sku" className={labelClasses}>
-                    Base SKU *
-                  </label>
-                  <input
-                    id="base-sku"
-                    name="baseSKU"
-                    type="text"
-                    placeholder="e.g., DIOR-SAU"
-                    className={inputClasses}
-                    value={baseSKU}
-                    onChange={handleBaseSKUChange}
-                    required
-                  />
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    💡 Variants will be auto-generated based on Base SKU và tên size.
+            {!formData.isSpecial && (
+              <section className={cardClasses}>
+                <div className="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+                  <h2 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                    Product SKU
+                  </h2>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Base SKU for auto-generating variant SKUs
                   </p>
                 </div>
-              </div>
-            </section>
+                <div className="space-y-4 px-6 py-6">
+                  <div>
+                    <label htmlFor="base-sku" className={labelClasses}>
+                      Base SKU *
+                    </label>
+                    <input
+                      id="base-sku"
+                      name="baseSKU"
+                      type="text"
+                      placeholder="e.g., DIOR-SAU"
+                      className={inputClasses}
+                      value={baseSKU}
+                      onChange={handleBaseSKUChange}
+                      required
+                    />
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      💡 Variants will be auto-generated based on Base SKU và tên size.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <section className={cardClasses}>
               <div className="border-b border-gray-100 px-6 py-4 dark:border-gray-800">

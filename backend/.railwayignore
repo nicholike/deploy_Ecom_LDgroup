@@ -1,0 +1,59 @@
+# Railway Ignore File
+# Files and directories that should NOT be deployed to Railway
+
+# Development files
+.env
+.env.local
+.env.*.local
+.env.example
+.env.railway.example
+.env.production
+
+# Testing
+test/
+*.test.ts
+*.spec.ts
+jest.config.js
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Build artifacts (will be rebuilt on Railway)
+dist/
+build/
+node_modules/
+
+# Prisma (will be regenerated)
+node_modules/.prisma/
+node_modules/@prisma/
+
+# Scripts
+scripts/create-admin.ts
+scripts/*.sh
+
+# Uploads (use persistent storage instead)
+uploads/

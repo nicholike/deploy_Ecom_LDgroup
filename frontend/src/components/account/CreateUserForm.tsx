@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import { userService, type CreateUserPayload, type RoleLevel, type UserResponse } from "../../services/userService";
 
 const roleOptions: Array<{ value: RoleLevel; label: string; description: string }> = [
+  { value: "ADMIN", label: "ADMIN", description: "Quản trị viên hệ thống (không tham gia MLM, không có ví)." },
   { value: "F1", label: "F1", description: "Tuyến dưới cấp trực tiếp cho admin." },
   { value: "F2", label: "F2", description: "Tuyến dưới cấp 2 (nhánh dưới F1)." },
   { value: "F3", label: "F3", description: "Tuyến dưới cấp 3 (nhánh dưới F2)." },
@@ -43,8 +44,8 @@ const CreateUserForm: React.FC = () => {
     }
   }, [user?.id, form.sponsorId]);
 
-  const sponsorRoleMap: Record<RoleLevel, RoleLevel | "ADMIN"> = {
-    ADMIN: "ADMIN",
+  const sponsorRoleMap: Record<RoleLevel, RoleLevel | "ADMIN" | null> = {
+    ADMIN: null, // Will be handled separately (root admin)
     F1: "ADMIN",
     F2: "F1",
     F3: "F2",
@@ -59,6 +60,33 @@ const CreateUserForm: React.FC = () => {
 
   useEffect(() => {
     if (!accessToken) return;
+
+    // For ADMIN role, fetch root admin (first admin in system)
+    if (form.role === "ADMIN") {
+      setIsLoadingSponsors(true);
+      setSponsorError(null);
+
+      userService
+        .listUsers(accessToken, { role: "ADMIN", limit: 1 })
+        .then((response) => {
+          const list = response.data ?? [];
+          setSponsors(list);
+          if (list.length) {
+            // Root admin exists, new admin will be under root admin
+            setForm((prev) => ({ ...prev, sponsorId: list[0].id }));
+          } else {
+            // No admin exists yet, this will be the root admin
+            setForm((prev) => ({ ...prev, sponsorId: "" }));
+          }
+        })
+        .catch((err) => {
+          setSponsorError(err instanceof Error ? err.message : "Không thể tải thông tin admin gốc.");
+        })
+        .finally(() => {
+          setIsLoadingSponsors(false);
+        });
+      return;
+    }
 
     if (!requiredSponsorRole) {
       setSponsors([]);
@@ -101,9 +129,15 @@ const CreateUserForm: React.FC = () => {
       .finally(() => {
         setIsLoadingSponsors(false);
       });
-  }, [accessToken, requiredSponsorRole, user]);
+  }, [accessToken, requiredSponsorRole, user, form.role]);
 
   const sponsorHint = useMemo(() => {
+    if (form.role === "ADMIN") {
+      if (!sponsors.length) {
+        return "Đây sẽ là ADMIN gốc (đứng đầu cây MLM).";
+      }
+      return `Admin mới sẽ được gắn dưới admin gốc: ${sponsors[0].username}`;
+    }
     if (requiredSponsorRole === "ADMIN") {
       return "Thành viên F1 sẽ được gắn trực tiếp dưới tài khoản admin.";
     }
@@ -111,7 +145,7 @@ const CreateUserForm: React.FC = () => {
       return "Chưa có người bảo trợ phù hợp. Bạn cần tạo cấp trên trước khi tạo cấp này.";
     }
     return `Chọn người bảo trợ cấp ${requiredSponsorRole}.`;
-  }, [requiredSponsorRole, sponsors.length]);
+  }, [requiredSponsorRole, sponsors.length, form.role, sponsors]);
 
   const onChange = (field: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const value = event.target.value;
@@ -131,10 +165,17 @@ const CreateUserForm: React.FC = () => {
       return;
     }
 
-    const sponsorId = requiredSponsorRole === "ADMIN" ? user?.id ?? "" : form.sponsorId.trim();
-    if (!sponsorId) {
-      setError("Vui lòng chọn người bảo trợ cho cấp này.");
-      return;
+    // Determine sponsor based on role
+    let sponsorId: string | undefined;
+    if (form.role === "ADMIN") {
+      // For ADMIN role, sponsorId is either root admin or undefined (if this is first admin)
+      sponsorId = form.sponsorId.trim() || undefined;
+    } else {
+      sponsorId = requiredSponsorRole === "ADMIN" ? user?.id ?? "" : form.sponsorId.trim();
+      if (!sponsorId) {
+        setError("Vui lòng chọn người bảo trợ cho cấp này.");
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -155,7 +196,7 @@ const CreateUserForm: React.FC = () => {
       setForm({
         ...initialState(sponsorId),
         role: form.role,
-        sponsorId,
+        sponsorId: sponsorId || "",
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Không thể tạo tài khoản, vui lòng thử lại.";
@@ -230,9 +271,23 @@ const CreateUserForm: React.FC = () => {
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label>
-            Người bảo trợ <span className="text-error-500">*</span>
+            {form.role === "ADMIN" ? "Cấu trúc MLM" : "Người bảo trợ"} {form.role !== "ADMIN" && <span className="text-error-500">*</span>}
           </Label>
-          {requiredSponsorRole === "ADMIN" ? (
+          {form.role === "ADMIN" ? (
+            <>
+              {isLoadingSponsors ? (
+                <div className="h-11 flex items-center rounded-lg border border-gray-200 bg-gray-50 px-4 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                  Đang kiểm tra...
+                </div>
+              ) : sponsors.length > 0 ? (
+                <Input value={`Dưới admin gốc: ${sponsors[0].username} (${sponsors[0].email})`} disabled />
+              ) : (
+                <div className="h-11 flex items-center rounded-lg border border-brand-200 bg-brand-50 px-4 text-sm text-brand-700 dark:border-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
+                  Đây sẽ là admin gốc
+                </div>
+              )}
+            </>
+          ) : requiredSponsorRole === "ADMIN" ? (
             <Input value={user?.email ?? ""} disabled />
           ) : (
             <select
@@ -249,7 +304,7 @@ const CreateUserForm: React.FC = () => {
               ))}
             </select>
           )}
-          {isLoadingSponsors && (
+          {form.role !== "ADMIN" && isLoadingSponsors && (
             <p className="text-xs text-gray-500 dark:text-gray-400">Đang tải danh sách người bảo trợ...</p>
           )}
           {sponsorError && (

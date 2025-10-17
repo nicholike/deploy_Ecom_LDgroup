@@ -3,6 +3,7 @@ import type {
   PriceTier,
   PriceTierRequest,
   ProductResponse,
+  ProductVariant,
   UpdateProductRequest,
   VariantPriceCalculation,
 } from '../types/product.types';
@@ -28,9 +29,9 @@ export class ProductService {
   private static async fetchWithAuth(url: string, options: RequestInit = {}) {
     const token = this.getAuthToken();
 
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
 
     if (token) {
@@ -226,6 +227,32 @@ export class ProductService {
     return this.fetchWithAuth(`${API_BASE_URL}/products/variants/${variantId}`, {
       method: 'PATCH',
       body: JSON.stringify({ active: true }),
+    });
+  }
+
+  static async addVariant(productId: string, variant: Partial<ProductVariant>): Promise<ProductVariant> {
+    return this.fetchWithAuth(`${API_BASE_URL}/products/${productId}/variants`, {
+      method: 'POST',
+      body: JSON.stringify(variant),
+    });
+  }
+
+  /**
+   * Get price tiers for a variant
+   */
+  static async getPriceTiers(variantId: string): Promise<PriceTier[]> {
+    return this.fetchWithAuth(`${API_BASE_URL}/products/variants/${variantId}/price-tiers`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Set price tiers for a variant
+   */
+  static async setPriceTiers(variantId: string, tiers: any[]): Promise<void> {
+    return this.fetchWithAuth(`${API_BASE_URL}/products/variants/${variantId}/price-tiers`, {
+      method: 'POST',
+      body: JSON.stringify({ tiers }),
     });
   }
 }

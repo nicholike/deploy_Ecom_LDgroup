@@ -9,6 +9,7 @@ import type { WithdrawalRequest } from "../types/wallet.types";
 import { commissionService } from "../services/commission.service";
 import { quotaService, type QuotaResponse } from "../services/quota.service";
 import { Modal } from "../components/ui/modal";
+import { authService, type AuthUser } from "../services/authService";
 
 const WALLET_COLOR = "#8B5E1E";
 const MIN_WITHDRAW_AMOUNT = 500_000;
@@ -108,6 +109,9 @@ const Account: React.FC = () => {
   const [quotaInfo, setQuotaInfo] = useState<QuotaResponse | null>(null);
   const [isQuotaModalOpen, setIsQuotaModalOpen] = useState(false);
 
+  const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [withdrawForm, setWithdrawForm] = useState<WithdrawFormState>(DEFAULT_WITHDRAW_FORM);
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
@@ -172,6 +176,27 @@ const Account: React.FC = () => {
       setQuotaInfo(quota);
     } catch (error) {
       console.error("Failed to load quota info:", error);
+    }
+  };
+
+  const loadUserProfile = async () => {
+    if (!accessToken) return;
+    try {
+      const profile = await authService.getProfile(accessToken);
+      setUserProfile(profile);
+    } catch (error) {
+      console.error("Failed to load user profile:", error);
+    }
+  };
+
+  const handleCopyReferralCode = async () => {
+    if (!userProfile?.referralCode) return;
+    try {
+      await navigator.clipboard.writeText(userProfile.referralCode);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy referral code:", error);
     }
   };
 
@@ -240,6 +265,7 @@ const loadDownlineOrders = useCallback(async () => {
     if (!accessToken) return;
     loadWithdrawals();
     loadWalletBalance();
+    loadUserProfile();
   }, [accessToken, loadWithdrawals, loadWalletBalance]);
 
   useEffect(() => {
@@ -410,6 +436,52 @@ const loadDownlineOrders = useCallback(async () => {
                 </button>
               </div>
             </section>
+
+            {/* Referral Code Section */}
+            {userProfile?.referralCode && (
+              <section className="space-y-3">
+                <h2 className="text-[14px] font-bold uppercase md:text-[16px]">Mã giới thiệu của bạn</h2>
+                <div className="rounded-md border p-4" style={{ borderColor: WALLET_COLOR }}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1">
+                      <p className="mb-1 text-[11px] text-gray-600 md:text-[12px]">
+                        Chia sẻ mã này để giới thiệu người dùng mới
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-block rounded-md px-4 py-2 font-mono text-[16px] font-bold md:text-[20px]"
+                          style={{ backgroundColor: '#FDF8F2', color: WALLET_COLOR }}
+                        >
+                          {userProfile.referralCode}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyReferralCode}
+                      className="flex items-center justify-center gap-2 rounded-md px-6 py-2 text-[12px] font-extrabold uppercase tracking-wide text-white transition hover:opacity-90 md:min-w-[120px] md:py-3 md:text-[14px]"
+                      style={{ backgroundColor: copySuccess ? '#10B981' : WALLET_COLOR }}
+                    >
+                      {copySuccess ? (
+                        <>
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Đã sao chép
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Sao chép
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <WithdrawHistorySection
               loading={loadingWithdrawals}
@@ -1564,11 +1636,19 @@ const QuotaStatCard: React.FC<{
 const renderOrderStatusBadge = (status?: string) => {
   switch (status?.toUpperCase()) {
     case "COMPLETED":
+    case "DELIVERED":
       return "bg-green-100 text-green-700";
     case "PENDING":
+    case "PROCESSING":
       return "bg-blue-100 text-blue-700";
+    case "CONFIRMED":
+      return "bg-teal-100 text-teal-700";
+    case "SHIPPED":
+      return "bg-purple-100 text-purple-700";
     case "CANCELLED":
       return "bg-red-100 text-red-700";
+    case "REFUNDED":
+      return "bg-orange-100 text-orange-700";
     default:
       return "bg-gray-100 text-gray-700";
   }
@@ -1627,9 +1707,19 @@ const renderOrderStatusText = (status?: string) => {
     case "COMPLETED":
       return "Hoàn thành";
     case "PENDING":
+      return "Chờ xử lý";
+    case "CONFIRMED":
+      return "Đã xác nhận";
+    case "PROCESSING":
       return "Đang xử lý";
+    case "SHIPPED":
+      return "Đang giao hàng";
+    case "DELIVERED":
+      return "Đã giao hàng";
     case "CANCELLED":
       return "Đã hủy";
+    case "REFUNDED":
+      return "Đã hoàn tiền";
     default:
       return status || "Không xác định";
   }

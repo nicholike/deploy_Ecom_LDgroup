@@ -1,15 +1,11 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { FormEvent, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
-import Label from "../form/Label";
-import Input from "../form/input/InputField";
-import Checkbox from "../form/input/Checkbox";
-import Button from "../ui/button/Button";
 import { useAuth } from "../../context/AuthContext";
+import { getFormErrorMessage } from "../../shared/errorTranslator";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,11 +13,9 @@ export default function SignInForm() {
 
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Redirect based on user role
       const destination = user.role === "ADMIN" ? "/admin/dashboard" : "/";
       navigate(destination, { replace: true });
     }
@@ -32,11 +26,22 @@ export default function SignInForm() {
     setError(null);
     setIsSubmitting(true);
 
+    if (!email || email.trim().length === 0) {
+      setError("Vui lòng nhập Email!");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!password || password.length === 0) {
+      setError("Vui lòng nhập Mật khẩu!");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       await login(email, password);
-      // After login, useEffect will handle redirect based on role
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to sign in";
+      const message = getFormErrorMessage(err);
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -44,150 +49,123 @@ export default function SignInForm() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center overflow-hidden">
-      {/* Background Image - Sắc nét */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+    <div className="relative min-h-screen w-full flex flex-col items-center px-2.5 overflow-hidden pt-1 md:pt-16">
+      {/* Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat -z-10"
         style={{ backgroundImage: 'url(/login.jpg)' }}
-      >
-        {/* Overlay nhẹ */}
-        <div className="absolute inset-0 bg-black/30"></div>
-      </div>
+      />
 
-      {/* Logo - At top */}
-      <div className="relative z-10 pt-8 sm:pt-12 mb-8 flex justify-center w-full">
+      {/* Logo */}
+      <div className="relative z-10 mb-1 md:mb-12 flex justify-center">
         <img
           src="/LOGO_LD%20PERFUME%20OIL%20LUXURY%20(4)_NA%CC%82U%201.svg"
           alt="LD Perfume Oil Luxury Logo"
-          width={350}
-          height={110}
-          className="max-w-[350px] drop-shadow-2xl"
+          width={300}
+          height={90}
+          className="max-w-[300px] drop-shadow-2xl"
         />
       </div>
 
-      {/* Glass Form Container */}
-      <div className="relative z-10 w-full max-w-md mx-4 flex-1 flex items-start justify-center mt-8">
-        {/* Glass Card - CSS.glass effect */}
-        <div 
-          className="p-8 sm:p-10"
-          style={{
-            background: 'rgba(255, 255, 255, 0)',
-            borderRadius: '16px',
-            boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
-            backdropFilter: 'blur(3.2px)',
-            WebkitBackdropFilter: 'blur(3.2px)',
-            border: '1px solid rgba(255, 255, 255, 0.42)'
-          }}
-        >
-          {/* Header */}
-          <div className="mb-6 text-center">
-            <h1 className="mb-2 font-bold text-white text-3xl sm:text-4xl drop-shadow-lg">
-              Đăng nhập
-            </h1>
-            <p className="text-sm text-white/80 drop-shadow">
-              Nhập email và mật khẩu để đăng nhập vào hệ thống!
-            </p>
+      {/* Glassmorphism Wrapper */}
+      <div
+        className="w-full max-w-lg rounded-2xl px-12 py-12 text-center transition-all duration-300"
+        style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.37)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 12px 48px rgba(0, 0, 0, 0.5)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.37)';
+        }}
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          {/* Title */}
+          <h2 className="text-4xl mb-6 text-white tracking-wide">Đăng nhập</h2>
+
+          {/* Email Input Field */}
+          <div className="relative border-b-2 border-white/30 my-5">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="off"
+              placeholder=" "
+              className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-base text-white px-0 peer"
+            />
+            <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
+              Nhập email của bạn
+            </label>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <Label className="text-white/90 font-medium mb-2">
-                Email <span className="text-red-400">*</span>
-              </Label>
-              <div 
-                className="overflow-hidden transition-all focus-within:shadow-lg"
-                style={{
-                  background: 'rgba(255, 255, 255, 0)',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
-                  backdropFilter: 'blur(3.2px)',
-                  WebkitBackdropFilter: 'blur(3.2px)',
-                  border: '1px solid rgba(255, 255, 255, 0.42)'
-                }}
-              >
-                <Input
-                  type="email"
-                  placeholder="admin@example.com"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  className="bg-transparent border-0 text-white placeholder:text-white/70 focus:ring-0"
-                />
-              </div>
-            </div>
+          {/* Password Input Field */}
+          <div className="relative border-b-2 border-white/30 my-5">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="off"
+              placeholder=" "
+              className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-base text-white px-0 pr-10 peer"
+            />
+            <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
+              Nhập mật khẩu của bạn
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform"
+              aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+            >
+              {showPassword ? (
+                <EyeIcon className="fill-white/80 size-5" />
+              ) : (
+                <EyeCloseIcon className="fill-white/80 size-5" />
+              )}
+            </button>
+          </div>
 
-            <div>
-              <Label className="text-white/90 font-medium mb-2">
-                Mật khẩu <span className="text-red-400">*</span>
-              </Label>
-              <div 
-                className="relative overflow-hidden transition-all focus-within:shadow-lg"
-                style={{
-                  background: 'rgba(255, 255, 255, 0)',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
-                  backdropFilter: 'blur(3.2px)',
-                  WebkitBackdropFilter: 'blur(3.2px)',
-                  border: '1px solid rgba(255, 255, 255, 0.42)'
-                }}
-              >
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Nhập mật khẩu của bạn"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  className="bg-transparent border-0 text-white placeholder:text-white/70 focus:ring-0 pr-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2 hover:scale-110 transition-transform"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <EyeIcon className="fill-white/80 size-5" />
-                  ) : (
-                    <EyeCloseIcon className="fill-white/80 size-5" />
-                  )}
-                </button>
-              </div>
-            </div>
+          {/* Forgot Password */}
+          <div className="flex items-center justify-end mb-6 text-white">
+            <a
+              href="/forgot-password"
+              className="text-sm text-white no-underline hover:underline"
+            >
+              Quên mật khẩu?
+            </a>
+          </div>
 
-            <div className="flex items-center justify-between pt-2">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <Checkbox checked={rememberMe} onChange={setRememberMe} />
-                <span className="block font-normal text-white/90 text-sm">
-                  Giữ đăng nhập
-                </span>
-              </label>
-              <a
-                href="/forgot-password"
-                className="text-sm text-white/90 hover:text-white transition-colors underline-offset-4 hover:underline"
-              >
-                Quên mật khẩu?
+          {/* Error Message */}
+          {error && (
+            <div className="mb-5 backdrop-blur-md bg-red-500/20 border border-red-400/50 text-white px-4 py-3 rounded-xl text-sm whitespace-pre-line text-left">
+              {error}
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-[#8b5e1e] text-white font-semibold border-none py-4 cursor-pointer rounded-full text-base transition-all duration-300 hover:bg-[#6f4715] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
+          </button>
+
+          {/* Register Link */}
+          <div className="text-center mt-8 text-white">
+            <p className="text-sm">
+              Chưa có tài khoản?{" "}
+              <a href="/signup" className="text-white no-underline hover:underline">
+                Đăng ký ngay
               </a>
-            </div>
-
-            {error && (
-              <div className="backdrop-blur-md bg-red-500/20 border border-red-400/50 text-white px-4 py-3 rounded-xl text-sm" role="alert">
-                {error}
-              </div>
-            )}
-
-            <div className="pt-2">
-              <Button 
-                className="w-full !bg-[#8b5e1e] hover:!bg-[#6d4916] text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] uppercase text-sm" 
-                size="sm" 
-                type="submit" 
-                isLoading={isSubmitting}
-              >
-                Đăng nhập
-              </Button>
-            </div>
-          </form>
-        </div>
+            </p>
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -8,16 +8,17 @@ import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import type { PriceTier } from "../types/product.types";
 
-type SizeKey = "5ml" | "20ml" | "50ml";
+type SizeKey = "5ml" | "20ml";
 
 type CartItemDisplay = {
   productId: string;
   productName: string;
+  isSpecial: boolean;
   quantities: Record<SizeKey, { quantity: number; itemId: string | null; variantId: string | null }>;
   price: number;
 };
 
-const sizes: SizeKey[] = ["5ml", "20ml", "50ml"];
+const sizes: SizeKey[] = ["5ml", "20ml"];
 
 type VariantInfo = {
   variantId: string;
@@ -31,7 +32,6 @@ type ProductVariantMap = Record<SizeKey, VariantInfo | null>;
 const createEmptyVariantMap = (): ProductVariantMap => ({
   "5ml": null,
   "20ml": null,
-  "50ml": null,
 });
 
 const buildQuantityRecord = (
@@ -39,7 +39,6 @@ const buildQuantityRecord = (
 ): CartItemDisplay["quantities"] => ({
   "5ml": { quantity: 0, itemId: null, variantId: variantMap["5ml"]?.variantId ?? null },
   "20ml": { quantity: 0, itemId: null, variantId: variantMap["20ml"]?.variantId ?? null },
-  "50ml": { quantity: 0, itemId: null, variantId: variantMap["50ml"]?.variantId ?? null },
 });
 
 const quantityOptions = [0, 10, 100];
@@ -515,6 +514,7 @@ const CartCheckout: React.FC = () => {
         grouped.set(productId, {
           productId,
           productName: item.product.name,
+          isSpecial: item.product.isSpecial || false,
           quantities: buildQuantityRecord(variantMap),
           price: 0,
         });
@@ -542,6 +542,15 @@ const CartCheckout: React.FC = () => {
           variantId: item.productVariantId ?? variantData?.variantId ?? null,
         };
         displayItem.price += pricePerUnit * item.quantity;
+      } else if (item.product.isSpecial) {
+        // Handle special products without variants
+        const productPrice = item.product.salePrice ?? item.product.price;
+        if (productPrice !== undefined) {
+          const numericPrice = Number(productPrice);
+          if (Number.isFinite(numericPrice)) {
+            displayItem.price += numericPrice * item.quantity;
+          }
+        }
       }
     });
 
@@ -794,13 +803,9 @@ const CartCheckout: React.FC = () => {
         customerNote: "",
       });
 
-      showToast({
-        tone: "success",
-        title: "Đặt hàng thành công",
-        description: `Mã đơn hàng: ${order.orderNumber}`,
-      });
-      // Redirect to payment page instead of account
-      navigate(`/payment/${order.id}`);
+      // ✅ NEW: Navigate to payment page with PENDING order number
+      // Order will only be created AFTER payment is confirmed
+      navigate(`/payment/${order.pendingNumber}`);
     } catch (error: any) {
       console.error("Failed to create order:", error);
       showToast({
@@ -918,14 +923,20 @@ const CartCheckout: React.FC = () => {
                       {displayItems.map((item, index) => (
                         <tr key={item.productId} className={index % 2 === 0 ? "bg-[#fdf8f2]" : ""}>
                           <td className="px-3 py-3 text-gray-900">{item.productName}</td>
-                          {sizes.map((size) => (
-                            <td
-                              key={`${item.productId}-${size}`}
-                              className="px-2 py-3 text-center"
-                            >
-                              {renderQuantitySelect(item.productId, size, item.quantities[size])}
+                          {item.isSpecial ? (
+                            <td colSpan={sizes.length} className="px-2 py-3 text-center">
+                              {/* Empty cell for special products */}
                             </td>
-                          ))}
+                          ) : (
+                            sizes.map((size) => (
+                              <td
+                                key={`${item.productId}-${size}`}
+                                className="px-2 py-3 text-center"
+                              >
+                                {renderQuantitySelect(item.productId, size, item.quantities[size])}
+                              </td>
+                            ))
+                          )}
                           <td className="px-3 py-3 text-right font-semibold text-[#9b6a2a]">
                             {formatCurrency(item.price)}
                           </td>
@@ -937,7 +948,7 @@ const CartCheckout: React.FC = () => {
 
                 {/* Mobile view */}
                 <div className="space-y-3 md:hidden">
-                  <div className="grid grid-cols-[1.4fr_repeat(3,0.75fr)_1.6fr] rounded-sm bg-[#9b6a2a] text-[11px] md:text-[13px] font-semibold text-white">
+                  <div className="grid grid-cols-[1.4fr_repeat(2,0.75fr)_1.6fr] rounded-sm bg-[#9b6a2a] text-[11px] md:text-[13px] font-semibold text-white">
                     <div className="px-2 py-1 text-left">Sản phẩm</div>
                     {sizes.map((size) => (
                       <div key={size} className="py-1 text-center">
@@ -948,16 +959,22 @@ const CartCheckout: React.FC = () => {
                   </div>
 
                   {displayItems.map((item) => (
-                    <div key={item.productId} className="grid grid-cols-[1.4fr_repeat(3,0.75fr)_1.6fr] items-center text-[11px] md:text-[13px]">
+                    <div key={item.productId} className="grid grid-cols-[1.4fr_repeat(2,0.75fr)_1.6fr] items-center text-[11px] md:text-[13px]">
                       <div className="px-2 text-gray-900">{item.productName}</div>
-                      {sizes.map((size) => (
-                        <div
-                          key={`${item.productId}-${size}`}
-                          className="flex justify-center"
-                        >
-                          {renderQuantitySelect(item.productId, size, item.quantities[size])}
+                      {item.isSpecial ? (
+                        <div className="col-span-2 text-center">
+                          {/* Empty cell for special products */}
                         </div>
-                      ))}
+                      ) : (
+                        sizes.map((size) => (
+                          <div
+                            key={`${item.productId}-${size}`}
+                            className="flex justify-center"
+                          >
+                            {renderQuantitySelect(item.productId, size, item.quantities[size])}
+                          </div>
+                        ))
+                      )}
                       <div className="pr-2 text-right font-semibold text-[#9b6a2a]">
                         {formatCurrency(item.price)}
                       </div>

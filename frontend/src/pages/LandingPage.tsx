@@ -1,28 +1,31 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ProductService, type Product } from "../services/product.service";
+import { ProductService } from "../services/product.service";
+import type { ProductResponse } from "../types/product.types";
 import { CategoryService, type Category } from "../services/category.service";
 import { CartService } from "../services/cart.service";
 import { useToast } from "../context/ToastContext";
 
-type SizeKey = "5ml" | "20ml" | "50ml";
+type SizeKey = "5ml" | "20ml";
 
 type ProductDisplay = {
   id: string;
   name: string;
+  isSpecial: boolean;
+  price?: number;
   variants: Record<SizeKey, { variantId: string | null; price: number; stock: number; active: boolean } | null>;
   selectedQuantities: Record<SizeKey, number>;
   categoryName?: string;
 };
 
-const sizes: SizeKey[] = ["5ml", "20ml", "50ml"];
+const sizes: SizeKey[] = ["5ml", "20ml"];
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const itemsPerPage = 30;
   const { showToast } = useToast();
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductResponse[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [cartItemCount, setCartItemCount] = useState(0);
@@ -71,8 +74,7 @@ const LandingPage: React.FC = () => {
   const displayProducts: ProductDisplay[] = products.map(product => {
     const variants: ProductDisplay['variants'] = {
       "5ml": null,
-      "20ml": null,
-      "50ml": null
+      "20ml": null
     };
 
     // Map variants by size (show ALL variants - active AND inactive)
@@ -91,10 +93,17 @@ const LandingPage: React.FC = () => {
     return {
       id: product.id,
       name: product.name,
+      isSpecial: product.isSpecial || false,
+      price: product.price,
       variants,
-      selectedQuantities: selectedQuantities[product.id] || { "5ml": 0, "20ml": 0, "50ml": 0 },
+      selectedQuantities: selectedQuantities[product.id] || { "5ml": 0, "20ml": 0 },
       categoryName: product.category?.name
     };
+  }).sort((a, b) => {
+    // Sort special products first
+    if (a.isSpecial && !b.isSpecial) return -1;
+    if (!a.isSpecial && b.isSpecial) return 1;
+    return 0;
   });
 
   // Filter products
@@ -115,7 +124,7 @@ const LandingPage: React.FC = () => {
     setSelectedQuantities(prev => ({
       ...prev,
       [productId]: {
-        ...(prev[productId] || { "5ml": 0, "20ml": 0, "50ml": 0 }),
+        ...(prev[productId] || { "5ml": 0, "20ml": 0 }),
         [size]: quantity
       }
     }));
@@ -133,33 +142,51 @@ const LandingPage: React.FC = () => {
       return;
     }
 
-    const quantities = product.selectedQuantities;
-    const itemsToAdd: Array<{ variantId: string; quantity: number; size: string }> = [];
-
-    // Collect all selected sizes (only active variants)
-    sizes.forEach(size => {
-      const qty = quantities[size];
-      const variant = product.variants[size];
-
-      if (qty > 0 && variant && variant.variantId && variant.active) {
-        itemsToAdd.push({
-          variantId: variant.variantId,
-          quantity: qty,
-          size
-        });
-      }
-    });
-
-    if (itemsToAdd.length === 0) {
-      showToast({
-        tone: "info",
-        title: "Chưa chọn số lượng",
-        description: "Vui lòng chọn số lượng cho ít nhất một size trước khi thêm vào giỏ hàng.",
-      });
-      return;
-    }
-
     try {
+      // Special product - add directly without variants
+      if (product.isSpecial) {
+        await CartService.addToCart({
+          productId: product.id,
+          quantity: 1
+        });
+
+        showToast({
+          tone: "success",
+          title: "Đã thêm vào giỏ hàng",
+          description: product.name,
+        });
+
+        await loadCartCount();
+        return;
+      }
+
+      // Normal product with variants
+      const quantities = product.selectedQuantities;
+      const itemsToAdd: Array<{ variantId: string; quantity: number; size: string }> = [];
+
+      // Collect all selected sizes (only active variants)
+      sizes.forEach(size => {
+        const qty = quantities[size];
+        const variant = product.variants[size];
+
+        if (qty > 0 && variant && variant.variantId && variant.active) {
+          itemsToAdd.push({
+            variantId: variant.variantId,
+            quantity: qty,
+            size
+          });
+        }
+      });
+
+      if (itemsToAdd.length === 0) {
+        showToast({
+          tone: "info",
+          title: "Chưa chọn số lượng",
+          description: "Vui lòng chọn số lượng cho ít nhất một size trước khi thêm vào giỏ hàng.",
+        });
+        return;
+      }
+
       // Add each variant to cart
       for (const item of itemsToAdd) {
         await CartService.addToCart({
@@ -178,7 +205,7 @@ const LandingPage: React.FC = () => {
       // Reset quantities for this product
       setSelectedQuantities(prev => ({
         ...prev,
-        [product.id]: { "5ml": 0, "20ml": 0, "50ml": 0 }
+        [product.id]: { "5ml": 0, "20ml": 0 }
       }));
 
       // Reload cart count
@@ -391,15 +418,24 @@ const LandingPage: React.FC = () => {
                   <td className="px-3 py-2 text-left text-gray-900 align-middle md:px-6 md:py-3">
                     {product.name}
                   </td>
-                  {sizes.map((size) => (
+                  {product.isSpecial ? (
                     <td
-                      key={`${product.id}-${size}`}
-                      className="px-1.5 py-2 md:px-4 md:py-3 align-middle"
-                      style={{ width: "11%" }}
+                      colSpan={sizes.length}
+                      className="px-1.5 py-2 md:px-4 md:py-3 align-middle text-center"
                     >
-                      {renderQuantitySelect(product, size)}
+                      {/* Empty cell for special products */}
                     </td>
-                  ))}
+                  ) : (
+                    sizes.map((size) => (
+                      <td
+                        key={`${product.id}-${size}`}
+                        className="px-1.5 py-2 md:px-4 md:py-3 align-middle"
+                        style={{ width: "11%" }}
+                      >
+                        {renderQuantitySelect(product, size)}
+                      </td>
+                    ))
+                  )}
                   <td
                     className="px-2 py-2 md:px-6 md:py-3 align-middle"
                     style={{ width: "23%" }}

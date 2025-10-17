@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đơn hàng đã tạo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+            padding: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #333333;
+            margin-top: 0;
+        }
+        .content p {
+            color: #666666;
+            line-height: 1.6;
+            margin: 15px 0;
+        }
+        .order-info {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .order-info table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .order-info table td {
+            padding: 8px 0;
+            color: #333333;
+        }
+        .order-info table td:first-child {
+            font-weight: bold;
+            width: 40%;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .items-table th {
+            background-color: #56ab2f;
+            color: #ffffff;
+            padding: 10px;
+            text-align: left;
+        }
+        .items-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .total {
+            text-align: right;
+            font-size: 20px;
+            font-weight: bold;
+            color: #56ab2f;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .footer a {
+            color: #56ab2f;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✅ Đơn hàng đã được tạo</h1>
+        </div>
+        <div class="content">
+            <h2>Xin chào {{username}},</h2>
+            <p>Cảm ơn bạn đã đặt hàng tại <strong>{{company.name}}</strong>!</p>
+
+            <div class="order-info">
+                <table>
+                    <tr>
+                        <td>Mã đơn hàng:</td>
+                        <td><strong>{{orderNumber}}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Ngày đặt:</td>
+                        <td>{{formatDate createdAt}}</td>
+                    </tr>
+                    <tr>
+                        <td>Địa chỉ giao hàng:</td>
+                        <td>{{shippingAddress}}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <h3>Chi tiết đơn hàng:</h3>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Sản phẩm</th>
+                        <th style="text-align: center;">SL</th>
+                        <th style="text-align: right;">Giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each items}}
+                    <tr>
+                        <td>{{this.name}}</td>
+                        <td style="text-align: center;">{{this.quantity}}</td>
+                        <td style="text-align: right;">{{formatCurrency this.price}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+
+            <div class="total">
+                Tổng cộng: {{formatCurrency totalAmount}}
+            </div>
+
+            <p>Đơn hàng của bạn đang chờ thanh toán. Vui lòng hoàn tất thanh toán để chúng tôi xử lý đơn hàng.</p>
+            <p>Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi qua hotline <strong>{{company.hotline}}</strong>.</p>
+        </div>
+        <div class="footer">
+            <p><strong>{{company.name}}</strong></p>
+            <p>Website: <a href="{{company.website}}">{{company.website}}</a></p>
+            <p>Email: {{company.email}} | Hotline: {{company.hotline}}</p>
+            <p style="margin-top: 15px;">© 2025 {{company.name}}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

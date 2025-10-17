@@ -261,7 +261,7 @@ export class OrderRepository {
         // 1. Lock and read current order (SELECT ... FOR UPDATE equivalent)
         const currentOrder = await tx.order.findUnique({
           where: { id },
-          select: { status: true, userId: true, totalAmount: true },
+          select: { status: true, userId: true, totalAmount: true, orderNumber: true },
         });
 
         if (!currentOrder) {
@@ -324,6 +324,7 @@ export class OrderRepository {
               id,
               currentOrder.userId,
               Number(currentOrder.totalAmount),
+              currentOrder.orderNumber,
             );
             this.logger.log(`✅ Commissions calculated for order ${id}`);
           }

@@ -8,6 +8,7 @@ import { PendingOrderRepository } from '@infrastructure/database/repositories/pe
 import { PendingOrderService } from '@infrastructure/services/pending-order/pending-order.service';
 import { PaymentStatus, NotificationType, PendingOrderStatus } from '@prisma/client';
 import { UserRole } from '@shared/constants/user-roles.constant';
+import { EmailService } from '../email/email.service';
 
 /**
  * PAYMENT SERVICE
@@ -31,6 +32,7 @@ export class PaymentService {
     private readonly userRepository: UserRepository,
     private readonly pendingOrderRepository: PendingOrderRepository,
     private readonly pendingOrderService: PendingOrderService,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -279,6 +281,24 @@ export class PaymentService {
       });
 
       this.logger.log(`✅ Order ${order.orderNumber} payment confirmed and fully processed`);
+
+      // Send email notification for payment confirmation
+      try {
+        const user = await this.userRepository.findById(order.userId);
+        if (user) {
+          await this.emailService.sendOrderConfirmedEmail(user.email.value, {
+            username: user.username,
+            orderNumber: order.orderNumber,
+            totalAmount: Number(order.totalAmount),
+            paidAt: new Date(),
+          });
+
+          this.logger.log(`✅ Sent payment confirmation email to ${user.email.value}`);
+        }
+      } catch (error) {
+        this.logger.error(`Failed to send payment confirmation email:`, error);
+        // Don't fail the request if email fails
+      }
 
       return {
         matched: true,

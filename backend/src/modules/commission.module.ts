@@ -6,6 +6,7 @@ import { CommissionAdminController } from '@presentation/http/controllers/commis
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { WalletModule } from './wallet.module';
 import { UserModule } from './user.module';
+import { EmailModule } from '@infrastructure/services/email/email.module';
 
 /**
  * COMMISSION MODULE
@@ -24,6 +25,7 @@ import { UserModule } from './user.module';
   imports: [
     forwardRef(() => WalletModule), // Circular dependency: Commission needs Wallet
     UserModule, // Commission needs UserRepository for upline chain
+    EmailModule, // Email service for commission notifications
   ],
   controllers: [CommissionController, CommissionAdminController],
   providers: [CommissionService, CommissionRepository, PrismaService],

@@ -7,10 +7,12 @@ import { AuthService } from '@infrastructure/services/auth/auth.service';
 import { JwtStrategy } from '@infrastructure/services/auth/jwt.strategy';
 import { UserModule } from './user.module';
 import { PasswordResetTokenRepository } from '@infrastructure/database/repositories/password-reset-token.repository';
+import { EmailModule } from '@infrastructure/services/email/email.module';
 
 @Module({
   imports: [
     UserModule,
+    EmailModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

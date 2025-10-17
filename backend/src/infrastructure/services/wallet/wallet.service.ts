@@ -2,6 +2,8 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { WalletRepository } from '@infrastructure/database/repositories/wallet.repository';
 import { WithdrawalRepository } from '@infrastructure/database/repositories/withdrawal.repository';
 import { WithdrawalStatus, WalletTransactionType } from '@prisma/client';
+import { EmailService } from '../email/email.service';
+import { UserRepository } from '@infrastructure/database/repositories/user.repository';
 
 /**
  * WALLET SERVICE
@@ -21,6 +23,8 @@ export class WalletService {
   constructor(
     private readonly walletRepository: WalletRepository,
     private readonly withdrawalRepository: WithdrawalRepository,
+    private readonly emailService: EmailService,
+    private readonly userRepository: UserRepository,
   ) {}
 
   /**
@@ -156,12 +160,34 @@ export class WalletService {
     }
 
     // Update status to PROCESSING
-    return this.withdrawalRepository.updateStatus(
+    const updated = await this.withdrawalRepository.updateStatus(
       withdrawalId,
       WithdrawalStatus.PROCESSING,
       adminId,
       adminNote,
     );
+
+    // Send email notification for withdrawal approved
+    try {
+      const user = await this.userRepository.findById(withdrawal.userId);
+      if (user) {
+        const bankInfo = withdrawal.bankInfo as any;
+        await this.emailService.sendWithdrawalApprovedEmail(user.email.value, {
+          username: user.username,
+          amount: Number(withdrawal.amount),
+          bankName: bankInfo?.bankName || '',
+          accountNumber: bankInfo?.accountNumber || '',
+          approvedAt: new Date(),
+        });
+
+        this.logger.log(`✅ Sent withdrawal approved email to ${user.email.value}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to send withdrawal approved email:`, error);
+      // Don't fail the request if email fails
+    }
+
+    return updated;
   }
 
   /**
@@ -201,6 +227,26 @@ export class WalletService {
     );
 
     this.logger.log(`Withdrawal ${withdrawalId} completed. Deducted ${withdrawal.amount} from wallet`);
+
+    // Send email notification for withdrawal completed
+    try {
+      const user = await this.userRepository.findById(withdrawal.userId);
+      if (user) {
+        const bankInfo = withdrawal.bankInfo as any;
+        await this.emailService.sendWithdrawalCompletedEmail(user.email.value, {
+          username: user.username,
+          amount: Number(withdrawal.amount),
+          bankName: bankInfo?.bankName || '',
+          accountNumber: bankInfo?.accountNumber || '',
+          completedAt: new Date(),
+        });
+
+        this.logger.log(`✅ Sent withdrawal completed email to ${user.email.value}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to send withdrawal completed email:`, error);
+      // Don't fail the request if email fails
+    }
 
     return completed;
   }

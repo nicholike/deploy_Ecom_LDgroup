@@ -5,6 +5,8 @@ import { WithdrawalRepository } from '@infrastructure/database/repositories/with
 import { WalletController } from '@presentation/http/controllers/wallet.controller';
 import { WithdrawalAdminController } from '@presentation/http/controllers/withdrawal-admin.controller';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { EmailModule } from '@infrastructure/services/email/email.module';
+import { UserRepository } from '@infrastructure/database/repositories/user.repository';
 
 /**
  * WALLET MODULE
@@ -22,11 +24,13 @@ import { PrismaService } from '@infrastructure/database/prisma.service';
  * - WithdrawalRepository
  */
 @Module({
+  imports: [EmailModule],
   controllers: [WalletController, WithdrawalAdminController],
   providers: [
     WalletService,
     WalletRepository,
     WithdrawalRepository,
+    UserRepository,
     PrismaService,
   ],
   exports: [WalletService, WalletRepository, WithdrawalRepository],

@@ -1,5 +1,13 @@
 @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap");
 
+/* Removed - width is now defined inline for proper alignment with select boxes */
+
+@media (min-width: 768px) {
+  .md\:w-\[120px\] {
+    width: 75% !important;
+  }
+}
+
 @font-face {
   font-family: "FZ Poppins";
   src: url("/fonts/fzpoppins/FZ Poppins-Thin.ttf") format("truetype");

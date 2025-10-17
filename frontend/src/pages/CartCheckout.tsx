@@ -16,6 +16,9 @@ type CartItemDisplay = {
   isSpecial: boolean;
   quantities: Record<SizeKey, { quantity: number; itemId: string | null; variantId: string | null }>;
   price: number;
+  // For special products without variants
+  specialItemId?: string | null;
+  specialQuantity?: number;
 };
 
 const sizes: SizeKey[] = ["5ml", "20ml"];
@@ -517,6 +520,8 @@ const CartCheckout: React.FC = () => {
           isSpecial: item.product.isSpecial || false,
           quantities: buildQuantityRecord(variantMap),
           price: 0,
+          specialItemId: null,
+          specialQuantity: 0,
         });
       }
 
@@ -544,6 +549,9 @@ const CartCheckout: React.FC = () => {
         displayItem.price += pricePerUnit * item.quantity;
       } else if (item.product.isSpecial) {
         // Handle special products without variants
+        displayItem.specialItemId = item.id;
+        displayItem.specialQuantity = item.quantity;
+
         const productPrice = item.product.salePrice ?? item.product.price;
         if (productPrice !== undefined) {
           const numericPrice = Number(productPrice);
@@ -750,6 +758,63 @@ const CartCheckout: React.FC = () => {
     );
   };
 
+  // Handle quantity change for special products in cart
+  const handleSpecialQuantityChange = async (
+    itemId: string | null | undefined,
+    currentQuantity: number,
+    newQuantity: number
+  ) => {
+    if (!itemId) {
+      console.warn('Missing itemId for special product');
+      return;
+    }
+
+    // Ensure quantity is not negative
+    const validQuantity = Math.max(0, newQuantity);
+
+    if (validQuantity === currentQuantity) {
+      return;
+    }
+
+    try {
+      if (validQuantity === 0) {
+        await CartService.removeCartItem(itemId);
+      } else {
+        await CartService.updateCartItem(itemId, validQuantity);
+      }
+      await loadCart();
+    } catch (error: any) {
+      console.error("Failed to update special product quantity:", error);
+      showToast({
+        tone: "error",
+        title: "Cập nhật giỏ hàng thất bại",
+        description: error.message || "Vui lòng thử lại.",
+      });
+    }
+  };
+
+  // Render quantity input for special products in cart
+  const renderSpecialProductQuantity = (
+    itemId: string | null | undefined,
+    quantity: number
+  ) => {
+    return (
+      <div className="flex justify-center items-center">
+        <input
+          type="number"
+          value={quantity}
+          onChange={(e) => {
+            const newQty = parseInt(e.target.value) || 0;
+            handleSpecialQuantityChange(itemId, quantity, newQty);
+          }}
+          className="h-6 w-[88px] border border-black rounded-md text-center text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:w-[120px] md:text-[12px] py-0"
+          min="0"
+          placeholder="0"
+        />
+      </div>
+    );
+  };
+
   const handleCheckout = async () => {
     if (!cart || cart.items.length === 0) {
       showToast({
@@ -907,16 +972,16 @@ const CartCheckout: React.FC = () => {
                   <table className="w-full border-collapse text-[11px] md:text-[13px] text-left">
                     <thead>
                       <tr className="bg-[#9b6a2a] text-white">
-                        <th className="w-[32%] px-3 py-2 font-semibold">Sản phẩm</th>
+                        <th className="w-[40%] px-3 py-2 font-semibold">Sản phẩm</th>
                         {sizes.map((size) => (
                           <th
                             key={size}
-                            className="w-[12%] px-2 py-2 text-center font-semibold"
+                            className="w-[8%] px-0.5 py-2 text-center font-semibold"
                           >
                             {size}
                           </th>
                         ))}
-                        <th className="w-[26%] px-3 py-2 text-right font-semibold">Thành tiền</th>
+                        <th className="w-[28%] px-3 py-2 text-right font-semibold">Thành tiền</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -924,14 +989,14 @@ const CartCheckout: React.FC = () => {
                         <tr key={item.productId} className={index % 2 === 0 ? "bg-[#fdf8f2]" : ""}>
                           <td className="px-3 py-3 text-gray-900">{item.productName}</td>
                           {item.isSpecial ? (
-                            <td colSpan={sizes.length} className="px-2 py-3 text-center">
-                              {/* Empty cell for special products */}
+                            <td colSpan={sizes.length} className="px-0.5 py-3 text-center">
+                              {renderSpecialProductQuantity(item.specialItemId, item.specialQuantity || 0)}
                             </td>
                           ) : (
                             sizes.map((size) => (
                               <td
                                 key={`${item.productId}-${size}`}
-                                className="px-2 py-3 text-center"
+                                className="px-0.5 py-3 text-center"
                               >
                                 {renderQuantitySelect(item.productId, size, item.quantities[size])}
                               </td>
@@ -948,7 +1013,7 @@ const CartCheckout: React.FC = () => {
 
                 {/* Mobile view */}
                 <div className="space-y-3 md:hidden">
-                  <div className="grid grid-cols-[1.4fr_repeat(2,0.75fr)_1.6fr] rounded-sm bg-[#9b6a2a] text-[11px] md:text-[13px] font-semibold text-white">
+                  <div className="grid grid-cols-[1.6fr_repeat(2,0.6fr)_1.6fr] gap-x-0.5 rounded-sm bg-[#9b6a2a] text-[11px] md:text-[13px] font-semibold text-white">
                     <div className="px-2 py-1 text-left">Sản phẩm</div>
                     {sizes.map((size) => (
                       <div key={size} className="py-1 text-center">
@@ -959,11 +1024,11 @@ const CartCheckout: React.FC = () => {
                   </div>
 
                   {displayItems.map((item) => (
-                    <div key={item.productId} className="grid grid-cols-[1.4fr_repeat(2,0.75fr)_1.6fr] items-center text-[11px] md:text-[13px]">
+                    <div key={item.productId} className="grid grid-cols-[1.6fr_repeat(2,0.6fr)_1.6fr] gap-x-0.5 items-center text-[11px] md:text-[13px]">
                       <div className="px-2 text-gray-900">{item.productName}</div>
                       {item.isSpecial ? (
                         <div className="col-span-2 text-center">
-                          {/* Empty cell for special products */}
+                          {renderSpecialProductQuantity(item.specialItemId, item.specialQuantity || 0)}
                         </div>
                       ) : (
                         sizes.map((size) => (

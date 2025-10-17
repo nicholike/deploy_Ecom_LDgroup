@@ -15,6 +15,7 @@ type ProductDisplay = {
   price?: number;
   variants: Record<SizeKey, { variantId: string | null; price: number; stock: number; active: boolean } | null>;
   selectedQuantities: Record<SizeKey, number>;
+  specialQuantity?: number; // For special products without variants
   categoryName?: string;
 };
 
@@ -37,6 +38,9 @@ const LandingPage: React.FC = () => {
 
   // Track selected quantities for each product
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, Record<SizeKey, number>>>({});
+  
+  // Track quantities for special products (without variants)
+  const [specialQuantities, setSpecialQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadData();
@@ -97,6 +101,7 @@ const LandingPage: React.FC = () => {
       price: product.price,
       variants,
       selectedQuantities: selectedQuantities[product.id] || { "5ml": 0, "20ml": 0 },
+      specialQuantity: specialQuantities[product.id] || 0,
       categoryName: product.category?.name
     };
   }).sort((a, b) => {
@@ -145,16 +150,33 @@ const LandingPage: React.FC = () => {
     try {
       // Special product - add directly without variants
       if (product.isSpecial) {
+        const quantity = product.specialQuantity || 0;
+        
+        if (quantity <= 0) {
+          showToast({
+            tone: "info",
+            title: "Chưa chọn số lượng",
+            description: "Vui lòng nhập số lượng trước khi thêm vào giỏ hàng.",
+          });
+          return;
+        }
+
         await CartService.addToCart({
           productId: product.id,
-          quantity: 1
+          quantity: quantity
         });
 
         showToast({
           tone: "success",
           title: "Đã thêm vào giỏ hàng",
-          description: product.name,
+          description: `${product.name} - Số lượng: ${quantity}`,
         });
+
+        // Reset quantity after adding to cart
+        setSpecialQuantities(prev => ({
+          ...prev,
+          [product.id]: 0
+        }));
 
         await loadCartCount();
         return;
@@ -250,6 +272,32 @@ const LandingPage: React.FC = () => {
             </svg>
           </span>
         </div>
+      </div>
+    );
+  };
+
+  // Handle quantity change for special products
+  const handleSpecialQuantityChange = (productId: string, newQuantity: number) => {
+    setSpecialQuantities(prev => ({
+      ...prev,
+      [productId]: Math.max(0, newQuantity) // Ensure quantity is not negative
+    }));
+  };
+
+  // Render quantity input for special products
+  const renderSpecialProductQuantity = (product: ProductDisplay) => {
+    const quantity = product.specialQuantity || 0;
+
+    return (
+      <div className="flex justify-center items-center">
+        <input
+          type="number"
+          value={quantity}
+          onChange={(e) => handleSpecialQuantityChange(product.id, parseInt(e.target.value) || 0)}
+          className="h-7 w-[104px] border border-black rounded-md text-center text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:w-[128px] md:text-[12px] py-0"
+          min="0"
+          placeholder="0"
+        />
       </div>
     );
   };
@@ -390,15 +438,15 @@ const LandingPage: React.FC = () => {
             <tr className="bg-[#8B5E1E] text-white font-normal">
               <th
                 className="px-3 py-2 md:px-6 md:py-2 align-middle"
-                style={{ width: "44%" }}
+                style={{ width: "56%" }}
               >
                 Sản phẩm
               </th>
               {sizes.map((size) => (
                 <th
                   key={size}
-                  className="px-1.5 py-2 md:px-4 md:py-2 align-middle"
-                  style={{ width: "11%" }}
+                  className="px-1 py-2 md:px-2 md:py-2 align-middle"
+                  style={{ width: "6%" }}
                 >
                   {size}
                 </th>
@@ -421,16 +469,16 @@ const LandingPage: React.FC = () => {
                   {product.isSpecial ? (
                     <td
                       colSpan={sizes.length}
-                      className="px-1.5 py-2 md:px-4 md:py-3 align-middle text-center"
+                      className="px-1 py-2 md:px-2 md:py-3 align-middle text-center"
                     >
-                      {/* Empty cell for special products */}
+                      {renderSpecialProductQuantity(product)}
                     </td>
                   ) : (
                     sizes.map((size) => (
                       <td
                         key={`${product.id}-${size}`}
-                        className="px-1.5 py-2 md:px-4 md:py-3 align-middle"
-                        style={{ width: "11%" }}
+                        className="px-1 py-2 md:px-2 md:py-3 align-middle"
+                        style={{ width: "6%" }}
                       >
                         {renderQuantitySelect(product, size)}
                       </td>

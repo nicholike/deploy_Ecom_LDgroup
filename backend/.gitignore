@@ -38,6 +38,7 @@ lerna-debug.log*
 .env
 .env.local
 .env.production
+.env.railway
 
 # Prisma
 prisma/migrations/**/migration.sql

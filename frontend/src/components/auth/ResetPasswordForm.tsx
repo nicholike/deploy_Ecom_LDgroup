@@ -19,41 +19,49 @@ const ResetPasswordForm: React.FC = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError(null);
+    setMessage(null);
+    setIsSubmitting(true);
 
+    // Validation
     if (!token || token.trim().length === 0) {
-      setError("Vui lòng nhập Token đặt lại mật khẩu!");
+      setError("Token không hợp lệ. Vui lòng yêu cầu đặt lại mật khẩu mới.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!password || password.length === 0) {
-      setError("Vui lòng nhập Mật khẩu mới!");
+      setError("Vui lòng nhập mật khẩu mới!");
+      setIsSubmitting(false);
       return;
     }
 
-    if (password.length < 8) {
-      setError("Mật khẩu phải có ít nhất 8 ký tự!");
+    if (password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự!");
+      setIsSubmitting(false);
       return;
     }
 
     if (!confirmPassword || confirmPassword.length === 0) {
-      setError("Vui lòng nhập Xác nhận mật khẩu!");
+      setError("Vui lòng nhập xác nhận mật khẩu!");
+      setIsSubmitting(false);
       return;
     }
 
     if (password !== confirmPassword) {
       setError("Mật khẩu xác nhận không khớp!");
+      setIsSubmitting(false);
       return;
     }
-
-    setError(null);
-    setMessage(null);
-    setIsSubmitting(true);
 
     try {
       const response = await resetPassword(token, password);
       setMessage(response.message);
-      setPassword("");
-      setConfirmPassword("");
+
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
     } catch (err) {
       const errorMessage = getFormErrorMessage(err);
       setError(errorMessage);
@@ -104,23 +112,8 @@ const ResetPasswordForm: React.FC = () => {
 
           {/* Description */}
           <p className="text-white/80 text-sm mb-8 text-left">
-            Nhập token đặt lại mật khẩu và mật khẩu mới cho tài khoản của bạn.
+            Nhập mật khẩu mới của bạn để hoàn tất quá trình đặt lại.
           </p>
-
-          {/* Token Input Field */}
-          <div className="relative border-b-2 border-white/30 my-5">
-            <input
-              type="text"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              autoComplete="off"
-              placeholder=" "
-              className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-base text-white px-0 peer"
-            />
-            <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
-              Token đặt lại mật khẩu *
-            </label>
-          </div>
 
           {/* New Password Input Field */}
           <div className="relative border-b-2 border-white/30 my-5">
@@ -163,7 +156,8 @@ const ResetPasswordForm: React.FC = () => {
             {message && (
             <div className="mb-5 backdrop-blur-md bg-green-500/20 border border-green-400/50 text-white px-4 py-3 rounded-xl text-sm text-left">
               ✅ {message}
-              <p className="mt-2 text-xs">Đang chuyển hướng đến trang đăng nhập...</p>
+              <br />
+              <span className="text-xs text-white/70">Đang chuyển hướng đến trang đăng nhập...</span>
               </div>
             )}
 

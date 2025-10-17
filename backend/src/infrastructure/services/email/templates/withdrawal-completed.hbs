@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rút tiền hoàn tất</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            padding: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #333333;
+            margin-top: 0;
+        }
+        .content p {
+            color: #666666;
+            line-height: 1.6;
+            margin: 15px 0;
+        }
+        .success-box {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .success-box .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .success-box h3 {
+            margin: 0 0 10px 0;
+            color: #155724;
+        }
+        .amount {
+            font-size: 32px;
+            font-weight: bold;
+            color: #28a745;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .transaction-details {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .transaction-details table {
+            width: 100%;
+        }
+        .transaction-details td {
+            padding: 8px 0;
+            color: #333333;
+        }
+        .transaction-details td:first-child {
+            font-weight: bold;
+            width: 40%;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .footer a {
+            color: #28a745;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Rút tiền thành công!</h1>
+        </div>
+        <div class="content">
+            <h2>Xin chào {{username}},</h2>
+
+            <div class="success-box">
+                <div class="icon">✅</div>
+                <h3>Giao dịch rút tiền đã hoàn tất!</h3>
+                <p style="color: #155724;">Tiền đã được chuyển vào tài khoản ngân hàng của bạn.</p>
+            </div>
+
+            <div class="amount">{{formatCurrency amount}}</div>
+
+            <div class="transaction-details">
+                <table>
+                    <tr>
+                        <td>Ngân hàng:</td>
+                        <td><strong>{{bankName}}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Số tài khoản:</td>
+                        <td><strong>{{accountNumber}}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Ngày hoàn tất:</td>
+                        <td>{{formatDate completedAt}}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <p>Vui lòng kiểm tra tài khoản ngân hàng của bạn để xác nhận giao dịch.</p>
+            <p>Nếu có bất kỳ thắc mắc nào về giao dịch này, vui lòng liên hệ với chúng tôi qua:</p>
+            <p style="text-align: center;">
+                <strong>Email:</strong> {{company.email}}<br>
+                <strong>Hotline:</strong> {{company.hotline}}
+            </p>
+            <p>Cảm ơn bạn đã tin tưởng <strong>{{company.name}}</strong>! 💚</p>
+        </div>
+        <div class="footer">
+            <p><strong>{{company.name}}</strong></p>
+            <p>Website: <a href="{{company.website}}">{{company.website}}</a></p>
+            <p>Email: {{company.email}} | Hotline: {{company.hotline}}</p>
+            <p style="margin-top: 15px;">© 2025 {{company.name}}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

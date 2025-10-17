@@ -13,6 +13,7 @@ import { IPasswordResetTokenRepository } from '@core/domain/auth/interfaces/pass
 import { PasswordResetToken } from '@core/domain/auth/entities/password-reset-token.entity';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { UserStatus } from '@shared/constants/user-roles.constant';
+import { EmailService } from '../email/email.service';
 
 export interface LoginResult {
   accessToken: string;
@@ -37,13 +38,26 @@ export class AuthService {
     private readonly passwordResetTokenRepository: IPasswordResetTokenRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
-  async login(email: string, password: string): Promise<LoginResult> {
-    // 1. Find user by email
-    const user = await this.userRepository.findByEmail(email);
+  async login(usernameOrEmail: string, password: string): Promise<LoginResult> {
+    // 1. Find user by username or email
+    const input = usernameOrEmail.toLowerCase().trim();
+    let user = null;
+
+    // Try to find by email first (if it contains @)
+    if (input.includes('@')) {
+      user = await this.userRepository.findByEmail(input);
+    }
+
+    // If not found, try username
     if (!user) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      user = await this.userRepository.findByUsername(input);
+    }
+
+    if (!user) {
+      throw new UnauthorizedException('Tên đăng nhập hoặc mật khẩu không đúng');
     }
 
     // 2. Check user status with specific messages
@@ -185,7 +199,23 @@ export class AuthService {
 
     await this.passwordResetTokenRepository.create(resetToken);
 
-    // TODO: Integrate with email service
+    // Send email with reset link
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+    try {
+      await this.emailService.sendPasswordResetEmail(
+        user.email.value,
+        resetUrl,
+        user.username,
+      );
+      this.logger.log(`Password reset email sent to ${user.email.value}`);
+    } catch (error) {
+      this.logger.error(`Failed to send password reset email to ${user.email.value}:`, error);
+      // Don't fail the request if email fails - token is still valid
+    }
+
+    // For development, include token in response
     if (process.env.NODE_ENV !== 'production') {
       response.resetToken = token;
     }

@@ -3,6 +3,7 @@ import { CommissionRepository } from '@infrastructure/database/repositories/comm
 import { WalletRepository } from '@infrastructure/database/repositories/wallet.repository';
 import { UserRepository } from '@infrastructure/database/repositories/user.repository';
 import { CommissionStatus, WalletTransactionType } from '@prisma/client';
+import { EmailService } from '../email/email.service';
 
 /**
  * COMMISSION CALCULATION SERVICE
@@ -32,6 +33,7 @@ export class CommissionService {
     private readonly commissionRepository: CommissionRepository,
     private readonly walletRepository: WalletRepository,
     private readonly userRepository: UserRepository,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -39,11 +41,13 @@ export class CommissionService {
    * @param orderId Order ID
    * @param buyerUserId User who made the purchase
    * @param orderValue Total order value
+   * @param orderNumber Order number for email notification
    */
   async calculateCommissionsForOrder(
     orderId: string,
     buyerUserId: string,
     orderValue: number,
+    orderNumber?: string,
   ): Promise<void> {
     this.logger.log(`Calculating commissions for order ${orderId}, buyer: ${buyerUserId}, value: ${orderValue}`);
 
@@ -140,6 +144,27 @@ export class CommissionService {
         });
 
         this.logger.log(`✅ Added ${commissionAmount} to wallet of user ${uplineUser.id}`);
+
+        // Send email notification for commission earned
+        try {
+          const buyerUser = await this.userRepository.findById(buyerUserId);
+
+          if (buyerUser && orderNumber) {
+            await this.emailService.sendCommissionEarnedEmail(uplineUser.email.value, {
+              username: uplineUser.username,
+              amount: commissionAmount,
+              orderNumber: orderNumber,
+              level,
+              fromUser: buyerUser.username,
+              earnedAt: new Date(),
+            });
+
+            this.logger.log(`✅ Sent commission earned email to ${uplineUser.email.value}`);
+          }
+        } catch (error) {
+          this.logger.error(`Failed to send commission earned email:`, error);
+          // Don't fail the request if email fails
+        }
       }
 
       this.logger.log(`Successfully calculated ${commissions.length} commissions for order ${orderId}`);

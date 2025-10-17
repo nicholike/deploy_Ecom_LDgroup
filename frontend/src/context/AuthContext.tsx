@@ -19,7 +19,7 @@ interface AuthContextValue {
   accessToken: string | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (usernameOrEmail: string, password: string) => Promise<void>;
   logout: () => void;
   requestPasswordReset: (email: string) => Promise<ForgotPasswordResponse>;
   resetPassword: (token: string, password: string) => Promise<ResetPasswordResponse>;
@@ -136,8 +136,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [applyAuthState, clearAuthState]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
-      const result = await authService.login(email, password);
+    async (usernameOrEmail: string, password: string) => {
+      const result = await authService.login(usernameOrEmail, password);
       applyAuthState(
         {
           accessToken: result.accessToken,

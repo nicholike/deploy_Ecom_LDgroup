@@ -5,6 +5,7 @@ import { ProductRepository } from '@infrastructure/database/repositories/product
 import { UserRepository } from '@infrastructure/database/repositories/user.repository';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { PendingOrderStatus } from '@prisma/client';
+import { EmailService } from '../email/email.service';
 
 /**
  * PENDING ORDER SERVICE
@@ -34,6 +35,7 @@ export class PendingOrderService {
     private readonly productRepository: ProductRepository,
     private readonly userRepository: UserRepository,
     private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -125,6 +127,34 @@ export class PendingOrderService {
     this.logger.log(
       `✅ Created pending order ${pendingOrder.pendingNumber} for user ${data.userId}, expires at ${expiresAt.toISOString()}`,
     );
+
+    // Send email notification for order created
+    try {
+      const user = await this.userRepository.findById(data.userId);
+      if (user) {
+        const shippingAddressText = typeof data.shippingAddress === 'string'
+          ? data.shippingAddress
+          : `${data.shippingAddress?.address || ''}, ${data.shippingAddress?.ward || ''}, ${data.shippingAddress?.district || ''}, ${data.shippingAddress?.province || ''}`;
+
+        await this.emailService.sendOrderCreatedEmail(user.email.value, {
+          username: user.username,
+          orderNumber: pendingOrder.pendingNumber,
+          totalAmount,
+          items: itemsWithPricing.map(item => ({
+            name: `${item.productName} - ${item.variantSize}`,
+            quantity: item.quantity,
+            price: item.subtotal,
+          })),
+          shippingAddress: shippingAddressText,
+          createdAt: pendingOrder.createdAt,
+        });
+
+        this.logger.log(`✅ Sent order created email to ${user.email.value}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to send order created email:`, error);
+      // Don't fail the request if email fails
+    }
 
     return pendingOrder;
   }

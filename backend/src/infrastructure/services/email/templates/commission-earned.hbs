@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhận hoa hồng</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #333333;
+            margin-top: 0;
+        }
+        .content p {
+            color: #666666;
+            line-height: 1.6;
+            margin: 15px 0;
+        }
+        .commission-box {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .commission-box .amount {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .commission-box .label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .details {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .details table {
+            width: 100%;
+        }
+        .details td {
+            padding: 8px 0;
+            color: #333333;
+        }
+        .details td:first-child {
+            font-weight: bold;
+            width: 40%;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .footer a {
+            color: #f5576c;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Bạn nhận được hoa hồng!</h1>
+        </div>
+        <div class="content">
+            <h2>Xin chào {{username}},</h2>
+            <p>Chúc mừng! Bạn vừa nhận được hoa hồng từ đơn hàng của downline.</p>
+
+            <div class="commission-box">
+                <div class="label">Số tiền hoa hồng</div>
+                <div class="amount">{{formatCurrency amount}}</div>
+                <div class="label">Cấp F{{level}}</div>
+            </div>
+
+            <div class="details">
+                <table>
+                    <tr>
+                        <td>Mã đơn hàng:</td>
+                        <td><strong>{{orderNumber}}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Từ thành viên:</td>
+                        <td>{{fromUser}}</td>
+                    </tr>
+                    <tr>
+                        <td>Cấp độ:</td>
+                        <td>F{{level}}</td>
+                    </tr>
+                    <tr>
+                        <td>Thời gian:</td>
+                        <td>{{formatDate earnedAt}}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <p>Hoa hồng đang chờ admin duyệt và sẽ được cộng vào ví của bạn sau khi được phê duyệt.</p>
+            <p>Bạn có thể kiểm tra chi tiết hoa hồng trong mục "Hoa hồng" trên website.</p>
+            <p>Tiếp tục phát triển đội nhóm để nhận thêm nhiều hoa hồng hấp dẫn! 🚀</p>
+        </div>
+        <div class="footer">
+            <p><strong>{{company.name}}</strong></p>
+            <p>Website: <a href="{{company.website}}">{{company.website}}</a></p>
+            <p>Email: {{company.email}} | Hotline: {{company.hotline}}</p>
+            <p style="margin-top: 15px;">© 2025 {{company.name}}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

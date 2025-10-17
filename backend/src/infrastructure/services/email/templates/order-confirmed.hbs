@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đơn hàng đã thanh toán</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            padding: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #333333;
+            margin-top: 0;
+        }
+        .content p {
+            color: #666666;
+            line-height: 1.6;
+            margin: 15px 0;
+        }
+        .success-box {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .success-box h3 {
+            margin: 0 0 10px 0;
+            color: #155724;
+        }
+        .success-box p {
+            margin: 5px 0;
+            color: #155724;
+        }
+        .order-summary {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .order-summary table {
+            width: 100%;
+        }
+        .order-summary td {
+            padding: 8px 0;
+            color: #333333;
+        }
+        .order-summary td:first-child {
+            font-weight: bold;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .footer a {
+            color: #11998e;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💳 Thanh toán thành công!</h1>
+        </div>
+        <div class="content">
+            <h2>Xin chào {{username}},</h2>
+
+            <div class="success-box">
+                <h3>✅ Đơn hàng đã được thanh toán</h3>
+                <p>Chúng tôi đã nhận được thanh toán cho đơn hàng <strong>{{orderNumber}}</strong></p>
+            </div>
+
+            <div class="order-summary">
+                <table>
+                    <tr>
+                        <td>Mã đơn hàng:</td>
+                        <td><strong>{{orderNumber}}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Ngày thanh toán:</td>
+                        <td>{{formatDate paidAt}}</td>
+                    </tr>
+                    <tr>
+                        <td>Số tiền:</td>
+                        <td><strong style="color: #11998e; font-size: 18px;">{{formatCurrency totalAmount}}</strong></td>
+                    </tr>
+                </table>
+            </div>
+
+            <p>Đơn hàng của bạn đang được xử lý và sẽ sớm được giao đến bạn trong <strong>2-5 ngày</strong>.</p>
+            <p>Bạn có thể theo dõi trạng thái đơn hàng trong mục "Đơn hàng của tôi" trên website.</p>
+            <p>Cảm ơn bạn đã tin tưởng và mua hàng tại <strong>{{company.name}}</strong>! 🎉</p>
+        </div>
+        <div class="footer">
+            <p><strong>{{company.name}}</strong></p>
+            <p>Website: <a href="{{company.website}}">{{company.website}}</a></p>
+            <p>Email: {{company.email}} | Hotline: {{company.hotline}}</p>
+            <p style="margin-top: 15px;">© 2025 {{company.name}}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

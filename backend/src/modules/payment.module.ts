@@ -13,8 +13,10 @@ import { CommissionRepository } from '@infrastructure/database/repositories/comm
 import { WalletRepository } from '@infrastructure/database/repositories/wallet.repository';
 import { PendingOrderService } from '@infrastructure/services/pending-order/pending-order.service';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { EmailModule } from '@infrastructure/services/email/email.module';
 
 @Module({
+  imports: [EmailModule],
   controllers: [PaymentController],
   providers: [
     PaymentService,

@@ -6,7 +6,7 @@ import { getFormErrorMessage } from "../../shared/errorTranslator";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
+  const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,8 +26,8 @@ export default function SignInForm() {
     setError(null);
     setIsSubmitting(true);
 
-    if (!email || email.trim().length === 0) {
-      setError("Vui lòng nhập Email!");
+    if (!usernameOrEmail || usernameOrEmail.trim().length === 0) {
+      setError("Vui lòng nhập tên đăng nhập hoặc email!");
       setIsSubmitting(false);
       return;
     }
@@ -39,7 +39,7 @@ export default function SignInForm() {
     }
 
     try {
-      await login(email, password);
+      await login(usernameOrEmail, password);
     } catch (err) {
       const message = getFormErrorMessage(err);
       setError(message);
@@ -88,18 +88,18 @@ export default function SignInForm() {
           {/* Title */}
           <h2 className="text-4xl mb-6 text-white tracking-wide">Đăng nhập</h2>
 
-          {/* Email Input Field */}
+          {/* Username or Email Input Field */}
           <div className="relative border-b-2 border-white/30 my-5">
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="off"
+              type="text"
+              value={usernameOrEmail}
+              onChange={(e) => setUsernameOrEmail(e.target.value)}
+              autoComplete="username"
               placeholder=" "
               className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-base text-white px-0 peer"
             />
             <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
-              Nhập email của bạn
+              Tên đăng nhập hoặc email
             </label>
           </div>
 

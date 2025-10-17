@@ -50,10 +50,10 @@ export class AuthController {
   @Post('login')
   @Public()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'User login' })
+  @ApiOperation({ summary: 'User login with username or email' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.email, dto.password);
+    return this.authService.login(dto.usernameOrEmail, dto.password);
   }
 
   @Post('refresh')

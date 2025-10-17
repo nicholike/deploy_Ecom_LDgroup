@@ -447,7 +447,7 @@ const loadDownlineOrders = useCallback(async () => {
                       <p className="mb-1 text-[11px] text-gray-600 md:text-[12px]">
                         Chia sẻ mã này để giới thiệu người dùng mới
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center sm:justify-start gap-2">
                         <span
                           className="inline-block rounded-md px-4 py-2 font-mono text-[16px] font-bold md:text-[20px]"
                           style={{ backgroundColor: '#FDF8F2', color: WALLET_COLOR }}
@@ -639,14 +639,14 @@ const WithdrawHistorySection: React.FC<{
     ) : history.length === 0 ? (
       <div className="py-8 text-center text-gray-600">Bạn chưa có yêu cầu rút tiền nào</div>
     ) : (
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[500px] overflow-y-auto border border-gray-200 rounded-md">
         <table className="w-full border-collapse text-left">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="text-white" style={{ backgroundColor: WALLET_COLOR }}>
-              <th className="px-2 py-2 font-normal md:px-4 w-[32%] md:w-[35%]">Số tiền</th>
+              <th className="px-2 py-2 font-normal md:px-4 w-[22%] md:w-[35%]">Số tiền</th>
               <th className="px-2 py-2 text-center font-normal md:px-4 w-[22%] md:w-[25%]">Ngày tạo</th>
-              <th className="px-2 py-2 text-center font-normal md:px-4 w-[34%] md:w-[25%]">Trạng thái</th>
-              <th className="px-0.5 py-2 text-center font-normal md:px-4 w-[12%] md:w-[15%]">
+              <th className="px-2 py-2 text-center font-normal md:px-4 w-[42%] md:w-[25%]">Trạng thái</th>
+              <th className="px-0.5 py-2 text-center font-normal md:px-4 w-[14%] md:w-[15%]">
                 <span className="hidden md:inline">Xem chi tiết</span>
               </th>
             </tr>
@@ -654,16 +654,16 @@ const WithdrawHistorySection: React.FC<{
           <tbody>
             {history.map((withdrawal) => (
               <tr key={withdrawal.id} className="even:bg-[#fdf8f2]">
-                <td className="px-2 py-2 font-semibold text-[11px] md:text-sm md:px-4 md:py-3 w-[32%] md:w-[35%]" style={{ color: WALLET_COLOR }}>
+                <td className="px-2 py-2 font-semibold text-[11px] md:text-sm md:px-4 md:py-3 w-[22%] md:w-[35%]" style={{ color: WALLET_COLOR }}>
                   {formatCurrency(withdrawal.amount)}
                 </td>
                 <td className="px-2 py-2 text-center text-[11px] md:text-sm md:px-4 md:py-3 w-[22%] md:w-[25%]">{formatDateTime(withdrawal.requestedAt)}</td>
-                <td className="px-2 py-2 text-center md:px-4 md:py-3 w-[34%] md:w-[25%]">
-                  <span className={`inline-flex rounded px-2 py-1 text-[11px] md:text-xs font-medium capitalize ${renderWithdrawalStatusBadge(withdrawal.status)}`}>
+                <td className="px-2 py-2 text-center md:px-4 md:py-3 w-[42%] md:w-[25%]">
+                  <span className={`inline-flex justify-center items-center rounded px-2 py-1 text-[11px] md:text-xs font-medium capitalize w-[110px] md:w-[130px] ${renderWithdrawalStatusBadge(withdrawal.status)}`}>
                     {renderWithdrawalStatusText(withdrawal.status)}
                   </span>
                 </td>
-                <td className="px-0.5 py-2 text-center md:px-4 md:py-3 w-[12%] md:w-[15%]">
+                <td className="px-0.5 py-2 text-center md:px-4 md:py-3 w-[14%] md:w-[15%]">
                   {/* Mobile: Icon mắt */}
                   <button
                     type="button"
@@ -714,14 +714,14 @@ const OrdersSection: React.FC<{
         </Link>
       </div>
     ) : (
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[500px] overflow-y-auto border border-gray-200 rounded-md">
         <table className="w-full border-collapse text-left">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="text-white" style={{ backgroundColor: WALLET_COLOR }}>
-              <th className="px-2 py-2 font-normal md:px-4 w-[32%] md:w-[35%]">Đơn hàng</th>
-              <th className="px-2 py-2 text-center font-normal md:px-4 w-[22%] md:w-[25%]">Thành tiền</th>
-              <th className="px-2 py-2 text-center font-normal md:px-4 w-[34%] md:w-[25%]">Trạng thái</th>
-              <th className="px-0.5 py-2 text-center font-normal md:px-4 w-[12%] md:w-[15%]">
+              <th className="px-2 py-2 font-normal md:px-4 w-[20%] md:w-[35%]">Đơn hàng</th>
+              <th className="px-2 py-2 text-center font-normal md:px-4 w-[20%] md:w-[25%]">Thành tiền</th>
+              <th className="px-2 py-2 text-center font-normal md:px-4 w-[46%] md:w-[25%]">Trạng thái</th>
+              <th className="px-0.5 py-2 text-center font-normal md:px-4 w-[14%] md:w-[15%]">
                 <span className="hidden md:inline">Xem chi tiết</span>
               </th>
             </tr>
@@ -729,18 +729,18 @@ const OrdersSection: React.FC<{
           <tbody>
             {orders.map((order) => (
               <tr key={order.id} className="even:bg-[#fdf8f2]">
-                <td className="px-2 py-2 md:px-4 md:py-3 w-[32%] md:w-[35%]">
+                <td className="px-2 py-2 md:px-4 md:py-3 w-[20%] md:w-[35%]">
                   <div className="text-[11px] md:text-sm font-medium text-gray-900">{order.orderNumber}</div>
                 </td>
-                <td className="px-2 py-2 text-center text-[11px] md:text-sm text-gray-700 md:px-4 md:py-3 w-[22%] md:w-[25%]">
+                <td className="px-2 py-2 text-center text-[11px] md:text-sm text-gray-700 md:px-4 md:py-3 w-[20%] md:w-[25%]">
                   {formatCurrency(Number(order.totalAmount ?? 0))}
                 </td>
-                <td className="px-2 py-2 text-center md:px-4 md:py-3 w-[34%] md:w-[25%]">
-                  <span className={`inline-flex rounded px-2 py-1 text-[11px] md:text-xs font-medium capitalize ${renderOrderStatusBadge(order.status)}`}>
+                <td className="px-2 py-2 text-center md:px-4 md:py-3 w-[46%] md:w-[25%]">
+                  <span className={`inline-flex justify-center items-center rounded px-2 py-1 text-[11px] md:text-xs font-medium capitalize w-[110px] md:w-[130px] ${renderOrderStatusBadge(order.status)}`}>
                     {renderOrderStatusText(order.status)}
                   </span>
                 </td>
-                <td className="px-0.5 py-2 text-center md:px-4 md:py-3 w-[12%] md:w-[15%]">
+                <td className="px-0.5 py-2 text-center md:px-4 md:py-3 w-[14%] md:w-[15%]">
                   {/* Mobile: Icon mắt */}
                   <button
                     type="button"
@@ -799,14 +799,14 @@ const DownlineSection: React.FC<{
     ) : orders.length === 0 ? (
       <div className="py-8 text-center text-gray-600">Chưa có hoa hồng từ tuyến dưới</div>
     ) : (
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[500px] overflow-y-auto border border-gray-200 rounded-md">
         <table className="w-full border-collapse text-left">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="text-white" style={{ backgroundColor: WALLET_COLOR }}>
-              <th className="px-2 py-2 font-normal md:px-4 w-[32%] md:w-[35%]">Đơn hàng</th>
-              <th className="px-2 py-2 text-center font-normal md:px-4 w-[22%] md:w-[25%]">Thành tiền</th>
-              <th className="px-2 py-2 text-center font-normal md:px-4 w-[34%] md:w-[25%]">Hoa hồng</th>
-              <th className="px-0.5 py-2 text-center font-normal md:px-4 w-[12%] md:w-[15%]">
+              <th className="px-2 py-2 font-normal md:px-4 w-[22%] md:w-[35%]">Đơn hàng</th>
+              <th className="px-2 py-2 text-center font-normal md:px-4 w-[20%] md:w-[25%]">Thành tiền</th>
+              <th className="px-2 py-2 text-center font-normal md:px-4 w-[44%] md:w-[25%]">Hoa hồng</th>
+              <th className="px-0.5 py-2 text-center font-normal md:px-4 w-[14%] md:w-[15%]">
                 <span className="hidden md:inline">Xem chi tiết</span>
               </th>
             </tr>
@@ -814,23 +814,25 @@ const DownlineSection: React.FC<{
           <tbody>
             {orders.map((order) => {
               const isCancelled = order.status?.toUpperCase() === "CANCELLED";
-              
+
               return (
               <tr key={order.id} className="even:bg-[#fdf8f2]">
-                  <td className="px-2 py-2 md:px-4 md:py-3 w-[32%] md:w-[35%]">
+                  <td className="px-2 py-2 md:px-4 md:py-3 w-[22%] md:w-[35%]">
                     <div className={`text-[11px] md:text-sm font-medium ${isCancelled ? "text-red-600" : "text-gray-900"}`}>
                       {order.orderNumber || order.id}
                     </div>
                 </td>
-                  <td className={`px-2 py-2 text-center md:px-4 md:py-3 text-[11px] md:text-sm w-[22%] md:w-[25%] ${isCancelled ? "text-red-600" : "text-gray-700"}`}>
+                  <td className={`px-2 py-2 text-center md:px-4 md:py-3 text-[11px] md:text-sm w-[20%] md:w-[25%] ${isCancelled ? "text-red-600" : "text-gray-700"}`}>
                   {formatCurrency(order.total)}
                 </td>
-                  <td className={`px-2 py-2 text-center md:px-4 md:py-3 text-[11px] md:text-sm font-semibold w-[34%] md:w-[25%] ${
-                    isCancelled ? "text-red-600" : "text-[#10B981]"
-                  }`}>
-                  {formatCurrency(order.commission)}
-                </td>
-                  <td className="px-0.5 py-2 text-center md:px-4 md:py-3 w-[12%] md:w-[15%]">
+                  <td className="px-2 py-2 text-center md:px-4 md:py-3 w-[44%] md:w-[25%]">
+                    <span className={`inline-flex justify-center items-center rounded px-2 py-1 text-[11px] md:text-xs font-semibold w-[110px] md:w-[130px] ${
+                      isCancelled ? "bg-red-100 text-red-600" : "bg-green-100 text-[#10B981]"
+                    }`}>
+                      {formatCurrency(order.commission)}
+                    </span>
+                  </td>
+                  <td className="px-0.5 py-2 text-center md:px-4 md:py-3 w-[14%] md:w-[15%]">
                     {/* Mobile: Icon mắt */}
                   <button
                     type="button"
@@ -1680,10 +1682,16 @@ const renderDownlineStatusLabel = (status: string) => {
 
 const renderWithdrawalStatusBadge = (status: string) => {
   switch (status?.toUpperCase()) {
-    case "APPROVED":
+    case "COMPLETED":
       return "bg-green-100 text-green-700";
+    case "APPROVED":
+      return "bg-teal-100 text-teal-700";
     case "REJECTED":
+    case "FAILED":
       return "bg-red-100 text-red-700";
+    case "PROCESSING":
+      return "bg-yellow-100 text-yellow-700";
+    case "PENDING":
     default:
       return "bg-blue-100 text-blue-700";
   }
@@ -1691,12 +1699,18 @@ const renderWithdrawalStatusBadge = (status: string) => {
 
 const renderWithdrawalStatusText = (status: string) => {
   switch (status?.toUpperCase()) {
+    case "PENDING":
+      return "Chờ duyệt";
     case "APPROVED":
       return "Đã duyệt";
     case "REJECTED":
       return "Đã từ chối";
-    case "PENDING":
+    case "PROCESSING":
       return "Đang xử lý";
+    case "COMPLETED":
+      return "Hoàn thành";
+    case "FAILED":
+      return "Thất bại";
     default:
       return status || "Không xác định";
   }

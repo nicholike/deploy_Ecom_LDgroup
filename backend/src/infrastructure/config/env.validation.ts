@@ -55,7 +55,8 @@ export class EnvironmentVariables {
 
   // CORS
   @IsString()
-  CORS_ORIGIN: string;
+  @IsOptional()
+  CORS_ORIGIN?: string;
 
   // Payment - SePay (required in production)
   @IsString()
@@ -111,7 +112,7 @@ export function validate(config: Record<string, unknown>) {
       console.warn('⚠️  WARNING: SEPAY_API_KEY is not set in production. Payment webhooks will not be authenticated.');
     }
 
-    if (validatedConfig.CORS_ORIGIN.includes('localhost')) {
+    if (validatedConfig.CORS_ORIGIN && validatedConfig.CORS_ORIGIN.includes('localhost')) {
       console.warn('⚠️  WARNING: CORS_ORIGIN contains localhost in production environment!');
     }
 

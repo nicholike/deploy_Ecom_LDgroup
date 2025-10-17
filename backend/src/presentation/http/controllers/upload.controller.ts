@@ -4,6 +4,7 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync, createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import type { FastifyRequest } from 'fastify';
+import type { MultipartFile } from '@fastify/multipart';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { Roles } from '@shared/decorators/roles.decorator';
@@ -28,11 +29,13 @@ export class UploadController {
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 201, description: 'Image uploaded successfully' })
   async uploadProductImage(@Req() req: FastifyRequest) {
-    if (!req.isMultipart()) {
+    const reqWithMultipart = req as FastifyRequest & { isMultipart?: () => boolean; file?: () => Promise<MultipartFile | undefined> };
+    
+    if (!reqWithMultipart.isMultipart || !reqWithMultipart.isMultipart()) {
       throw new HttpException('Request is not multipart', HttpStatus.BAD_REQUEST);
     }
 
-    const file = await req.file();
+    const file = await reqWithMultipart.file?.();
 
     if (!file) {
       throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
@@ -61,7 +64,7 @@ export class UploadController {
     const filePath = join(uploadDir, filename);
 
     let uploadedSize = 0;
-    stream.on('data', (chunk) => {
+    stream.on('data', (chunk: Buffer) => {
       uploadedSize += chunk.length;
     });
 

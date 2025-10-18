@@ -54,9 +54,11 @@ export class PaymentService {
 
       // Check if transaction already exists
       if (webhookData.id) {
-        const existing = await this.bankTransactionRepository.findBySepayId(webhookData.id);
+        // Convert id to string (Sepay sends as number, but DB stores as VARCHAR)
+        const sepayId = String(webhookData.id);
+        const existing = await this.bankTransactionRepository.findBySepayId(sepayId);
         if (existing) {
-          this.logger.warn(`Transaction ${webhookData.id} already processed`);
+          this.logger.warn(`Transaction ${sepayId} already processed`);
           return {
             success: true,
             message: 'Transaction already processed',
@@ -83,7 +85,8 @@ export class PaymentService {
 
       // Create bank transaction record
       const bankTransaction = await this.bankTransactionRepository.create({
-        sepayTransactionId: webhookData.id,
+        // Convert id to string (Sepay sends as number, but DB stores as VARCHAR)
+        sepayTransactionId: webhookData.id ? String(webhookData.id) : undefined,
         gateway: webhookData.gateway || 'UNKNOWN',
         transactionDate,
         accountNumber: webhookData.account_number || webhookData.accountNumber || '',

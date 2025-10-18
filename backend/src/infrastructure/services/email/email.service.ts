@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import * as sgMail from '@sendgrid/mail';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as Handlebars from 'handlebars';
@@ -17,7 +18,8 @@ export interface EmailOptions {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter | null = null;
+  private useSendGrid: boolean = false;
   private readonly templatesPath: string;
   private readonly companyInfo: {
     name: string;
@@ -27,34 +29,40 @@ export class EmailService {
   };
 
   constructor(private readonly configService: ConfigService) {
-    // Get SMTP configuration
-    const smtpPort = this.configService.get<number>('SMTP_PORT', 587);
-    const smtpSecure = smtpPort === 465; // Auto-detect: 465 = SSL, 587 = TLS
+    // Check if SendGrid API key is available (preferred for production)
+    const sendGridApiKey = this.configService.get<string>('SENDGRID_API_KEY');
 
-    // Initialize transporter with extended timeouts for Railway/Cloud environments
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('SMTP_HOST'),
-      port: smtpPort,
-      secure: smtpSecure, // true for 465 (SSL), false for 587 (TLS)
-      auth: {
-        user: this.configService.get<string>('SMTP_USER'),
-        pass: this.configService.get<string>('SMTP_PASSWORD'),
-      },
-      // 🔧 FIX: Increased timeouts for Railway/Cloud environments
-      // Railway may block port 587 (TLS), so we use port 465 (SSL) as alternative
-      connectionTimeout: 60000, // 60 seconds (Railway can be slow)
-      greetingTimeout: 30000,   // 30 seconds
-      socketTimeout: 60000,      // 60 seconds
-      // Connection pooling for better performance
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
-      // TLS options for security
-      tls: {
-        rejectUnauthorized: true,
-        minVersion: 'TLSv1.2',
-      },
-    });
+    if (sendGridApiKey) {
+      // 🚀 Use SendGrid for production (Railway doesn't block SendGrid API)
+      sgMail.setApiKey(sendGridApiKey);
+      this.useSendGrid = true;
+      this.logger.log('📧 Email service initialized with SendGrid');
+    } else {
+      // 🏠 Fallback to SMTP for local development
+      const smtpPort = this.configService.get<number>('SMTP_PORT', 587);
+      const smtpSecure = smtpPort === 465; // Auto-detect: 465 = SSL, 587 = TLS
+
+      this.transporter = nodemailer.createTransport({
+        host: this.configService.get<string>('SMTP_HOST'),
+        port: smtpPort,
+        secure: smtpSecure, // true for 465 (SSL), false for 587 (TLS)
+        auth: {
+          user: this.configService.get<string>('SMTP_USER'),
+          pass: this.configService.get<string>('SMTP_PASSWORD'),
+        },
+        connectionTimeout: 60000,
+        greetingTimeout: 30000,
+        socketTimeout: 60000,
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 100,
+        tls: {
+          rejectUnauthorized: true,
+          minVersion: 'TLSv1.2',
+        },
+      });
+      this.logger.log('📧 Email service initialized with SMTP (local development)');
+    }
 
     // Set templates path
     this.templatesPath = path.join(__dirname, 'templates');
@@ -125,7 +133,7 @@ export class EmailService {
   }
 
   /**
-   * Send email with template
+   * Send email with template (supports both SendGrid and SMTP)
    */
   async sendEmail(options: EmailOptions): Promise<boolean> {
     try {
@@ -158,16 +166,38 @@ export class EmailService {
         }
       }
 
-      // Send email
-      const info = await this.transporter.sendMail({
-        from: this.configService.get<string>('SMTP_FROM', '"LD Group" <support@ldgroup.vn>'),
-        to,
-        subject,
-        html: emailHtml,
-        text: emailText,
-      });
+      const fromEmail = this.configService.get<string>('SMTP_FROM', '"LD Group" <support@ldgroup.vn>');
 
-      this.logger.log(`✅ Email sent successfully to ${to}: ${info.messageId}`);
+      // Send email using SendGrid or SMTP
+      if (this.useSendGrid) {
+        // 🚀 SendGrid API
+        const msg = {
+          to,
+          from: fromEmail,
+          subject,
+          html: emailHtml,
+          text: emailText,
+        };
+
+        await sgMail.send(msg);
+        this.logger.log(`✅ Email sent via SendGrid to ${to}`);
+      } else {
+        // 🏠 SMTP (nodemailer)
+        if (!this.transporter) {
+          throw new Error('SMTP transporter not initialized');
+        }
+
+        const info = await this.transporter.sendMail({
+          from: fromEmail,
+          to,
+          subject,
+          html: emailHtml,
+          text: emailText,
+        });
+
+        this.logger.log(`✅ Email sent via SMTP to ${to}: ${info.messageId}`);
+      }
+
       return true;
     } catch (error) {
       this.logger.error(`❌ Failed to send email to ${options.to}:`, error);
@@ -215,6 +245,7 @@ export class EmailService {
 
   /**
    * Send order confirmed/paid notification
+   * 🔕 DISABLED: User requirement - only send order created and password reset emails
    */
   async sendOrderConfirmedEmail(
     to: string,
@@ -225,16 +256,13 @@ export class EmailService {
       paidAt: Date;
     },
   ): Promise<boolean> {
-    return this.sendEmail({
-      to,
-      subject: `Đơn hàng ${orderData.orderNumber} đã thanh toán - LD Group`,
-      template: 'order-confirmed',
-      context: orderData,
-    });
+    this.logger.debug(`🔕 Order confirmed email disabled for ${to}`);
+    return true; // Return true to not break existing code
   }
 
   /**
    * Send commission earned notification
+   * 🔕 DISABLED: User requirement - only send order created and password reset emails
    */
   async sendCommissionEarnedEmail(
     to: string,
@@ -247,16 +275,13 @@ export class EmailService {
       earnedAt: Date;
     },
   ): Promise<boolean> {
-    return this.sendEmail({
-      to,
-      subject: `Bạn nhận được hoa hồng ${commissionData.amount.toLocaleString('vi-VN')}đ - LD Group`,
-      template: 'commission-earned',
-      context: commissionData,
-    });
+    this.logger.debug(`🔕 Commission earned email disabled for ${to}`);
+    return true; // Return true to not break existing code
   }
 
   /**
    * Send withdrawal approved notification
+   * 🔕 DISABLED: User requirement - only send order created and password reset emails
    */
   async sendWithdrawalApprovedEmail(
     to: string,
@@ -268,16 +293,13 @@ export class EmailService {
       approvedAt: Date;
     },
   ): Promise<boolean> {
-    return this.sendEmail({
-      to,
-      subject: `Yêu cầu rút tiền ${withdrawalData.amount.toLocaleString('vi-VN')}đ đã được duyệt - LD Group`,
-      template: 'withdrawal-approved',
-      context: withdrawalData,
-    });
+    this.logger.debug(`🔕 Withdrawal approved email disabled for ${to}`);
+    return true; // Return true to not break existing code
   }
 
   /**
    * Send withdrawal completed notification
+   * 🔕 DISABLED: User requirement - only send order created and password reset emails
    */
   async sendWithdrawalCompletedEmail(
     to: string,
@@ -289,11 +311,7 @@ export class EmailService {
       completedAt: Date;
     },
   ): Promise<boolean> {
-    return this.sendEmail({
-      to,
-      subject: `Rút tiền ${withdrawalData.amount.toLocaleString('vi-VN')}đ hoàn tất - LD Group`,
-      template: 'withdrawal-completed',
-      context: withdrawalData,
-    });
+    this.logger.debug(`🔕 Withdrawal completed email disabled for ${to}`);
+    return true; // Return true to not break existing code
   }
 }

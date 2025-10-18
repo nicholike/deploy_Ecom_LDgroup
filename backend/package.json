@@ -40,6 +40,7 @@
     "@nestjs/swagger": "^7.1.17",
     "@nestjs/throttler": "^5.1.1",
     "@prisma/client": "^5.7.1",
+    "@sendgrid/mail": "^8.1.6",
     "@types/multer": "^2.0.0",
     "bcrypt": "5.1.1",
     "class-transformer": "^0.5.1",

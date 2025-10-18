@@ -51,15 +51,20 @@ UPLOAD_DIR=./uploads
 
 MAX_FILE_SIZE=5242880
 
-SMTP_HOST=smtp.gmail.com
+# 📧 EMAIL CONFIGURATION - SENDGRID (RECOMMENDED)
+# Get your API key from: https://app.sendgrid.com/settings/api_keys
+SENDGRID_API_KEY=YOUR_SENDGRID_API_KEY_HERE
 
-SMTP_PORT=465
-
-SMTP_USER=dieptrungnam123@gmail.com
-
-SMTP_PASSWORD=esdj zdoa tjpo girp
-
+# Email sender (must be verified in SendGrid)
 SMTP_FROM="LD Group" <support@ldgroup.vn>
+
+# 🏠 SMTP FALLBACK (for local development only)
+# If SENDGRID_API_KEY is not set, system will use SMTP
+# Note: Railway blocks SMTP ports, so this won't work in production
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=dieptrungnam123@gmail.com
+SMTP_PASSWORD=esdj zdoa tjpo girp
 
 COMPANY_NAME=LD Group
 
@@ -81,7 +86,14 @@ FRONTEND_URL=https://deploy-ecom-l-dgroup.vercel.app
 2. CORS_ORIGIN - PHẢI UPDATE!
    Thay "your-frontend-domain.vercel.app" bằng domain frontend thực
 
-3. Sau khi paste xong, Railway sẽ tự động redeploy
+3. SENDGRID_API_KEY - BẮT BUỘC cho email!
+   - Đăng ký FREE tại: https://signup.sendgrid.com/
+   - Tạo API Key: Settings > API Keys > Create API Key
+   - Chọn "Full Access" và copy API key
+   - Paste vào Railway variable SENDGRID_API_KEY
+   - Verify sender email tại: Settings > Sender Authentication
+
+4. Sau khi paste xong, Railway sẽ tự động redeploy
 
 ===========================================
 SePay Webhook Configuration:

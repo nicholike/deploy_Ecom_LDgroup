@@ -14,27 +14,14 @@ const BRANCH_TABS = [
   { label: "F6", value: "F6" },
 ] as const;
 
+// ✅ SIMPLIFIED: Only 5 main statuses for admin
 const ORDER_STATUS_OPTIONS = [
   { value: "PENDING", label: "Chờ xử lý" },
   { value: "CONFIRMED", label: "Đã xác nhận" },
-  { value: "PROCESSING", label: "Đang chuẩn bị" },
   { value: "SHIPPED", label: "Đã gửi hàng" },
-  { value: "DELIVERED", label: "Đã giao" },
   { value: "COMPLETED", label: "Hoàn thành" },
   { value: "CANCELLED", label: "Đã hủy" },
-  { value: "REFUNDED", label: "Đã hoàn tiền" },
 ] as const;
-
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  PENDING: ["CONFIRMED", "CANCELLED"],
-  CONFIRMED: ["SHIPPED", "CANCELLED"],
-  PROCESSING: ["SHIPPED", "CANCELLED"],
-  SHIPPED: ["COMPLETED", "CANCELLED"],
-  DELIVERED: ["COMPLETED", "CANCELLED"],
-  COMPLETED: ["CANCELLED"],
-  CANCELLED: ["REFUNDED"],
-  REFUNDED: [],
-};
 
 const PAYMENT_STATUS_BADGES: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-700",
@@ -44,15 +31,13 @@ const PAYMENT_STATUS_BADGES: Record<string, string> = {
   REFUNDED: "bg-purple-100 text-purple-700",
 };
 
+// ✅ SIMPLIFIED: Badge colors for 5 main statuses
 const ORDER_STATUS_BADGES: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-700",
   CONFIRMED: "bg-blue-100 text-blue-700",
-  PROCESSING: "bg-sky-100 text-sky-700",
   SHIPPED: "bg-indigo-100 text-indigo-700",
-  DELIVERED: "bg-emerald-100 text-emerald-700",
   COMPLETED: "bg-green-100 text-green-700",
   CANCELLED: "bg-red-100 text-red-700",
-  REFUNDED: "bg-gray-100 text-gray-700",
 };
 
 type BranchLevel = (typeof BRANCH_TABS)[number]["value"];

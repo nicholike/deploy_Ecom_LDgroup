@@ -84,18 +84,7 @@ export default function Payment() {
           description: `Đơn hàng ${status.orderNumber} đã được thanh toán`,
         });
 
-        // Start countdown to redirect
-        setCountdown(5);
-        countdownRef.current = setInterval(() => {
-          setCountdown((prev) => {
-            if (prev <= 1) {
-              clearInterval(countdownRef.current!);
-              navigate('/account');
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
+        // Countdown sẽ được start bởi useEffect
       }
     } catch (err: any) {
       console.error('Failed to check payment status:', err);
@@ -135,6 +124,33 @@ export default function Payment() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, isPaid, paymentInfo]); // Không include checkPaymentStatus để tránh re-run
+
+  // Start countdown when payment is completed
+  useEffect(() => {
+    if (!isPaid) return;
+
+    console.log('⏱️ Starting countdown...');
+    setCountdown(5);
+    
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+          }
+          navigate('/account');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, [isPaid, navigate]);
 
   // Copy to clipboard
   const copyToClipboard = (text: string, label: string) => {
@@ -187,13 +203,8 @@ export default function Payment() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-4">
         <div className="max-w-md w-[90%] rounded-xl border-2 border-[#8B5E1E] bg-white p-5 sm:p-8 text-center shadow-lg relative">
-          {/* Icon Success */}
-          <div className="mx-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 text-green-600" />
-          </div>
-          
           {/* Title */}
-          <h2 className="mt-4 sm:mt-6 text-[15px] sm:text-[18px] font-bold text-black uppercase leading-tight">
+          <h2 className="text-[15px] sm:text-[18px] font-bold text-black uppercase leading-tight">
             Thanh toán thành công!
           </h2>
           <p className="mt-2 text-[11px] sm:text-sm text-gray-600">
@@ -214,17 +225,12 @@ export default function Payment() {
             </div>
           </div>
           
-          {/* Countdown */}
-          <p className="mt-4 sm:mt-6 text-[11px] sm:text-xs text-gray-500">
-            Tự động chuyển về trang tài khoản sau {countdown} giây...
-          </p>
-          
           {/* Button */}
           <button
             onClick={() => navigate('/account')}
-            className="mt-3 sm:mt-4 w-full bg-[#8B5E1E] text-white font-bold text-[12px] md:text-[14px] rounded-md py-2.5 sm:py-3 uppercase hover:bg-[#6f4715] transition"
+            className="mt-4 sm:mt-6 w-full bg-[#8B5E1E] text-white font-bold text-[12px] md:text-[14px] rounded-md py-2.5 sm:py-3 uppercase hover:bg-[#6f4715] transition"
           >
-            Về trang tài khoản ngay
+            Về trang tài khoản ngay ({countdown}s)
           </button>
         </div>
       </div>

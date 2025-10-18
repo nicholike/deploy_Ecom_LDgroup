@@ -367,8 +367,23 @@ export class OrderRepository {
         });
       },
       {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        timeout: 60000, // 60 seconds timeout for complex MLM commission calculations
+        // 🚀 PERFORMANCE FIX: Changed from SERIALIZABLE to READ_COMMITTED
+        //
+        // SERIALIZABLE was causing severe lock contention:
+        // - Locks entire order, commission, user, wallet tables
+        // - Multiple concurrent updates → deadlock (Error 1205)
+        // - "Lock wait timeout exceeded; try restarting transaction"
+        //
+        // READ_COMMITTED is sufficient because:
+        // - We check for existing commissions before calculating (line 294-309)
+        // - Commission service has duplicate prevention logic
+        // - Much faster with less lock contention
+        //
+        // Trade-off: Extremely rare edge case where 2 concurrent requests
+        // might both pass the commission check, but commission.create() will
+        // fail on unique constraint, causing retry.
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        timeout: 30000, // 30 seconds (reduced from 60s - should be much faster now)
       },
     );
   }

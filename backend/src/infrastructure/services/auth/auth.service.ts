@@ -203,16 +203,22 @@ export class AuthService {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
-    try {
-      await this.emailService.sendPasswordResetEmail(
-        user.email.value,
-        resetUrl,
-        user.username,
+    // 🔧 FIX: Check return value instead of try/catch
+    // sendPasswordResetEmail() returns boolean (true if sent, false if failed)
+    const emailSent = await this.emailService.sendPasswordResetEmail(
+      user.email.value,
+      resetUrl,
+      user.username,
+    );
+
+    if (emailSent) {
+      this.logger.log(`✅ Password reset email sent to ${user.email.value}`);
+    } else {
+      this.logger.warn(
+        `⚠️ Failed to send password reset email to ${user.email.value} ` +
+        `(SMTP blocked on Railway). User can still reset via token if available in dev mode.`
       );
-      this.logger.log(`Password reset email sent to ${user.email.value}`);
-    } catch (error) {
-      this.logger.error(`Failed to send password reset email to ${user.email.value}:`, error);
-      // Don't fail the request if email fails - token is still valid
+      // Token is still valid - user can reset password if they have the token
     }
 
     // For development, include token in response

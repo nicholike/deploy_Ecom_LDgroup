@@ -172,7 +172,7 @@ export class WalletService {
       const user = await this.userRepository.findById(withdrawal.userId);
       if (user) {
         const bankInfo = withdrawal.bankInfo as any;
-        await this.emailService.sendWithdrawalApprovedEmail(user.email.value, {
+        const emailSent = await this.emailService.sendWithdrawalApprovedEmail(user.email.value, {
           username: user.username,
           amount: Number(withdrawal.amount),
           bankName: bankInfo?.bankName || '',
@@ -180,10 +180,14 @@ export class WalletService {
           approvedAt: new Date(),
         });
 
-        this.logger.log(`✅ Sent withdrawal approved email to ${user.email.value}`);
+        if (emailSent) {
+          this.logger.log(`✅ Sent withdrawal approved email to ${user.email.value}`);
+        } else {
+          this.logger.warn(`⚠️ Failed to send withdrawal approved email (SMTP blocked). Withdrawal approved successfully.`);
+        }
       }
     } catch (error) {
-      this.logger.error(`Failed to send withdrawal approved email:`, error);
+      this.logger.error(`Unexpected error in email sending:`, error);
       // Don't fail the request if email fails
     }
 
@@ -233,7 +237,7 @@ export class WalletService {
       const user = await this.userRepository.findById(withdrawal.userId);
       if (user) {
         const bankInfo = withdrawal.bankInfo as any;
-        await this.emailService.sendWithdrawalCompletedEmail(user.email.value, {
+        const emailSent = await this.emailService.sendWithdrawalCompletedEmail(user.email.value, {
           username: user.username,
           amount: Number(withdrawal.amount),
           bankName: bankInfo?.bankName || '',
@@ -241,10 +245,14 @@ export class WalletService {
           completedAt: new Date(),
         });
 
-        this.logger.log(`✅ Sent withdrawal completed email to ${user.email.value}`);
+        if (emailSent) {
+          this.logger.log(`✅ Sent withdrawal completed email to ${user.email.value}`);
+        } else {
+          this.logger.warn(`⚠️ Failed to send withdrawal completed email (SMTP blocked). Withdrawal completed successfully.`);
+        }
       }
     } catch (error) {
-      this.logger.error(`Failed to send withdrawal completed email:`, error);
+      this.logger.error(`Unexpected error in email sending:`, error);
       // Don't fail the request if email fails
     }
 

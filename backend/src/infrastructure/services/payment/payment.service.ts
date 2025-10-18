@@ -286,17 +286,21 @@ export class PaymentService {
       try {
         const user = await this.userRepository.findById(order.userId);
         if (user) {
-          await this.emailService.sendOrderConfirmedEmail(user.email.value, {
+          const emailSent = await this.emailService.sendOrderConfirmedEmail(user.email.value, {
             username: user.username,
             orderNumber: order.orderNumber,
             totalAmount: Number(order.totalAmount),
             paidAt: new Date(),
           });
 
-          this.logger.log(`✅ Sent payment confirmation email to ${user.email.value}`);
+          if (emailSent) {
+            this.logger.log(`✅ Sent payment confirmation email to ${user.email.value}`);
+          } else {
+            this.logger.warn(`⚠️ Failed to send payment confirmation email (SMTP blocked). Payment confirmed successfully.`);
+          }
         }
       } catch (error) {
-        this.logger.error(`Failed to send payment confirmation email:`, error);
+        this.logger.error(`Unexpected error in email sending:`, error);
         // Don't fail the request if email fails
       }
 

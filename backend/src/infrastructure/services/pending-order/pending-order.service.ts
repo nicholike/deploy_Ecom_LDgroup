@@ -168,7 +168,7 @@ export class PendingOrderService {
           ? data.shippingAddress
           : `${data.shippingAddress?.address || ''}, ${data.shippingAddress?.ward || ''}, ${data.shippingAddress?.district || ''}, ${data.shippingAddress?.province || ''}`;
 
-        await this.emailService.sendOrderCreatedEmail(user.email.value, {
+        const emailSent = await this.emailService.sendOrderCreatedEmail(user.email.value, {
           username: user.username,
           orderNumber: pendingOrder.pendingNumber,
           totalAmount,
@@ -181,10 +181,14 @@ export class PendingOrderService {
           createdAt: pendingOrder.createdAt,
         });
 
-        this.logger.log(`✅ Sent order created email to ${user.email.value}`);
+        if (emailSent) {
+          this.logger.log(`✅ Sent order created email to ${user.email.value}`);
+        } else {
+          this.logger.warn(`⚠️ Failed to send order created email (SMTP blocked). Order created successfully.`);
+        }
       }
     } catch (error) {
-      this.logger.error(`Failed to send order created email:`, error);
+      this.logger.error(`Unexpected error in email sending:`, error);
       // Don't fail the request if email fails
     }
 

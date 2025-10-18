@@ -41,15 +41,15 @@ async function bootstrap() {
   const isDev = process.env.NODE_ENV !== 'production';
   const corsOrigin = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-    : (isDev ? true : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173']); // Allow all in dev
+    : true; // Allow all origins if CORS_ORIGIN not set
 
   app.enableCors({
-    origin: corsOrigin, // ✅ Allow all origins in dev, specific in prod
+    origin: corsOrigin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-  console.log('✅ CORS enabled for origins:', isDev ? 'all (development)' : corsOrigin);
+  console.log('✅ CORS enabled for origins:', corsOrigin === true ? 'all (not restricted)' : corsOrigin);
 
   // Global validation pipe
   console.log('🔧 Setting up validation pipe...');

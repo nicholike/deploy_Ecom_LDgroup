@@ -185,25 +185,44 @@ export default function Payment() {
 
   if (isPaid) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
-        <div className="max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl dark:bg-gray-800">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <CheckCircle className="h-12 w-12 text-green-600 dark:text-green-400" />
+      <div className="flex min-h-screen items-center justify-center bg-white px-4">
+        <div className="max-w-md w-[90%] rounded-xl border-2 border-[#8B5E1E] bg-white p-5 sm:p-8 text-center shadow-lg relative">
+          {/* Icon Success */}
+          <div className="mx-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-green-100">
+            <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 text-green-600" />
           </div>
-          <h2 className="mt-6 text-2xl font-bold text-gray-900 dark:text-white">Thanh toán thành công!</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Đơn hàng của bạn đã được thanh toán</p>
-          <div className="mt-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Mã đơn hàng</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">{paymentInfo.orderNumber}</p>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Số tiền</p>
-            <p className="text-xl font-bold text-green-600 dark:text-green-400">{formatCurrency(paymentInfo.amount)}</p>
+          
+          {/* Title */}
+          <h2 className="mt-4 sm:mt-6 text-[15px] sm:text-[18px] font-bold text-black uppercase leading-tight">
+            Thanh toán thành công!
+          </h2>
+          <p className="mt-2 text-[11px] sm:text-sm text-gray-600">
+            Đơn hàng của bạn đã được thanh toán
+          </p>
+          
+          {/* Order Info */}
+          <div className="mt-4 sm:mt-6 rounded-lg border border-gray-200 p-3 sm:p-4">
+            <div className="space-y-2 sm:space-y-3 text-[11px] sm:text-sm">
+              <div>
+                <span className="text-gray-600">Mã đơn hàng:</span>
+                <p className="font-semibold text-[#8B5E1E] text-sm sm:text-base">{paymentInfo.orderNumber}</p>
+              </div>
+              <div>
+                <span className="text-gray-600">Số tiền:</span>
+                <p className="font-bold text-green-600 text-base sm:text-xl">{formatCurrency(paymentInfo.amount)}</p>
+              </div>
+            </div>
           </div>
-          <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
+          
+          {/* Countdown */}
+          <p className="mt-4 sm:mt-6 text-[11px] sm:text-xs text-gray-500">
             Tự động chuyển về trang tài khoản sau {countdown} giây...
           </p>
+          
+          {/* Button */}
           <button
             onClick={() => navigate('/account')}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-white transition hover:bg-blue-700"
+            className="mt-3 sm:mt-4 w-full bg-[#8B5E1E] text-white font-bold text-[12px] md:text-[14px] rounded-md py-2.5 sm:py-3 uppercase hover:bg-[#6f4715] transition"
           >
             Về trang tài khoản ngay
           </button>

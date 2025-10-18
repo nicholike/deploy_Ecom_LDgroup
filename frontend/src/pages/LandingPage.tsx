@@ -266,13 +266,13 @@ const LandingPage: React.FC = () => {
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               fill="currentColor"
-              className="w-3 h-3"
+              className="w-3 h-3" 
             >
               <path d="M6.293 9.293a1 1 0 0 1 1.414 0L12 13.586l4.293-4.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 0 1 0-1.414Z" />
             </svg>
           </span>
         </div>
-      </div>
+      </div>  
     );
   };
 
@@ -528,7 +528,7 @@ const LandingPage: React.FC = () => {
               disabled={currentPage === 1}
               className="px-3 py-1 border border-[#895B1A] rounded-md text-[#895B1A] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#895B1A] hover:text-white transition text-sm"
             >
-              Trước
+
             </button>
             {Array.from({ length: Math.min(totalPages, 10) }, (_, index) => {
               const pageNumber = index + 1;

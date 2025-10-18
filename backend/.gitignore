@@ -41,7 +41,7 @@ lerna-debug.log*
 .env.railway
 
 # Prisma
-prisma/migrations/**/migration.sql
+# prisma/migrations/**/migration.sql  # Commented: Need migrations for Railway deployment
 
 # Uploads
 /uploads

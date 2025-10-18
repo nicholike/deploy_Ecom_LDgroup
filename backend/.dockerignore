@@ -39,8 +39,7 @@ coverage
 !README.md
 .prettierrc
 .eslintrc.js
-tsconfig.json
-tsconfig.build.json
+# tsconfig.json and tsconfig.build.json are NEEDED for nest build - do NOT ignore!
 
 # Logs
 logs

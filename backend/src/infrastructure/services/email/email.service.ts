@@ -207,22 +207,16 @@ export class EmailService {
 
   /**
    * Send password reset email
+   * 🔕 DISABLED: Email service disabled - return reset token in API response instead
    */
   async sendPasswordResetEmail(to: string, resetUrl: string, username: string): Promise<boolean> {
-    return this.sendEmail({
-      to,
-      subject: 'Yêu cầu đặt lại mật khẩu - LD Group',
-      template: 'reset-password',
-      context: {
-        username,
-        resetUrl,
-        expiryHours: 1,
-      },
-    });
+    this.logger.debug(`🔕 Password reset email disabled. User should receive token in API response.`);
+    return true; // Return true to not break existing code
   }
 
   /**
    * Send order created notification
+   * 🔕 DISABLED: Email service disabled - user can check order in dashboard
    */
   async sendOrderCreatedEmail(
     to: string,
@@ -235,12 +229,8 @@ export class EmailService {
       createdAt: Date;
     },
   ): Promise<boolean> {
-    return this.sendEmail({
-      to,
-      subject: `Đơn hàng ${orderData.orderNumber} đã được tạo - LD Group`,
-      template: 'order-created',
-      context: orderData,
-    });
+    this.logger.debug(`🔕 Order created email disabled. User can check order ${orderData.orderNumber} in dashboard.`);
+    return true; // Return true to not break existing code
   }
 
   /**

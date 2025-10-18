@@ -221,10 +221,9 @@ export class AuthService {
       // Token is still valid - user can reset password if they have the token
     }
 
-    // For development, include token in response
-    if (process.env.NODE_ENV !== 'production') {
-      response.resetToken = token;
-    }
+    // 🔧 ALWAYS include token in response (email disabled)
+    // User can manually construct reset URL or admin can reset for them
+    response.resetToken = token;
 
     return response;
   }

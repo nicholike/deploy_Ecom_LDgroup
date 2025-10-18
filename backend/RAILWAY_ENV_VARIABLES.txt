@@ -57,7 +57,7 @@ SMTP_PORT=587
 
 SMTP_USER=dieptrungnam123@gmail.com
 
-SMTP_PASSWORD=dqgl gwte pwaw bwha
+SMTP_PASSWORD=esdj zdoa tjpo girp
 
 SMTP_FROM="LD Group" <support@ldgroup.vn>
 

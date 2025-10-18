@@ -79,13 +79,20 @@ export class CommissionService {
         );
       }
 
-      // Log if we're recalculating after previous cancellation
+      // 🔧 FIX: Delete CANCELLED commissions before creating new ones
+      // This prevents unique constraint violation on (orderId, userId, level)
       const cancelledCommissions = existingCommissions.filter(c => c.status === 'CANCELLED');
       if (cancelledCommissions.length > 0) {
         this.logger.log(
           `ℹ️ Order ${orderId} has ${cancelledCommissions.length} CANCELLED commission(s). ` +
-          `Recalculating fresh commissions...`
+          `Deleting them before recalculating fresh commissions...`
         );
+
+        // Delete CANCELLED commissions to avoid unique constraint violation
+        for (const commission of cancelledCommissions) {
+          await this.commissionRepository.delete(commission.id);
+          this.logger.log(`🗑️ Deleted CANCELLED commission ${commission.id} (Level ${commission.level})`);
+        }
       }
 
       // Get upline chain (max 3 levels)

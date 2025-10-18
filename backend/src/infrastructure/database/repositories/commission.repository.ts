@@ -266,4 +266,14 @@ export class CommissionRepository {
       orderBy: { level: 'asc' },
     });
   }
+
+  /**
+   * Delete a commission record
+   * Used when cleaning up CANCELLED commissions before recalculation
+   */
+  async delete(id: string): Promise<void> {
+    await this.prisma.commission.delete({
+      where: { id },
+    });
+  }
 }

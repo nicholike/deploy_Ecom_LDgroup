@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { Roles } from '@shared/decorators/roles.decorator';
 import { UserRole, UserStatus } from '@shared/constants/user-roles.constant';
+import * as bcrypt from 'bcrypt';
 
 /**
  * USER MANAGEMENT ADMIN CONTROLLER
@@ -378,6 +379,50 @@ export class UserManagementController {
       success: true,
       data: results,
       message: `Unlocked ${results.success.length} users, ${results.failed.length} failed`,
+    };
+  }
+
+  /**
+   * Admin: Reset password for a user
+   * 🔐 Use case: When user forgets password and contacts admin
+   */
+  @Post(':id/reset-password')
+  @ApiOperation({ summary: 'Admin reset password for a user' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully' })
+  async resetUserPassword(
+    @Param('id') userId: string,
+    @Body() body: { newPassword: string },
+  ) {
+    const { newPassword } = body;
+
+    if (!newPassword || newPassword.length < 6) {
+      throw new HttpException(
+        'Password must be at least 6 characters',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    // Update user password
+    user.changePassword(passwordHash);
+    await this.userRepository.save(user);
+
+    return {
+      success: true,
+      message: `Password reset successfully for user: ${user.username}`,
+      data: {
+        userId: user.id,
+        username: user.username,
+        email: user.email.value,
+        newPassword: newPassword, // Return for admin to tell user
+      },
     };
   }
 

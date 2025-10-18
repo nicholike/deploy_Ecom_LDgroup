@@ -254,11 +254,14 @@ export class OrderRepository {
   }
 
   async updateStatus(id: string, status: OrderStatus) {
-    // 🔒 USE TRANSACTION WITH SERIALIZABLE ISOLATION to prevent race conditions
-    // This ensures only ONE request can update status at a time for this order
-    return await this.prisma.$transaction(
+    // 🚀 PERFORMANCE FIX: Commission calculation OUTSIDE transaction
+    // Transaction ONLY updates order status (< 1 second)
+    // Commission calculated AFTER transaction commits (async, non-blocking)
+
+    // Step 1: FAST transaction to update order status only
+    const result = await this.prisma.$transaction(
       async (tx) => {
-        // 1. Lock and read current order (SELECT ... FOR UPDATE equivalent)
+        // 1. Lock and read current order
         const currentOrder = await tx.order.findUnique({
           where: { id },
           select: { status: true, userId: true, totalAmount: true, orderNumber: true },
@@ -272,8 +275,36 @@ export class OrderRepository {
 
         if (status === oldStatus) {
           this.logger.log(`Order ${id} already in status ${status}. No update performed.`);
-          // Return full order details using non-transactional query
-          return this.findById(id);
+          const order = await tx.order.findUnique({
+            where: { id },
+            include: {
+              items: {
+                include: {
+                  product: true,
+                  productVariant: true,
+                },
+              },
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  username: true,
+                  firstName: true,
+                  lastName: true,
+                  role: true,
+                  sponsorId: true,
+                },
+              },
+            },
+          });
+          return {
+            order,
+            oldStatus,
+            newStatus: status,
+            userId: currentOrder.userId,
+            totalAmount: currentOrder.totalAmount,
+            orderNumber: currentOrder.orderNumber,
+          };
         }
 
         this.logger.log(`Updating order ${id} status: ${oldStatus} → ${status}`);
@@ -286,12 +317,60 @@ export class OrderRepository {
           updateData.cancelledAt = new Date();
         }
 
-        // 2. Check for existing commissions INSIDE transaction with lock
-        let shouldCalculateCommission = false;
+        // 2. Update order status ONLY (fast!)
+        await tx.order.update({
+          where: { id },
+          data: updateData,
+        });
 
-        if (status === OrderStatus.COMPLETED && oldStatus !== OrderStatus.COMPLETED) {
-          // 🛡️ CRITICAL: Check ALL commissions (including CANCELLED) to prevent re-calculation
-          const allCommissions = await tx.commission.findMany({
+        // 3. Return order data and metadata
+        return {
+          order: await tx.order.findUnique({
+            where: { id },
+            include: {
+              items: {
+                include: {
+                  product: true,
+                  productVariant: true,
+                },
+              },
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  username: true,
+                  firstName: true,
+                  lastName: true,
+                  role: true,
+                  sponsorId: true,
+                },
+              },
+            },
+          }),
+          oldStatus,
+          newStatus: status,
+          userId: currentOrder.userId,
+          totalAmount: currentOrder.totalAmount,
+          orderNumber: currentOrder.orderNumber,
+        };
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        timeout: 5000, // 5 seconds - only updating order status, very fast!
+      },
+    );
+
+    // Step 2: ASYNC commission calculation AFTER transaction commits
+    // This runs outside transaction, won't block or cause timeout
+    const { order, oldStatus, newStatus, userId, totalAmount, orderNumber } = result;
+
+    // Handle commissions asynchronously (don't await, don't block response)
+    setImmediate(async () => {
+      try {
+        // Check if we need to calculate commissions
+        if (newStatus === OrderStatus.COMPLETED && oldStatus !== OrderStatus.COMPLETED) {
+          // Check for existing commissions
+          const allCommissions = await this.prisma.commission.findMany({
             where: { orderId: id },
             select: { id: true, status: true },
           });
@@ -302,90 +381,33 @@ export class OrderRepository {
               `Order ${id} has ${allCommissions.length} commission record(s) with statuses: [${statuses}]. ` +
               `Will NOT calculate commissions to prevent double-payment.`
             );
-            shouldCalculateCommission = false;
           } else {
-            this.logger.log(`Order ${id} has no commission records. Will calculate commissions.`);
-            shouldCalculateCommission = true;
-          }
-        }
-
-        // 3. Update order status INSIDE transaction
-        await tx.order.update({
-          where: { id },
-          data: updateData,
-        });
-
-        // 4. Handle commissions INSIDE transaction
-        try {
-          // Case 1: Calculate commissions (will throw if already exists)
-          if (shouldCalculateCommission) {
-            this.logger.log(`Order ${id} completed. Calculating commissions...`);
+            this.logger.log(`Order ${id} completed. Calculating commissions asynchronously...`);
             await this.commissionService.calculateCommissionsForOrder(
               id,
-              currentOrder.userId,
-              Number(currentOrder.totalAmount),
-              currentOrder.orderNumber,
+              userId,
+              Number(totalAmount),
+              orderNumber,
             );
             this.logger.log(`✅ Commissions calculated for order ${id}`);
           }
-
-          // Case 2: Refund commissions if moving FROM COMPLETED
-          if (oldStatus === OrderStatus.COMPLETED && status !== OrderStatus.COMPLETED) {
-            this.logger.log(`Order ${id} changed from COMPLETED to ${status}. Refunding commissions...`);
-            await this.commissionService.refundCommissionsForOrder(id);
-            this.logger.log(`✅ Commissions refunded for order ${id}`);
-          }
-        } catch (error) {
-          this.logger.error(`❌ Failed to process commissions for order ${id}:`, error);
-          // Re-throw error to rollback transaction
-          // This ensures order status and commissions are consistent
-          throw error;
         }
 
-        // 5. Return full order details (query INSIDE transaction to see committed changes)
-        return tx.order.findUnique({
-          where: { id },
-          include: {
-            items: {
-              include: {
-                product: true,
-                productVariant: true,
-              },
-            },
-            user: {
-              select: {
-                id: true,
-                email: true,
-                username: true,
-                firstName: true,
-                lastName: true,
-                role: true,
-                sponsorId: true,
-              },
-            },
-          },
-        });
-      },
-      {
-        // 🚀 PERFORMANCE FIX: Changed from SERIALIZABLE to READ_COMMITTED
-        //
-        // SERIALIZABLE was causing severe lock contention:
-        // - Locks entire order, commission, user, wallet tables
-        // - Multiple concurrent updates → deadlock (Error 1205)
-        // - "Lock wait timeout exceeded; try restarting transaction"
-        //
-        // READ_COMMITTED is sufficient because:
-        // - We check for existing commissions before calculating (line 294-309)
-        // - Commission service has duplicate prevention logic
-        // - Much faster with less lock contention
-        //
-        // Trade-off: Extremely rare edge case where 2 concurrent requests
-        // might both pass the commission check, but commission.create() will
-        // fail on unique constraint, causing retry.
-        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
-        timeout: 30000, // 30 seconds (reduced from 60s - should be much faster now)
-      },
-    );
+        // Refund commissions if moving FROM COMPLETED
+        if (oldStatus === OrderStatus.COMPLETED && newStatus !== OrderStatus.COMPLETED) {
+          this.logger.log(`Order ${id} changed from COMPLETED to ${newStatus}. Refunding commissions...`);
+          await this.commissionService.refundCommissionsForOrder(id);
+          this.logger.log(`✅ Commissions refunded for order ${id}`);
+        }
+      } catch (error) {
+        this.logger.error(`❌ Failed to process commissions for order ${id} (async):`, error);
+        // Don't throw - commission can be calculated manually if needed
+        // Order status update already succeeded
+      }
+    });
+
+    // Return order immediately without waiting for commission calculation
+    return order;
   }
 
   async updatePaymentStatus(id: string, paymentStatus: PaymentStatus) {

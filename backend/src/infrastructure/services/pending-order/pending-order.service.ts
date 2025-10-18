@@ -64,41 +64,73 @@ export class PendingOrderService {
     for (const cartItem of cart.items) {
       const variantId = cartItem.productVariantId;
 
-      if (!variantId) {
-        throw new NotFoundException(`Product variant not found for cart item ${cartItem.id}`);
+      if (variantId) {
+        // Case 1: Product has variant (with size/color)
+        const variant = await this.prisma.productVariant.findUnique({
+          where: { id: variantId },
+          include: { product: true },
+        });
+        if (!variant) {
+          throw new NotFoundException(`Product variant ${variantId} not found`);
+        }
+
+        // Check stock
+        if (variant.stock < cartItem.quantity) {
+          throw new Error(
+            `Sản phẩm "${variant.product.name} - ${variant.size}" không đủ hàng (còn ${variant.stock})`,
+          );
+        }
+
+        // Get effective price (sale price or regular price)
+        const effectivePrice = Number(variant.salePrice || variant.price);
+        const itemSubtotal = effectivePrice * cartItem.quantity;
+
+        itemsWithPricing.push({
+          productId: cartItem.productId,
+          productVariantId: variantId,
+          productName: variant.product.name,
+          variantSize: variant.size,
+          sku: variant.sku,
+          quantity: cartItem.quantity,
+          price: effectivePrice,
+          subtotal: itemSubtotal,
+        });
+
+        subtotal += itemSubtotal;
+      } else {
+        // Case 2: Product without variant (simple product)
+        const product = await this.prisma.product.findUnique({
+          where: { id: cartItem.productId },
+        });
+        if (!product) {
+          throw new NotFoundException(`Product ${cartItem.productId} not found`);
+        }
+
+        // Check stock
+        const productStock = product.stock || 0;
+        if (productStock < cartItem.quantity) {
+          throw new Error(
+            `Sản phẩm "${product.name}" không đủ hàng (còn ${productStock})`,
+          );
+        }
+
+        // Get effective price (sale price or regular price)
+        const effectivePrice = Number(product.salePrice || product.price);
+        const itemSubtotal = effectivePrice * cartItem.quantity;
+
+        itemsWithPricing.push({
+          productId: cartItem.productId,
+          productVariantId: null,
+          productName: product.name,
+          variantSize: null,
+          sku: product.sku,
+          quantity: cartItem.quantity,
+          price: effectivePrice,
+          subtotal: itemSubtotal,
+        });
+
+        subtotal += itemSubtotal;
       }
-
-      const variant = await this.prisma.productVariant.findUnique({
-        where: { id: variantId },
-        include: { product: true },
-      });
-      if (!variant) {
-        throw new NotFoundException(`Product variant ${variantId} not found`);
-      }
-
-      // Check stock
-      if (variant.stock < cartItem.quantity) {
-        throw new Error(
-          `Sản phẩm "${variant.product.name} - ${variant.size}" không đủ hàng (còn ${variant.stock})`,
-        );
-      }
-
-      // Get effective price (sale price or regular price)
-      const effectivePrice = Number(variant.salePrice || variant.price);
-      const itemSubtotal = effectivePrice * cartItem.quantity;
-
-      itemsWithPricing.push({
-        productId: cartItem.productId,
-        productVariantId: variantId,
-        productName: variant.product.name,
-        variantSize: variant.size,
-        sku: variant.sku,
-        quantity: cartItem.quantity,
-        price: effectivePrice,
-        subtotal: itemSubtotal,
-      });
-
-      subtotal += itemSubtotal;
     }
 
     // 3. Calculate shipping fee (you can add logic based on address, weight, etc.)

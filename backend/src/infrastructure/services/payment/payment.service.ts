@@ -345,6 +345,13 @@ export class PaymentService {
         if (pendingOrder.orderId) {
           const order = await this.orderRepository.findById(pendingOrder.orderId);
           if (order) {
+            // For TPBank: Add prefix to description for manual transfer
+            const vaPrefix = process.env.SEPAY_VA_PREFIX;
+            const vaNumber = process.env.SEPAY_VA_NUMBER;
+            const transferContent = vaPrefix && vaNumber 
+              ? `${vaPrefix}${vaNumber} ${order.orderNumber}`
+              : order.orderNumber;
+
             return {
               orderId: order.id,
               orderNumber: order.orderNumber,
@@ -356,13 +363,20 @@ export class PaymentService {
                 bankCode: process.env.BANK_CODE || 'BIDV',
                 bankName: process.env.BANK_NAME || 'BIDV',
               },
-              description: order.orderNumber,
+              description: transferContent,
             };
           }
         }
       }
 
       // Return pending order payment info
+      // For TPBank: Add prefix to description for manual transfer
+      const vaPrefix = process.env.SEPAY_VA_PREFIX;
+      const vaNumber = process.env.SEPAY_VA_NUMBER;
+      const transferContent = vaPrefix && vaNumber 
+        ? `${vaPrefix}${vaNumber} ${pendingOrder.pendingNumber}`
+        : pendingOrder.pendingNumber;
+
       return {
         orderId: pendingOrder.id,
         orderNumber: pendingOrder.pendingNumber,
@@ -374,7 +388,7 @@ export class PaymentService {
           bankCode: process.env.BANK_CODE || 'BIDV',
           bankName: process.env.BANK_NAME || 'BIDV',
         },
-        description: pendingOrder.pendingNumber, // This will be the transfer content
+        description: transferContent, // This will be the transfer content with prefix
       };
     }
 
@@ -383,6 +397,13 @@ export class PaymentService {
     if (!order) {
       throw new BadRequestException('Order not found');
     }
+
+    // For TPBank: Add prefix to description for manual transfer
+    const vaPrefix = process.env.SEPAY_VA_PREFIX;
+    const vaNumber = process.env.SEPAY_VA_NUMBER;
+    const transferContent = vaPrefix && vaNumber 
+      ? `${vaPrefix}${vaNumber} ${order.orderNumber}`
+      : order.orderNumber;
 
     return {
       orderId: order.id,
@@ -395,7 +416,7 @@ export class PaymentService {
         bankCode: process.env.BANK_CODE || 'BIDV',
         bankName: process.env.BANK_NAME || 'BIDV',
       },
-      description: order.orderNumber, // This will be the transfer content
+      description: transferContent, // This will be the transfer content with prefix
     };
   }
 

@@ -85,31 +85,20 @@ export class EmailService {
     this.registerHelpers();
   }
 
-  private async verifyConnection() {
-    try {
-      // Set timeout for verify
-      const verifyPromise = this.transporter.verify();
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Verification timeout after 30s')), 30000)
-      );
-
-      await Promise.race([verifyPromise, timeoutPromise]);
-      this.logger.log('✅ Email service is ready to send emails');
-    } catch (error) {
-      this.logger.error('❌ Email service connection failed:');
-      this.logger.error(error.message || error);
-      this.logger.warn('⚠️  App will continue without email service. Emails will fail silently.');
-
-      // Log troubleshooting tips
-      if (error.message?.includes('timeout')) {
-        this.logger.warn('💡 SMTP connection timeout - possible causes:');
-        this.logger.warn('   1. Railway firewall blocking port 587');
-        this.logger.warn('   2. Gmail App Password incorrect');
-        this.logger.warn('   3. Network latency issues');
-        this.logger.warn('   Solution: Check Railway logs and SMTP_PASSWORD variable');
-      }
-    }
-  }
+  // Verification disabled - not needed when using SendGrid or when emails are optional
+  // private async verifyConnection() {
+  //   if (!this.transporter) return;
+  //   try {
+  //     const verifyPromise = this.transporter.verify();
+  //     const timeoutPromise = new Promise((_, reject) =>
+  //       setTimeout(() => reject(new Error('Verification timeout after 30s')), 30000)
+  //     );
+  //     await Promise.race([verifyPromise, timeoutPromise]);
+  //     this.logger.log('✅ Email service is ready to send emails');
+  //   } catch (error) {
+  //     this.logger.error('❌ Email service connection failed:', error);
+  //   }
+  // }
 
   private registerHelpers() {
     // Helper to format currency
@@ -171,13 +160,24 @@ export class EmailService {
       // Send email using SendGrid or SMTP
       if (this.useSendGrid) {
         // 🚀 SendGrid API
-        const msg = {
+        const msg: any = {
           to,
           from: fromEmail,
           subject,
-          html: emailHtml,
-          text: emailText,
         };
+
+        // Add content (at least one of html or text is required)
+        if (emailHtml) {
+          msg.html = emailHtml;
+        }
+        if (emailText) {
+          msg.text = emailText;
+        }
+
+        // Fallback: if both html and text are empty, use subject as text
+        if (!emailHtml && !emailText) {
+          msg.text = subject;
+        }
 
         await sgMail.send(msg);
         this.logger.log(`✅ Email sent via SendGrid to ${to}`);

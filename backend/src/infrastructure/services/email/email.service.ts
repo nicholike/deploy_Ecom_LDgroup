@@ -67,8 +67,11 @@ export class EmailService {
       hotline: this.configService.get<string>('COMPANY_HOTLINE', '076 788 6252'),
     };
 
-    // Verify connection on startup (non-blocking)
-    this.verifyConnection();
+    // 🔧 RAILWAY FIX: Disable verification on startup
+    // Railway may block SMTP outbound connections (ports 465, 587)
+    // Email will fail silently if SMTP is blocked, but app will start normally
+    // Uncomment below to enable verification in local development
+    // this.verifyConnection();
 
     // Register Handlebars helpers
     this.registerHelpers();

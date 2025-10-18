@@ -27,16 +27,21 @@ export class EmailService {
   };
 
   constructor(private readonly configService: ConfigService) {
+    // Get SMTP configuration
+    const smtpPort = this.configService.get<number>('SMTP_PORT', 587);
+    const smtpSecure = smtpPort === 465; // Auto-detect: 465 = SSL, 587 = TLS
+
     // Initialize transporter with extended timeouts for Railway/Cloud environments
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('SMTP_HOST'),
-      port: this.configService.get<number>('SMTP_PORT'),
-      secure: false, // true for 465, false for other ports
+      port: smtpPort,
+      secure: smtpSecure, // true for 465 (SSL), false for 587 (TLS)
       auth: {
         user: this.configService.get<string>('SMTP_USER'),
         pass: this.configService.get<string>('SMTP_PASSWORD'),
       },
       // 🔧 FIX: Increased timeouts for Railway/Cloud environments
+      // Railway may block port 587 (TLS), so we use port 465 (SSL) as alternative
       connectionTimeout: 60000, // 60 seconds (Railway can be slow)
       greetingTimeout: 30000,   // 30 seconds
       socketTimeout: 60000,      // 60 seconds
@@ -44,6 +49,11 @@ export class EmailService {
       pool: true,
       maxConnections: 5,
       maxMessages: 100,
+      // TLS options for security
+      tls: {
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.2',
+      },
     });
 
     // Set templates path

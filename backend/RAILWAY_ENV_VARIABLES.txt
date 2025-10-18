@@ -53,7 +53,7 @@ MAX_FILE_SIZE=5242880
 
 SMTP_HOST=smtp.gmail.com
 
-SMTP_PORT=587
+SMTP_PORT=465
 
 SMTP_USER=dieptrungnam123@gmail.com
 

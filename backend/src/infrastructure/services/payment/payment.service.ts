@@ -130,8 +130,10 @@ export class PaymentService {
       this.logger.log(`Attempting to match transaction content: "${content}"`);
 
       // Extract pending order code from transaction content
-      // NEW FORMAT: "PD25XXXXXXXXX" (Pending Order)
-      // OLD FORMAT: "LD25XXXXXXXXX" (also supported for backward compatibility)
+      // FORMATS:
+      // - Direct VA (BIDV): "PD25XXXXXXXXX" or "LD25XXXXXXXXX"
+      // - Indirect VA (TPBank): "TKPYRK PD25XXXXXXXXX" (prefix + VA + order code)
+      // Pattern will match PD/LD followed by digits and alphanumeric chars
       const pendingOrderPattern = /(?:PD|LD)[\-\s]?(\d{2}[A-Z0-9]+)/i;
       const match = content.match(pendingOrderPattern);
 

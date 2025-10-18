@@ -74,6 +74,18 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   BANK_CODE?: string;
+
+  @IsString()
+  @IsOptional()
+  BANK_NAME?: string;
+
+  @IsString()
+  @IsOptional()
+  SEPAY_VA_NUMBER?: string;
+
+  @IsString()
+  @IsOptional()
+  SEPAY_VA_PREFIX?: string;
 }
 
 /**

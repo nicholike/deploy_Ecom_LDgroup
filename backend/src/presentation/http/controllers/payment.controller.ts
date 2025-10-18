@@ -183,8 +183,12 @@ export class PaymentController {
    *
    * Format: https://qr.sepay.vn/img?acc=ACCOUNT&bank=BANK&amount=AMOUNT&des=DESCRIPTION
    *
+   * Supports:
+   * - Direct VA (BIDV): description = "PD25XXXXX"
+   * - Indirect VA (TPBank): description = "TKPYRK PD25XXXXX"
+   *
    * @param accountNumber - Số tài khoản hoặc Virtual Account
-   * @param bankCode - Mã ngân hàng (VD: BIDV, VCB, MB)
+   * @param bankCode - Mã ngân hàng (VD: BIDV, VCB, TPBank)
    * @param amount - Số tiền
    * @param description - Nội dung chuyển khoản (mã đơn hàng)
    */
@@ -194,10 +198,22 @@ export class PaymentController {
     amount: number,
     description: string,
   ): string {
+    // For banks that don't provide direct VA (like TPBank),
+    // we need to prepend the VA prefix to the description
+    const vaPrefix = process.env.SEPAY_VA_PREFIX;
+    const vaNumber = process.env.SEPAY_VA_NUMBER;
+    
+    let finalDescription = description;
+    
+    if (vaPrefix && vaNumber) {
+      // Format: TKPYRK PD25XXXXX (for TPBank)
+      finalDescription = `${vaPrefix}${vaNumber} ${description}`;
+    }
+    
     // SePay QR API
     // Note: curl test có thể bị 403 do thiếu User-Agent, nhưng <img> tag hoạt động bình thường
     const baseUrl = 'https://qr.sepay.vn/img';
-    const qrUrl = `${baseUrl}?acc=${accountNumber}&bank=${bankCode}&amount=${amount}&des=${encodeURIComponent(description)}`;
+    const qrUrl = `${baseUrl}?acc=${accountNumber}&bank=${bankCode}&amount=${amount}&des=${encodeURIComponent(finalDescription)}`;
 
     return qrUrl;
   }

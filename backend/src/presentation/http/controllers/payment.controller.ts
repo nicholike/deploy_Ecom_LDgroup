@@ -131,11 +131,12 @@ export class PaymentController {
     // For now, allow any authenticated user to view payment info
 
     // Generate SePay QR URL
-    // Use Virtual Account for better auto-matching with webhook
-    const vaNumber = process.env.SEPAY_VA_NUMBER || paymentInfo.bankAccount.accountNumber;
+    // For TPBank: Use BANK_ACCOUNT_NUMBER (85558888999) as account number
+    // VA number (YRK) is only used for prefix in description
+    const accountNumber = paymentInfo.bankAccount.accountNumber;
 
     const qrCodeUrl = this.generateSepayQRUrl(
-      vaNumber,
+      accountNumber,
       paymentInfo.bankAccount.bankCode,
       paymentInfo.amount,
       paymentInfo.description,

@@ -220,11 +220,40 @@ export class PaymentController {
   }
 
   /**
-   * ❌ REMOVED: Test webhook endpoint
-   *
-   * Security: Test endpoints removed for production deployment
-   * For testing webhooks in production, use SePay's official test environment
-   * or create a separate admin-only testing endpoint with proper authentication
+   * GET /payment/test-webhook
+   * Test webhook endpoint for debugging
+   * This endpoint simulates a webhook call for testing
    */
+  @Get('test-webhook')
+  @HttpCode(HttpStatus.OK)
+  async testWebhook() {
+    const testData = {
+      id: `test_${Date.now()}`,
+      transaction_date: new Date().toISOString(),
+      transaction_content: 'TKPYRK PD25TEST01',
+      amount_in: 100000,
+      sub_account: '',
+    };
+
+    console.log('🧪 Testing webhook with data:', JSON.stringify(testData, null, 2));
+
+    try {
+      const result = await this.paymentService.processWebhook(testData);
+      return {
+        success: true,
+        message: 'Test webhook processed successfully',
+        testData,
+        result,
+      };
+    } catch (error) {
+      console.error('❌ Test webhook failed:', error);
+      return {
+        success: false,
+        message: 'Test webhook failed',
+        error: error.message,
+        testData,
+      };
+    }
+  }
 }
 

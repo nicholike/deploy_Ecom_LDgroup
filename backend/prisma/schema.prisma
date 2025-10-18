@@ -800,8 +800,8 @@ model BankTransaction {
   id String @id @default(uuid())
   
   // SePay transaction info
-  sepayTransactionId Int?    @unique @map("sepay_transaction_id")
-  gateway            String  // VCB, ACB, BIDV, etc.
+  sepayTransactionId String?  @unique @map("sepay_transaction_id")
+  gateway            String   // VCB, ACB, BIDV, etc.
   transactionDate    DateTime @map("transaction_date")
   
   // Bank account info

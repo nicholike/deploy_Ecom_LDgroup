@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { BankTransaction } from '@prisma/client';
 
 export interface CreateBankTransactionInput {
-  sepayTransactionId?: number;
+  sepayTransactionId?: string;
   gateway: string;
   transactionDate: Date;
   accountNumber: string;
@@ -52,7 +52,7 @@ export class BankTransactionRepository {
   /**
    * Find transaction by SePay transaction ID
    */
-  async findBySepayId(sepayTransactionId: number): Promise<BankTransaction | null> {
+  async findBySepayId(sepayTransactionId: string): Promise<BankTransaction | null> {
     return this.prisma.bankTransaction.findUnique({
       where: { sepayTransactionId },
       include: { order: true },

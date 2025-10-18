@@ -145,7 +145,16 @@ export class CommissionService {
 
         this.logger.log(`✅ Added ${commissionAmount} to wallet of user ${uplineUser.id}`);
 
-        // Send email notification for commission earned
+        // 🚀 PERFORMANCE FIX: Email sending disabled in transaction
+        // Email was causing 30-60 second delays due to:
+        // 1. SMTP connection timeout (30s)
+        // 2. Missing email template errors
+        // 3. Database lock timeout from holding transaction too long
+        //
+        // TODO: Implement async email queue (Bull/Redis) for commission notifications
+        // For now, users can see commission in their wallet without email notification
+
+        /* DISABLED FOR PERFORMANCE - Re-enable with async queue
         try {
           const buyerUser = await this.userRepository.findById(buyerUserId);
 
@@ -165,6 +174,7 @@ export class CommissionService {
           this.logger.error(`Failed to send commission earned email:`, error);
           // Don't fail the request if email fails
         }
+        */
       }
 
       this.logger.log(`Successfully calculated ${commissions.length} commissions for order ${orderId}`);

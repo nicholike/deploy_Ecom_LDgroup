@@ -368,7 +368,7 @@ export class OrderRepository {
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        timeout: 15000, // 15 seconds timeout for transaction
+        timeout: 60000, // 60 seconds timeout for complex MLM commission calculations
       },
     );
   }

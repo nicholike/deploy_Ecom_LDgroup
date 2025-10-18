@@ -528,7 +528,7 @@ const LandingPage: React.FC = () => {
               disabled={currentPage === 1}
               className="px-3 py-1 border border-[#895B1A] rounded-md text-[#895B1A] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#895B1A] hover:text-white transition text-sm"
             >
-
+              Trước
             </button>
             {Array.from({ length: Math.min(totalPages, 10) }, (_, index) => {
               const pageNumber = index + 1;

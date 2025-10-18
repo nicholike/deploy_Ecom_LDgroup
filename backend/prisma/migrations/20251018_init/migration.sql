@@ -532,14 +532,3 @@ ALTER TABLE `notifications` ADD CONSTRAINT `notifications_user_id_fkey` FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE `bank_transactions` ADD CONSTRAINT `bank_transactions_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
-┌─────────────────────────────────────────────────────────┐
-│  Update available 5.22.0 -> 6.17.1                      │
-│                                                         │
-│  This is a major update - please follow the guide at    │
-│  https://pris.ly/d/major-version-upgrade                │
-│                                                         │
-│  Run the following to update                            │
-│    npm i --save-dev prisma@latest                       │
-│    npm i @prisma/client@latest                          │
-└─────────────────────────────────────────────────────────┘

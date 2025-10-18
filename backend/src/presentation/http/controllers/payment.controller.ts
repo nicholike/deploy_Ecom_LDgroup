@@ -199,11 +199,11 @@ export class PaymentController {
     amount: number,
     description: string,
   ): string {
-    // For direct account transfer (no VA needed)
-    // Just use the order number as description
-    // SePay will hook directly to the main account
-    const finalDescription = description;
-    
+    // For TPBank with VA YRK: Must include TKPYRK prefix
+    // Format: TKPYRK <order_number>
+    // Example: TKPYRK PD25XXXXX
+    const finalDescription = `TKPYRK ${description}`;
+
     // SePay QR API
     // Note: curl test có thể bị 403 do thiếu User-Agent, nhưng <img> tag hoạt động bình thường
     const baseUrl = 'https://qr.sepay.vn/img';

@@ -27,7 +27,7 @@ export class EmailService {
   };
 
   constructor(private readonly configService: ConfigService) {
-    // Initialize transporter
+    // Initialize transporter with extended timeouts for Railway/Cloud environments
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('SMTP_HOST'),
       port: this.configService.get<number>('SMTP_PORT'),
@@ -36,6 +36,14 @@ export class EmailService {
         user: this.configService.get<string>('SMTP_USER'),
         pass: this.configService.get<string>('SMTP_PASSWORD'),
       },
+      // 🔧 FIX: Increased timeouts for Railway/Cloud environments
+      connectionTimeout: 60000, // 60 seconds (Railway can be slow)
+      greetingTimeout: 30000,   // 30 seconds
+      socketTimeout: 60000,      // 60 seconds
+      // Connection pooling for better performance
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
     });
 
     // Set templates path
@@ -49,7 +57,7 @@ export class EmailService {
       hotline: this.configService.get<string>('COMPANY_HOTLINE', '076 788 6252'),
     };
 
-    // Verify connection on startup
+    // Verify connection on startup (non-blocking)
     this.verifyConnection();
 
     // Register Handlebars helpers
@@ -58,10 +66,27 @@ export class EmailService {
 
   private async verifyConnection() {
     try {
-      await this.transporter.verify();
+      // Set timeout for verify
+      const verifyPromise = this.transporter.verify();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Verification timeout after 30s')), 30000)
+      );
+
+      await Promise.race([verifyPromise, timeoutPromise]);
       this.logger.log('✅ Email service is ready to send emails');
     } catch (error) {
-      this.logger.error('❌ Email service connection failed:', error);
+      this.logger.error('❌ Email service connection failed:');
+      this.logger.error(error.message || error);
+      this.logger.warn('⚠️  App will continue without email service. Emails will fail silently.');
+
+      // Log troubleshooting tips
+      if (error.message?.includes('timeout')) {
+        this.logger.warn('💡 SMTP connection timeout - possible causes:');
+        this.logger.warn('   1. Railway firewall blocking port 587');
+        this.logger.warn('   2. Gmail App Password incorrect');
+        this.logger.warn('   3. Network latency issues');
+        this.logger.warn('   Solution: Check Railway logs and SMTP_PASSWORD variable');
+      }
     }
   }
 

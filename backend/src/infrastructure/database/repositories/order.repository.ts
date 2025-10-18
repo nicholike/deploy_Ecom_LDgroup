@@ -369,16 +369,23 @@ export class OrderRepository {
       try {
         // Check if we need to calculate commissions
         if (newStatus === OrderStatus.COMPLETED && oldStatus !== OrderStatus.COMPLETED) {
-          // Check for existing commissions
-          const allCommissions = await this.prisma.commission.findMany({
-            where: { orderId: id },
+          // 🔧 FIX: Only check ACTIVE commissions (ignore CANCELLED/REJECTED)
+          // If commission was cancelled, we should recalculate when order becomes COMPLETED again
+          const activeCommissions = await this.prisma.commission.findMany({
+            where: {
+              orderId: id,
+              status: {
+                in: ['PENDING', 'APPROVED', 'PAID'], // Only active statuses
+                // NOT checking CANCELLED or REJECTED - those are inactive
+              },
+            },
             select: { id: true, status: true },
           });
 
-          if (allCommissions.length > 0) {
-            const statuses = allCommissions.map(c => c.status).join(', ');
+          if (activeCommissions.length > 0) {
+            const statuses = activeCommissions.map(c => c.status).join(', ');
             this.logger.warn(
-              `Order ${id} has ${allCommissions.length} commission record(s) with statuses: [${statuses}]. ` +
+              `Order ${id} has ${activeCommissions.length} ACTIVE commission record(s) with statuses: [${statuses}]. ` +
               `Will NOT calculate commissions to prevent double-payment.`
             );
           } else {

@@ -52,24 +52,39 @@ export class CommissionService {
     this.logger.log(`Calculating commissions for order ${orderId}, buyer: ${buyerUserId}, value: ${orderValue}`);
 
     try {
-      // 🛡️ CRITICAL: Check if commissions EVER existed for this order (including CANCELLED)
-      // This prevents double-payment attacks via state transitions
+      // 🛡️ CRITICAL: Check if ACTIVE commissions exist for this order
+      // Only check PENDING, APPROVED, PAID (ignore CANCELLED/REJECTED)
+      // If commission was cancelled, we SHOULD recalculate when order is COMPLETED again
       const existingCommissions = await this.commissionRepository.findByOrderId(orderId);
 
-      if (existingCommissions.length > 0) {
-        const commissionIds = existingCommissions.map(c => c.id).join(', ');
-        const statuses = existingCommissions.map(c => c.status).join(', ');
+      // 🔧 FIX: Filter to only ACTIVE statuses (ignore CANCELLED/REJECTED)
+      const activeCommissions = existingCommissions.filter(c =>
+        c.status === 'PENDING' || c.status === 'APPROVED' || c.status === 'PAID'
+      );
+
+      if (activeCommissions.length > 0) {
+        const commissionIds = activeCommissions.map(c => c.id).join(', ');
+        const statuses = activeCommissions.map(c => c.status).join(', ');
 
         this.logger.error(
-          `⛔ BLOCKED: Order ${orderId} already has ${existingCommissions.length} commission record(s)! ` +
+          `⛔ BLOCKED: Order ${orderId} already has ${activeCommissions.length} ACTIVE commission record(s)! ` +
           `Commission IDs: [${commissionIds}], Statuses: [${statuses}]. ` +
           `This prevents double-payment from multiple COMPLETED transitions.`
         );
 
         // Throw error instead of silently returning to catch bugs in calling code
         throw new Error(
-          `Commission calculation blocked: Order ${orderId} already has commission records. ` +
+          `Commission calculation blocked: Order ${orderId} already has ACTIVE commission records. ` +
           `Cannot recalculate to prevent double-payment.`
+        );
+      }
+
+      // Log if we're recalculating after previous cancellation
+      const cancelledCommissions = existingCommissions.filter(c => c.status === 'CANCELLED');
+      if (cancelledCommissions.length > 0) {
+        this.logger.log(
+          `ℹ️ Order ${orderId} has ${cancelledCommissions.length} CANCELLED commission(s). ` +
+          `Recalculating fresh commissions...`
         );
       }
 

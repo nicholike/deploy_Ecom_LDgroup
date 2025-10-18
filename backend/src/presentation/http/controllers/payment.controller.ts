@@ -70,8 +70,6 @@ export class PaymentController {
       console.log('📋 Request headers:', JSON.stringify(req.headers, null, 2));
 
       // ✅ ENFORCE API Key verification in production
-      // 🔧 TEMPORARILY DISABLED FOR TESTING - RE-ENABLE AFTER DEBUGGING
-      /*
       if (process.env.SEPAY_API_KEY && process.env.NODE_ENV === 'production') {
         const authHeader = req.headers['authorization'];
         const expectedAuth = `Apikey ${process.env.SEPAY_API_KEY}`;
@@ -94,10 +92,6 @@ export class PaymentController {
 
         console.log('✅ SePay webhook authorization verified');
       }
-      */
-
-      console.log('⚠️  API Key verification DISABLED for testing');
-      console.log('📋 Authorization header:', req.headers['authorization']);
 
       // Process the webhook
       const result = await this.paymentService.processWebhook(webhookData);

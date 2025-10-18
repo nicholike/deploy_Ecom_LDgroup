@@ -89,7 +89,7 @@ async function main() {
     // 2. Ensure categories exist
     console.log('📁 Ensuring categories exist...');
     
-    const categories = ['Nam', 'Nữ', 'Unisex'];
+    const categories = ['Nam', 'Nữ', 'Tester'];
     const categoryMap = new Map<string, string>();
     
     for (const catName of categories) {
@@ -116,7 +116,7 @@ async function main() {
     console.log('');
 
     // 3. Read and parse CSV
-    const csvPath = path.join(__dirname, '../../list_products.csv');
+    const csvPath = path.join(__dirname, '../../list_product_updated.csv');
     console.log(`📖 Reading CSV from: ${csvPath}`);
     
     const rows = parseCSV(csvPath);
@@ -130,15 +130,17 @@ async function main() {
     
     for (const row of rows) {
       try {
-        const isSpecial = !row.price5ml && !row.price20ml;
         const categoryId = categoryMap.get(row.category);
-        
+
         if (!categoryId) {
           console.log(`   ⚠️  Skipping ${row.name}: Unknown category "${row.category}"`);
           errorCount++;
           continue;
         }
-        
+
+        // Check if this is Tester product (no 5ml price, only 1 variant)
+        const isTester = row.category === 'Tester' || (!row.price5ml && row.price20ml && row.price20ml.includes('1 sp:'));
+
         // Create product
         const product = await prisma.product.create({
           data: {
@@ -149,25 +151,52 @@ async function main() {
             categoryId,
             status: 'PUBLISHED',
             stock: 999999,
-            isCommissionEligible: !isSpecial, // Special products are not commission eligible
-            isSpecial,
+            isCommissionEligible: !isTester, // Tester products are not commission eligible
+            isSpecial: isTester,
             lowStockThreshold: 10,
             images: [],
           },
         });
-        
-        // Create variants if not special
-        if (!isSpecial) {
+
+        // Create variants
+        if (isTester) {
+          // Tester: single variant without size specification
+          const priceTiers = parsePriceTiers(row.price20ml);
+
+          if (priceTiers.length > 0) {
+            const basePrice = priceTiers[0].price;
+
+            await prisma.productVariant.create({
+              data: {
+                productId: product.id,
+                size: 'Standard', // No specific size for tester
+                sku: row.sku,
+                price: basePrice,
+                stock: 999999,
+                active: true,
+                priceTiers: {
+                  create: priceTiers.map(tier => ({
+                    minQuantity: tier.minQuantity,
+                    maxQuantity: tier.maxQuantity,
+                    price: tier.price,
+                  })),
+                },
+              },
+            });
+          }
+          console.log(`   ✓ ${row.name} (${row.sku}) - ${row.category} - TESTER PRODUCT`);
+        } else {
+          // Regular products: 5ml and 20ml variants
           const sizes = ['5ml', '20ml'];
           const priceData = [row.price5ml, row.price20ml];
-          
+
           for (let i = 0; i < sizes.length; i++) {
             const size = sizes[i];
             const priceTiers = parsePriceTiers(priceData[i]);
-            
+
             if (priceTiers.length > 0) {
               const basePrice = priceTiers[0].price;
-              
+
               await prisma.productVariant.create({
                 data: {
                   productId: product.id,
@@ -187,9 +216,7 @@ async function main() {
               });
             }
           }
-          console.log(`   ✓ ${row.name} (${row.sku}) - ${row.category} - with variants`);
-        } else {
-          console.log(`   ✓ ${row.name} (${row.sku}) - ${row.category} - SPECIAL PRODUCT`);
+          console.log(`   ✓ ${row.name} (${row.sku}) - ${row.category} - with 5ml & 20ml variants`);
         }
         
         successCount++;

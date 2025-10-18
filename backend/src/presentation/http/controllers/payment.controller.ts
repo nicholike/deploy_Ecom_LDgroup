@@ -71,13 +71,29 @@ export class PaymentController {
 
       // ✅ ENFORCE API Key verification in production
       if (process.env.SEPAY_API_KEY && process.env.NODE_ENV === 'production') {
+        // Accept multiple header formats from Sepay
         const authHeader = req.headers['authorization'];
-        const expectedAuth = `Apikey ${process.env.SEPAY_API_KEY}`;
+        const apiKeyHeader = req.headers['apikey'] || req.headers['x-api-key'];
 
-        if (authHeader !== expectedAuth) {
+        const expectedKey = process.env.SEPAY_API_KEY;
+        const expectedAuth = `Apikey ${expectedKey}`;
+
+        let isValid = false;
+
+        // Check format 1: Authorization: Apikey KEY
+        if (authHeader === expectedAuth) {
+          isValid = true;
+        }
+        // Check format 2: apikey: KEY or x-api-key: KEY
+        else if (apiKeyHeader === expectedKey) {
+          isValid = true;
+        }
+
+        if (!isValid) {
           console.error('⛔ Unauthorized SePay webhook attempt');
-          console.error('Expected:', expectedAuth);
-          console.error('Received:', authHeader);
+          console.error('Expected key:', expectedKey);
+          console.error('Authorization header:', authHeader);
+          console.error('apikey header:', apiKeyHeader);
           console.error('Source IP:', req.ip);
           console.error('📊 Webhook Data (UNAUTHORIZED):', JSON.stringify(webhookData, null, 2));
 

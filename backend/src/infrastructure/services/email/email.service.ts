@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import * as sgMail from '@sendgrid/mail';
+import { Resend } from 'resend';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as Handlebars from 'handlebars';
@@ -18,8 +17,7 @@ export interface EmailOptions {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: nodemailer.Transporter | null = null;
-  private useSendGrid: boolean = false;
+  private resend: Resend | null = null;
   private readonly templatesPath: string;
   private readonly companyInfo: {
     name: string;
@@ -29,39 +27,15 @@ export class EmailService {
   };
 
   constructor(private readonly configService: ConfigService) {
-    // Check if SendGrid API key is available (preferred for production)
-    const sendGridApiKey = this.configService.get<string>('SENDGRID_API_KEY');
+    // 🚀 Initialize Resend (simple and works on Railway)
+    const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
 
-    if (sendGridApiKey) {
-      // 🚀 Use SendGrid for production (Railway doesn't block SendGrid API)
-      sgMail.setApiKey(sendGridApiKey);
-      this.useSendGrid = true;
-      this.logger.log('📧 Email service initialized with SendGrid');
+    if (resendApiKey) {
+      this.resend = new Resend(resendApiKey);
+      this.logger.log('📧 Email service initialized with Resend');
     } else {
-      // 🏠 Fallback to SMTP for local development
-      const smtpPort = this.configService.get<number>('SMTP_PORT', 587);
-      const smtpSecure = smtpPort === 465; // Auto-detect: 465 = SSL, 587 = TLS
-
-      this.transporter = nodemailer.createTransport({
-        host: this.configService.get<string>('SMTP_HOST'),
-        port: smtpPort,
-        secure: smtpSecure, // true for 465 (SSL), false for 587 (TLS)
-        auth: {
-          user: this.configService.get<string>('SMTP_USER'),
-          pass: this.configService.get<string>('SMTP_PASSWORD'),
-        },
-        connectionTimeout: 60000,
-        greetingTimeout: 30000,
-        socketTimeout: 60000,
-        pool: true,
-        maxConnections: 5,
-        maxMessages: 100,
-        tls: {
-          rejectUnauthorized: true,
-          minVersion: 'TLSv1.2',
-        },
-      });
-      this.logger.log('📧 Email service initialized with SMTP (local development)');
+      this.logger.warn('⚠️ RESEND_API_KEY not found. Email service disabled.');
+      this.logger.warn('💡 Get your free API key at: https://resend.com/api-keys');
     }
 
     // Set templates path
@@ -122,10 +96,16 @@ export class EmailService {
   }
 
   /**
-   * Send email with template (supports both SendGrid and SMTP)
+   * Send email with template using Resend
    */
   async sendEmail(options: EmailOptions): Promise<boolean> {
     try {
+      // Check if Resend is initialized
+      if (!this.resend) {
+        this.logger.debug('📧 Email service disabled (no RESEND_API_KEY)');
+        return false;
+      }
+
       const { to, subject, template, context, html, text } = options;
 
       let emailHtml = html;
@@ -155,49 +135,18 @@ export class EmailService {
         }
       }
 
-      const fromEmail = this.configService.get<string>('SMTP_FROM', '"LD Group" <support@ldgroup.vn>');
+      const fromEmail = this.configService.get<string>('EMAIL_FROM', 'LD Group <onboarding@resend.dev>');
 
-      // Send email using SendGrid or SMTP
-      if (this.useSendGrid) {
-        // 🚀 SendGrid API
-        const msg: any = {
-          to,
-          from: fromEmail,
-          subject,
-        };
+      // 🚀 Send email using Resend (super simple!)
+      await this.resend.emails.send({
+        from: fromEmail,
+        to,
+        subject,
+        html: emailHtml || emailText || subject,
+        text: emailText,
+      });
 
-        // Add content (at least one of html or text is required)
-        if (emailHtml) {
-          msg.html = emailHtml;
-        }
-        if (emailText) {
-          msg.text = emailText;
-        }
-
-        // Fallback: if both html and text are empty, use subject as text
-        if (!emailHtml && !emailText) {
-          msg.text = subject;
-        }
-
-        await sgMail.send(msg);
-        this.logger.log(`✅ Email sent via SendGrid to ${to}`);
-      } else {
-        // 🏠 SMTP (nodemailer)
-        if (!this.transporter) {
-          throw new Error('SMTP transporter not initialized');
-        }
-
-        const info = await this.transporter.sendMail({
-          from: fromEmail,
-          to,
-          subject,
-          html: emailHtml,
-          text: emailText,
-        });
-
-        this.logger.log(`✅ Email sent via SMTP to ${to}: ${info.messageId}`);
-      }
-
+      this.logger.log(`✅ Email sent via Resend to ${to}`);
       return true;
     } catch (error) {
       this.logger.error(`❌ Failed to send email to ${options.to}:`, error);

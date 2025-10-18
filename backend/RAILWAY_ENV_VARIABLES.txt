@@ -51,20 +51,14 @@ UPLOAD_DIR=./uploads
 
 MAX_FILE_SIZE=5242880
 
-# 📧 EMAIL CONFIGURATION - SENDGRID (RECOMMENDED)
-# Get your API key from: https://app.sendgrid.com/settings/api_keys
-SENDGRID_API_KEY=YOUR_SENDGRID_API_KEY_HERE
+# 📧 EMAIL CONFIGURATION - RESEND (SIMPLE & RECOMMENDED)
+# Get your FREE API key from: https://resend.com/api-keys
+RESEND_API_KEY=re_YOUR_API_KEY_HERE
 
-# Email sender (must be verified in SendGrid)
-SMTP_FROM="LD Group" <support@ldgroup.vn>
-
-# 🏠 SMTP FALLBACK (for local development only)
-# If SENDGRID_API_KEY is not set, system will use SMTP
-# Note: Railway blocks SMTP ports, so this won't work in production
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_USER=dieptrungnam123@gmail.com
-SMTP_PASSWORD=esdj zdoa tjpo girp
+# Email sender (must use verified domain or onboarding@resend.dev for testing)
+# For testing: Use onboarding@resend.dev (works immediately)
+# For production: Add your domain in Resend and verify it
+EMAIL_FROM=LD Group <onboarding@resend.dev>
 
 COMPANY_NAME=LD Group
 
@@ -86,12 +80,13 @@ FRONTEND_URL=https://deploy-ecom-l-dgroup.vercel.app
 2. CORS_ORIGIN - PHẢI UPDATE!
    Thay "your-frontend-domain.vercel.app" bằng domain frontend thực
 
-3. SENDGRID_API_KEY - BẮT BUỘC cho email!
-   - Đăng ký FREE tại: https://signup.sendgrid.com/
-   - Tạo API Key: Settings > API Keys > Create API Key
-   - Chọn "Full Access" và copy API key
-   - Paste vào Railway variable SENDGRID_API_KEY
-   - Verify sender email tại: Settings > Sender Authentication
+3. RESEND_API_KEY - TÙY CHỌN (nếu muốn gửi email)
+   - Đăng ký FREE tại: https://resend.com/signup
+   - Tạo API Key tại: https://resend.com/api-keys
+   - Copy API key (format: re_xxxxxxxxxxxx)
+   - Paste vào Railway variable RESEND_API_KEY
+   - Resend FREE: 100 emails/day, 3,000/month
+   - Không cần verify để test (dùng onboarding@resend.dev)
 
 4. Sau khi paste xong, Railway sẽ tự động redeploy
 

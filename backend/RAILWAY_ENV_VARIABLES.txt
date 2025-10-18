@@ -51,6 +51,26 @@ UPLOAD_DIR=./uploads
 
 MAX_FILE_SIZE=5242880
 
+SMTP_HOST=smtp.gmail.com
+
+SMTP_PORT=587
+
+SMTP_USER=dieptrungnam123@gmail.com
+
+SMTP_PASSWORD=dqgl gwte pwaw bwha
+
+SMTP_FROM="LD Group" <support@ldgroup.vn>
+
+COMPANY_NAME=LD Group
+
+COMPANY_WEBSITE=https://doitac.ldgroup.vn
+
+COMPANY_EMAIL=support@ldgroup.vn
+
+COMPANY_HOTLINE=076 788 6252
+
+FRONTEND_URL=https://deploy-ecom-l-dgroup.vercel.app
+
 ===========================================
 ⚠️ IMPORTANT NOTES:
 ===========================================

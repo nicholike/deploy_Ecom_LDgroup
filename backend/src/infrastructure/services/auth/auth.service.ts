@@ -175,21 +175,39 @@ export class AuthService {
     const normalizedEmail = email.toLowerCase();
     const user = await this.userRepository.findByEmail(normalizedEmail);
 
-    const response: { message: string; resetToken?: string } = {
-      message: 'Nếu tồn tại tài khoản với email này, hướng dẫn đặt lại mật khẩu đã được gửi.',
+    // 🔒 Security: Always return same message to prevent email enumeration
+    const response = {
+      message: 'Yêu cầu đặt lại mật khẩu đã được ghi nhận. Vui lòng liên hệ admin để được hỗ trợ.',
     };
 
     if (!user || !user.isActive()) {
+      // Log for admin monitoring (in case someone tries to reset non-existent account)
+      this.logger.warn(
+        `⚠️ Password reset requested for non-existent or inactive account: ${normalizedEmail}`
+      );
       return response;
     }
 
+    // 📢 LOG FOR ADMIN: User needs password reset
+    this.logger.warn(
+      `🔐 PASSWORD RESET REQUEST:\n` +
+      `   User ID: ${user.id}\n` +
+      `   Username: ${user.username}\n` +
+      `   Email: ${user.email.value}\n` +
+      `   Name: ${user.firstName} ${user.lastName}\n` +
+      `   Time: ${new Date().toLocaleString('vi-VN')}\n` +
+      `   → Admin: Please contact this user to reset their password`
+    );
+
+    // Optional: Create token for admin to use (admin can use script to reset)
+    // But NOT returned to user for security
     const token = CryptoUtil.generateRandomString(32);
     const tokenHash = CryptoUtil.hash(token);
 
     await this.invalidateAllTokensSafe(user.id);
     await this.deleteExpiredTokensSafe();
 
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours
 
     const resetToken = PasswordResetToken.create({
       userId: user.id,
@@ -199,31 +217,9 @@ export class AuthService {
 
     await this.passwordResetTokenRepository.create(resetToken);
 
-    // Send email with reset link
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
-    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
-
-    // 🔧 FIX: Check return value instead of try/catch
-    // sendPasswordResetEmail() returns boolean (true if sent, false if failed)
-    const emailSent = await this.emailService.sendPasswordResetEmail(
-      user.email.value,
-      resetUrl,
-      user.username,
-    );
-
-    if (emailSent) {
-      this.logger.log(`✅ Password reset email sent to ${user.email.value}`);
-    } else {
-      this.logger.warn(
-        `⚠️ Failed to send password reset email to ${user.email.value} ` +
-        `(SMTP blocked on Railway). User can still reset via token if available in dev mode.`
-      );
-      // Token is still valid - user can reset password if they have the token
-    }
-
-    // 🔧 ALWAYS include token in response (email disabled)
-    // User can manually construct reset URL or admin can reset for them
-    response.resetToken = token;
+    // Admin can check logs to see who needs password reset
+    // Then admin contacts user directly (phone, zalo, etc.)
+    // Or admin can reset password manually using admin script
 
     return response;
   }

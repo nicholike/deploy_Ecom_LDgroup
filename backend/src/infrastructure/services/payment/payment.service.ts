@@ -345,13 +345,8 @@ export class PaymentService {
         if (pendingOrder.orderId) {
           const order = await this.orderRepository.findById(pendingOrder.orderId);
           if (order) {
-            // For TPBank: Add prefix to description for manual transfer
-            const vaPrefix = process.env.SEPAY_VA_PREFIX;
-            const vaNumber = process.env.SEPAY_VA_NUMBER;
-            const transferContent = vaPrefix && vaNumber 
-              ? `${vaPrefix}${vaNumber} ${order.orderNumber}`
-              : order.orderNumber;
-
+            // For direct account transfer: just use order number as description
+            // SePay will hook directly to the main account
             return {
               orderId: order.id,
               orderNumber: order.orderNumber,
@@ -360,23 +355,18 @@ export class PaymentService {
               bankAccount: {
                 accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',
                 accountName: process.env.BANK_ACCOUNT_NAME || '',
-                bankCode: process.env.BANK_CODE || 'BIDV',
-                bankName: process.env.BANK_NAME || 'BIDV',
+                bankCode: process.env.BANK_CODE || 'TPBank',
+                bankName: process.env.BANK_NAME || 'TPBank',
               },
-              description: transferContent,
+              description: order.orderNumber, // Just order number for direct transfer
             };
           }
         }
       }
 
       // Return pending order payment info
-      // For TPBank: Add prefix to description for manual transfer
-      const vaPrefix = process.env.SEPAY_VA_PREFIX;
-      const vaNumber = process.env.SEPAY_VA_NUMBER;
-      const transferContent = vaPrefix && vaNumber 
-        ? `${vaPrefix}${vaNumber} ${pendingOrder.pendingNumber}`
-        : pendingOrder.pendingNumber;
-
+      // For direct account transfer: just use order number as description
+      // SePay will hook directly to the main account
       return {
         orderId: pendingOrder.id,
         orderNumber: pendingOrder.pendingNumber,
@@ -385,10 +375,10 @@ export class PaymentService {
         bankAccount: {
           accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',
           accountName: process.env.BANK_ACCOUNT_NAME || '',
-          bankCode: process.env.BANK_CODE || 'BIDV',
-          bankName: process.env.BANK_NAME || 'BIDV',
+          bankCode: process.env.BANK_CODE || 'TPBank',
+          bankName: process.env.BANK_NAME || 'TPBank',
         },
-        description: transferContent, // This will be the transfer content with prefix
+        description: pendingOrder.pendingNumber, // Just order number for direct transfer
       };
     }
 
@@ -398,13 +388,8 @@ export class PaymentService {
       throw new BadRequestException('Order not found');
     }
 
-    // For TPBank: Add prefix to description for manual transfer
-    const vaPrefix = process.env.SEPAY_VA_PREFIX;
-    const vaNumber = process.env.SEPAY_VA_NUMBER;
-    const transferContent = vaPrefix && vaNumber 
-      ? `${vaPrefix}${vaNumber} ${order.orderNumber}`
-      : order.orderNumber;
-
+    // For direct account transfer: just use order number as description
+    // SePay will hook directly to the main account
     return {
       orderId: order.id,
       orderNumber: order.orderNumber,
@@ -413,10 +398,10 @@ export class PaymentService {
       bankAccount: {
         accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',
         accountName: process.env.BANK_ACCOUNT_NAME || '',
-        bankCode: process.env.BANK_CODE || 'BIDV',
-        bankName: process.env.BANK_NAME || 'BIDV',
+        bankCode: process.env.BANK_CODE || 'TPBank',
+        bankName: process.env.BANK_NAME || 'TPBank',
       },
-      description: transferContent, // This will be the transfer content with prefix
+      description: order.orderNumber, // Just order number for direct transfer
     };
   }
 

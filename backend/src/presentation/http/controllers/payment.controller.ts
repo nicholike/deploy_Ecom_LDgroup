@@ -199,17 +199,10 @@ export class PaymentController {
     amount: number,
     description: string,
   ): string {
-    // For banks that don't provide direct VA (like TPBank),
-    // we need to prepend the VA prefix to the description
-    const vaPrefix = process.env.SEPAY_VA_PREFIX;
-    const vaNumber = process.env.SEPAY_VA_NUMBER;
-    
-    let finalDescription = description;
-    
-    if (vaPrefix && vaNumber) {
-      // Format: TKPYRK PD25XXXXX (for TPBank)
-      finalDescription = `${vaPrefix}${vaNumber} ${description}`;
-    }
+    // For direct account transfer (no VA needed)
+    // Just use the order number as description
+    // SePay will hook directly to the main account
+    const finalDescription = description;
     
     // SePay QR API
     // Note: curl test có thể bị 403 do thiếu User-Agent, nhưng <img> tag hoạt động bình thường

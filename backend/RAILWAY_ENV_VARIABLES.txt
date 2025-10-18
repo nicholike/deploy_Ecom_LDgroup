@@ -35,9 +35,8 @@ BANK_CODE=TPBank
 
 BANK_NAME=TPBank
 
-SEPAY_VA_NUMBER=YRK
-
-SEPAY_VA_PREFIX=TKP
+# Direct account transfer - no VA needed
+# SePay will hook directly to main account
 
 DEFAULT_COMMISSION_RATE_F1=10
 

@@ -295,6 +295,7 @@ const LandingPage: React.FC = () => {
           value={quantity}
           onChange={(e) => handleSpecialQuantityChange(product.id, parseInt(e.target.value) || 0)}
           className="h-7 w-[104px] border border-black rounded-md text-center text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:w-[128px] md:text-[12px] py-0"
+          style={{ fontSize: '17px' }}
           min="0"
           placeholder="0"
         />
@@ -410,6 +411,7 @@ const LandingPage: React.FC = () => {
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Tìm kiếm sản phẩm..."
               className="w-full rounded-md border border-[#8B5E1E] px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-[#8B5E1E]/40"
+              style={{ fontSize: '17px' }}
             />
           </div>
           <div className="w-28 flex-shrink-0 md:flex-none md:w-40">

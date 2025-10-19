@@ -1063,6 +1063,7 @@ const WithdrawModal: React.FC<{
               id="amount"
             type="text"
               className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+              style={{ fontSize: '17px' }}
             value={form.amount}
             onChange={onChange("amount")}
               placeholder="500.000 đ"
@@ -1100,6 +1101,7 @@ const WithdrawModal: React.FC<{
               id="account"
               type="text"
               className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+              style={{ fontSize: '17px' }}
               value={form.accountNumber}
               onChange={onChange("accountNumber")}
               placeholder="1122334455"
@@ -1116,6 +1118,7 @@ const WithdrawModal: React.FC<{
               id="recipient"
             type="text"
               className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+              style={{ fontSize: '17px' }}
             value={form.accountName}
             onChange={onChange("accountName")}
               placeholder="Nguyễn Văn A"
@@ -1201,6 +1204,7 @@ const ChangePasswordModal: React.FC<{ open: boolean; onClose: () => void }> = ({
               id="current-password"
               type="password"
               className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+              style={{ fontSize: '17px' }}
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               placeholder="Nhập mật khẩu cũ"
@@ -1217,6 +1221,7 @@ const ChangePasswordModal: React.FC<{ open: boolean; onClose: () => void }> = ({
               id="new-password"
               type="password"
               className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+              style={{ fontSize: '17px' }}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Nhập mật khẩu mới"
@@ -1233,6 +1238,7 @@ const ChangePasswordModal: React.FC<{ open: boolean; onClose: () => void }> = ({
               id="confirm-password"
               type="password"
               className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+              style={{ fontSize: '17px' }}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Nhập lại mật khẩu mới"

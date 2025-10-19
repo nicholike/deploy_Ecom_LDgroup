@@ -808,6 +808,7 @@ const CartCheckout: React.FC = () => {
             handleSpecialQuantityChange(itemId, quantity, newQty);
           }}
           className="h-6 w-[88px] border border-black rounded-md text-center text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:w-[120px] md:text-[12px] py-0"
+          style={{ fontSize: '17px' }}
           min="0"
           placeholder="0"
         />
@@ -1106,6 +1107,7 @@ const CartCheckout: React.FC = () => {
                     id="name"
                     type="text"
                     className="w-2/3 rounded border border-gray-300 px-2 py-1 text-[11px] md:text-[13px]"
+                    style={{ fontSize: '17px' }}
                     value={shippingForm.name}
                     onChange={(e) => setShippingForm({ ...shippingForm, name: e.target.value })}
                     required
@@ -1117,6 +1119,7 @@ const CartCheckout: React.FC = () => {
                     id="phone"
                     type="text"
                     className="w-2/3 rounded border border-gray-300 px-2 py-1 text-[11px] md:text-[13px]"
+                    style={{ fontSize: '17px' }}
                     value={shippingForm.phone}
                     onChange={(e) => setShippingForm({ ...shippingForm, phone: e.target.value })}
                     required
@@ -1147,6 +1150,7 @@ const CartCheckout: React.FC = () => {
                         id="city"
                         type="text"
                         className="w-2/3 rounded border border-gray-300 px-2 py-1 text-[11px] md:text-[13px]"
+                        style={{ fontSize: '17px' }}
                         value={shippingForm.city}
                         onChange={(e) => handleProvinceInputChange(e.target.value)}
                         placeholder="Ví dụ: Thành phố Hồ Chí Minh"
@@ -1159,6 +1163,7 @@ const CartCheckout: React.FC = () => {
                         id="district"
                         type="text"
                         className="w-2/3 rounded border border-gray-300 px-2 py-1 text-[11px] md:text-[13px]"
+                        style={{ fontSize: '17px' }}
                         value={shippingForm.district}
                         onChange={(e) => handleDistrictInputChange(e.target.value)}
                         placeholder="Ví dụ: Quận 1"
@@ -1171,6 +1176,7 @@ const CartCheckout: React.FC = () => {
                         id="ward"
                         type="text"
                         className="w-2/3 rounded border border-gray-300 px-2 py-1 text-[11px] md:text-[13px]"
+                        style={{ fontSize: '17px' }}
                         value={shippingForm.ward}
                         onChange={(e) => handleWardInputChange(e.target.value)}
                         placeholder="Ví dụ: Phường Bến Nghé"

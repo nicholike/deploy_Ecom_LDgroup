@@ -154,7 +154,6 @@ export default function SignUpForm() {
                 autoComplete="off"
                 placeholder=" "
                 className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-white px-0 peer"
-                style={{ fontSize: '17px' }}
               />
               <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-sm pointer-events-none transition-all duration-300 peer-focus:text-xs peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-sm peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
                 Họ
@@ -169,7 +168,6 @@ export default function SignUpForm() {
                 autoComplete="off"
                 placeholder=" "
                 className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-white px-0 peer"
-                style={{ fontSize: '17px' }}
               />
               <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-sm pointer-events-none transition-all duration-300 peer-focus:text-xs peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-sm peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
                 Tên
@@ -186,7 +184,6 @@ export default function SignUpForm() {
               autoComplete="off"
               placeholder=" "
               className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-white px-0 peer"
-              style={{ fontSize: '17px' }}
             />
             <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
               Username *
@@ -202,7 +199,6 @@ export default function SignUpForm() {
               autoComplete="off"
               placeholder=" "
               className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-white px-0 peer"
-              style={{ fontSize: '17px' }}
             />
             <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
               Email *
@@ -218,7 +214,6 @@ export default function SignUpForm() {
               autoComplete="new-password"
               placeholder=" "
               className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-white px-0 pr-10 peer"
-              style={{ fontSize: '17px' }}
             />
             <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
               Mật khẩu *
@@ -246,7 +241,6 @@ export default function SignUpForm() {
               autoComplete="off"
               placeholder=" "
               className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-white px-0 uppercase peer"
-              style={{ fontSize: '17px' }}
             />
             <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
               Mã giới thiệu * (BẮT BUỘC)

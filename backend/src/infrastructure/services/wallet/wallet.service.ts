@@ -85,6 +85,25 @@ export class WalletService {
   ) {
     this.logger.log(`User ${userId} requesting withdrawal of ${amount}`);
 
+    // ⚠️ CHECK: User status must be ACTIVE (not SUSPENDED)
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new BadRequestException('Người dùng không tồn tại');
+    }
+
+    if (user.status === 'SUSPENDED') {
+      const reason = user.lockedReason ? ` Lý do: ${user.lockedReason}` : '';
+      throw new BadRequestException(
+        `Tài khoản của bạn đã bị tạm ngưng.${reason} Không thể rút tiền khi tài khoản bị khóa. Vui lòng liên hệ quản trị viên.`
+      );
+    }
+
+    if (user.status !== 'ACTIVE') {
+      throw new BadRequestException(
+        `Tài khoản của bạn đang ở trạng thái: ${user.status}. Chỉ tài khoản ACTIVE mới được rút tiền.`
+      );
+    }
+
     // Validate amount
     if (amount < this.MIN_WITHDRAWAL_AMOUNT) {
       throw new BadRequestException(

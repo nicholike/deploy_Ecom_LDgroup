@@ -156,6 +156,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile UX Fixes */
+@layer utilities {
+  /* Prevent overscroll bounce on mobile */
+  .overscroll-none {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Optimize fixed background for mobile performance */
+  .bg-fixed-mobile {
+    will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+}
+
 @layer base {
   body {
     @apply relative text-[12px] font-normal z-1 bg-gray-50 font-outfit;

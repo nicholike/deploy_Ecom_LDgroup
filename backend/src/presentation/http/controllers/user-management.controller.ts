@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { Roles } from '@shared/decorators/roles.decorator';
 import { UserRole, UserStatus } from '@shared/constants/user-roles.constant';
+import { UserResponseDto } from '../dto/user/user-response.dto';
 import * as bcrypt from 'bcrypt';
 
 /**
@@ -123,10 +124,36 @@ export class UserManagementController {
       sortOrder,
     });
 
+    // Map raw Prisma data to ensure all fields are properly serialized
+    const users = result.data.map((user: any) => ({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      sponsorId: user.sponsorId,
+      sponsor: user.sponsor ? {
+        id: user.sponsor.id,
+        username: user.sponsor.username,
+        firstName: user.sponsor.firstName,
+        lastName: user.sponsor.lastName,
+        role: user.sponsor.role,
+      } : null,
+      referralCode: user.referralCode,
+      emailVerified: user.emailVerified,
+      lockedAt: user.lockedAt,
+      lockedReason: user.lockedReason,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
+
     return {
       success: true,
       data: {
-        users: result.data,
+        users,
         pagination: result.pagination,
       },
     };
@@ -141,12 +168,26 @@ export class UserManagementController {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
+    // Get sponsor info if user has a sponsor
+    let sponsorInfo = null;
+    if (user.sponsorId) {
+      const sponsor = await this.userRepository.findById(user.sponsorId);
+      if (sponsor) {
+        sponsorInfo = {
+          id: sponsor.id,
+          username: sponsor.username,
+          firstName: sponsor.firstName,
+          lastName: sponsor.lastName,
+        };
+      }
+    }
+
     // Get downline count (children who have this user as sponsor)
-    const downlineQuery = await this.userRepository.findMany({
+    const downlineResult = await this.userRepository.findMany({
       page: 1,
       limit: 1,
     });
-    // Note: We can't filter by sponsorId in findMany, so this is approximate
+    // Note: We can't filter by sponsorId in findMany easily, so this is approximate
     const downlineCount = 0; // Will be updated if we add sponsor filtering
 
     // Get quota info
@@ -155,11 +196,10 @@ export class UserManagementController {
     return {
       success: true,
       data: {
-        user,
-        stats: {
-          directDownlines: downlineCount,
-          quotaInfo,
-        },
+        ...UserResponseDto.fromDomain(user),
+        sponsor: sponsorInfo,
+        downlineCount,
+        quota: quotaInfo,
       },
     };
   }
@@ -216,28 +256,60 @@ export class UserManagementController {
   @ApiOperation({ summary: 'Update user information' })
   @ApiResponse({ status: 200 })
   async updateUser(@Param('id') id: string, @Body() updateData: any) {
+    console.log('📥 Update request:', { id, updateData });
+
     const user = await this.userRepository.findById(id);
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
+    console.log('📝 Current user before update:', {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+    });
+
     if (user.role === UserRole.ADMIN) {
       throw new HttpException('Cannot update admin account', HttpStatus.FORBIDDEN);
     }
 
-    // Only allow updating specific fields
+    // Only allow updating specific fields (allow empty strings for clearing fields)
     const allowedFields: any = {};
-    if (updateData.firstName !== undefined) allowedFields.firstName = updateData.firstName;
-    if (updateData.lastName !== undefined) allowedFields.lastName = updateData.lastName;
-    if (updateData.phone !== undefined) allowedFields.phone = updateData.phone;
-    if (updateData.avatar !== undefined) allowedFields.avatar = updateData.avatar;
+    if (updateData.firstName !== undefined) allowedFields.firstName = updateData.firstName || '';
+    if (updateData.lastName !== undefined) allowedFields.lastName = updateData.lastName || '';
+    if (updateData.phone !== undefined) allowedFields.phone = updateData.phone || '';
+    if (updateData.avatar !== undefined) allowedFields.avatar = updateData.avatar || '';
 
-    const updatedUser = await this.userRepository.update(id, allowedFields);
+    console.log('🔧 Allowed fields to update:', allowedFields);
+
+    // If there are fields to update, update the profile
+    // Even if values are the same, it's OK (idempotent operation)
+    let updatedUser = user;
+    if (Object.keys(allowedFields).length > 0) {
+      user.updateProfile(allowedFields);
+
+      console.log('📝 User after updateProfile:', {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+      });
+
+      // Save entity to trigger all domain logic and events
+      updatedUser = await this.userRepository.save(user);
+
+      console.log('💾 User after save:', {
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        phone: updatedUser.phone,
+      });
+    }
+
+    console.log('✅ Returning updated user');
 
     return {
       success: true,
       message: 'User information updated successfully',
-      data: updatedUser,
+      data: UserResponseDto.fromDomain(updatedUser),
     };
   }
 
@@ -276,12 +348,21 @@ export class UserManagementController {
       throw new HttpException('User cannot sponsor themselves', HttpStatus.BAD_REQUEST);
     }
 
+    // ⚠️ CHECK: Wallet must be 0 before allowing branch transfer
+    const walletBalance = await this.userRepository.getWalletBalance(id);
+    if (walletBalance > 0) {
+      throw new HttpException(
+        `Cannot transfer branch. User wallet balance must be 0. Current balance: ${walletBalance.toLocaleString('vi-VN')} VND`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     // Transfer to new branch
     await this.userRepository.transferBranch(id, newSponsorId);
 
     return {
       success: true,
-      message: 'User transferred to new branch successfully. All commissions cancelled and wallet reset to 0.',
+      message: 'User transferred to new branch successfully. All commissions cancelled and quota reset.',
       userId: id,
       newSponsorId,
     };

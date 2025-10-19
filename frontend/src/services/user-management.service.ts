@@ -36,6 +36,7 @@ export interface User {
     username: string;
     firstName: string | null;
     lastName: string | null;
+    role: string;
   } | null;
   emailVerified: boolean;
   lockedAt: string | null;
@@ -129,7 +130,7 @@ export const UserManagementService = {
       `/admin/users/${userId}/lock`,
       {
         method: 'PUT',
-        body: JSON.stringify({ reason }),
+        body: { reason },
         authToken: getAuthToken(),
       }
     );
@@ -156,7 +157,7 @@ export const UserManagementService = {
       '/admin/users/bulk-lock',
       {
         method: 'POST',
-        body: JSON.stringify({ userIds, reason }),
+        body: { userIds, reason },
         authToken: getAuthToken(),
       }
     );
@@ -172,7 +173,7 @@ export const UserManagementService = {
       '/admin/users/bulk-unlock',
       {
         method: 'POST',
-        body: JSON.stringify({ userIds }),
+        body: { userIds },
         authToken: getAuthToken(),
       }
     );
@@ -192,7 +193,7 @@ export const UserManagementService = {
       `/admin/users/${userId}`,
       {
         method: 'PUT',
-        body: JSON.stringify(data),
+        body: data,
         authToken: getAuthToken(),
       }
     );
@@ -217,7 +218,7 @@ export const UserManagementService = {
       `/admin/users/${userId}/change-sponsor`,
       {
         method: 'PUT',
-        body: JSON.stringify({ newSponsorId }),
+        body: { newSponsorId },
         authToken: getAuthToken(),
       }
     );

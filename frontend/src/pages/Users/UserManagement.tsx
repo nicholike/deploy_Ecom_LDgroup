@@ -246,51 +246,59 @@ const UserManagement: React.FC = () => {
   const handleSaveEdit = async (newSponsorId?: string) => {
     if (!selectedUser) return;
 
+    console.log('🔄 Starting save edit:', {
+      userId: selectedUser.id,
+      editForm,
+      newSponsorId,
+    });
+
     try {
       setModalLoading(true);
 
-      // Update user info if any field changed
-      const hasInfoChanges =
-        editForm.firstName !== (selectedUser.firstName || '') ||
-        editForm.lastName !== (selectedUser.lastName || '') ||
-        editForm.phone !== (selectedUser.phone || '');
-
-      if (hasInfoChanges) {
-        await UserManagementService.updateUser(selectedUser.id, {
-          firstName: editForm.firstName || undefined,
-          lastName: editForm.lastName || undefined,
-          phone: editForm.phone || undefined,
-        });
-      }
+      // Always update user info (send empty strings instead of undefined)
+      console.log('📤 Updating user info...');
+      const updateResult = await UserManagementService.updateUser(selectedUser.id, {
+        firstName: editForm.firstName,
+        lastName: editForm.lastName,
+        phone: editForm.phone,
+      });
+      console.log('✅ Update result:', updateResult);
 
       // Change sponsor if provided
       if (newSponsorId && newSponsorId !== selectedUser.sponsorId) {
         const confirmMsg =
+          '⚠️ ĐIỀU KIỆN: Ví tài khoản phải bằng 0 mới được chuyển nhánh.\n\n' +
           'Chuyển nhánh sẽ:\n' +
           '- Hủy tất cả hoa hồng\n' +
-          '- Đặt lại ví về 0\n' +
           '- Đặt lại hạn mức mua hàng\n\n' +
+          'Lưu ý: Ví sẽ KHÔNG bị reset.\n\n' +
           'Bạn có chắc muốn chuyển nhánh?';
 
         if (!confirm(confirmMsg)) {
+          console.log('❌ User cancelled sponsor change');
           setModalLoading(false);
           return;
         }
 
+        console.log('📤 Changing sponsor...');
         await UserManagementService.changeSponsor(selectedUser.id, newSponsorId);
+        console.log('✅ Sponsor changed');
       }
 
+      console.log('✅ Showing success toast');
       showToast({
         tone: 'success',
         title: 'Thành công',
         description: newSponsorId ? 'Đã cập nhật thông tin và chuyển nhánh' : 'Đã cập nhật thông tin người dùng',
       });
 
+      console.log('🔄 Reloading users...');
       setShowEditModal(false);
       setSelectedUser(null);
       await loadUsers();
+      console.log('✅ Save complete');
     } catch (error: any) {
-      console.error('Failed to update user:', error);
+      console.error('❌ Failed to update user:', error);
       showToast({
         tone: 'error',
         title: 'Lỗi',
@@ -598,28 +606,28 @@ const UserManagement: React.FC = () => {
                         className="h-4 w-4 rounded border-gray-300 text-[#8B5E1E] focus:ring-[#8B5E1E]"
                       />
                     </th>
-                    <th className="w-[18%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[17%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Người dùng
                     </th>
-                    <th className="w-[11%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[10%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Username
                     </th>
-                    <th className="w-[10%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[9%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Mã giới thiệu
                     </th>
-                    <th className="w-[8%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[7%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Cấp độ
                     </th>
-                    <th className="w-[13%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[12%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Người giới thiệu
                     </th>
-                    <th className="w-[10%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[9%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Trạng thái
                     </th>
-                    <th className="w-[13%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[11%] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Ngày tạo
                     </th>
-                    <th className="w-[25%] px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="w-[27%] px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300">
                       Thao tác
                     </th>
                   </tr>
@@ -672,7 +680,7 @@ const UserManagement: React.FC = () => {
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                         {formatDate(user.createdAt)}
                       </td>
-                      <td className="w-[25%] px-4 py-3">
+                      <td className="w-[27%] px-4 py-3">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleViewDetails(user)}
@@ -1188,8 +1196,8 @@ const EditUserModal: React.FC<{
                 <div className="mb-3 text-sm text-gray-600 dark:text-gray-400">
                   Sponsor hiện tại: <strong>{user.sponsor?.username || 'Không có'}</strong>
                   {user.sponsor && (
-                    <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getFlevelColor(user.role)}`}>
-                      {getFlevelFromRole(user.role)}
+                    <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getFlevelColor(user.sponsor.role)}`}>
+                      {getFlevelFromRole(user.sponsor.role)}
                     </span>
                   )}
                 </div>
@@ -1270,12 +1278,15 @@ const EditUserModal: React.FC<{
                 {selectedSponsor && (
                   <div className="mt-3 rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
                     <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200">
-                      ⚠️ Chuyển nhánh sẽ:
+                      ⚠️ YÊU CẦU: Ví phải = 0 mới được chuyển nhánh
+                    </p>
+                    <p className="mt-2 text-xs font-medium text-yellow-800 dark:text-yellow-200">
+                      Chuyển nhánh sẽ:
                     </p>
                     <ul className="mt-1 list-inside list-disc text-xs text-yellow-700 dark:text-yellow-300">
                       <li>Hủy tất cả hoa hồng hiện có</li>
-                      <li>Đặt lại số dư ví về 0</li>
                       <li>Đặt lại hạn mức mua hàng</li>
+                      <li className="font-bold">Ví sẽ KHÔNG bị reset</li>
                     </ul>
                   </div>
                 )}

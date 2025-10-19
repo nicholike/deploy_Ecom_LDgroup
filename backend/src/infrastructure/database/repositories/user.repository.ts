@@ -610,11 +610,36 @@ export class UserRepository implements IUserRepository {
 
   /**
    * Transfer user to new branch (change sponsor)
-   * Reset user as new: cancel commissions, reset quota, rebuild tree
-   * Keep: email, username, password, name, phone, orders (for admin tracking)
+   * Requirements: Wallet MUST be 0 before calling this (checked in controller)
+   * Actions: Cancel commissions, reset quota, recalculate role, rebuild tree FOR USER AND ALL DESCENDANTS
+   * Keep: email, username, password, name, phone, orders, wallet balance (for admin tracking)
    */
   async transferBranch(userId: string, newSponsorId: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      // 0. Get new sponsor info to calculate new role
+      const newSponsor = await tx.user.findUnique({
+        where: { id: newSponsorId },
+        select: { role: true },
+      });
+
+      if (!newSponsor) {
+        throw new Error('New sponsor not found');
+      }
+
+      // Calculate new role based on sponsor's role
+      // F1 -> F2, F2 -> F3, F3 -> F4, etc.
+      const newRole = User.calculateDownlineRole(newSponsor.role as UserRole);
+
+      // ⭐ CRITICAL: Find ALL descendants (entire subtree) before deleting tree
+      const allDescendants = await tx.userTree.findMany({
+        where: {
+          ancestor: userId,
+          descendant: { not: userId }, // Exclude self
+        },
+        select: { descendant: true },
+      });
+      const descendantIds = allDescendants.map(d => d.descendant);
+
       // 1. Cancel all commission records (keep for admin tracking)
       await tx.commission.updateMany({
         where: { userId },
@@ -624,35 +649,33 @@ export class UserRepository implements IUserRepository {
         },
       });
 
-      // 2. Delete all UserTree entries for this user
+      // 2. Delete ALL UserTree entries for this user AND all descendants
       await tx.userTree.deleteMany({
         where: {
           OR: [
             { ancestor: userId },
             { descendant: userId },
+            ...(descendantIds.length > 0 ? [{ ancestor: { in: descendantIds } }] : []),
+            ...(descendantIds.length > 0 ? [{ descendant: { in: descendantIds } }] : []),
           ],
         },
       });
 
-      // 3. Update user: change sponsor, reset quota
+      // 3. Update user: change sponsor, reset quota, UPDATE ROLE
       await tx.user.update({
         where: { id: userId },
         data: {
           sponsorId: newSponsorId,
+          role: newRole, // ⭐ CRITICAL: Update role based on new position
           quotaPeriodStart: null,
           quotaUsed: 0,
         },
       });
 
-      // 4. Reset wallet to 0
-      await tx.wallet.upsert({
-        where: { userId },
-        create: { userId, balance: 0 },
-        update: { balance: 0 },
-      });
+      // Note: Wallet is NOT reset here. Controller validates wallet = 0 before allowing transfer.
 
-      // 5. Rebuild UserTree for this user
-      // Self-reference
+      // 4. Rebuild UserTree for this user
+      // 4a. Self-reference
       await tx.userTree.create({
         data: {
           ancestor: userId,
@@ -661,7 +684,7 @@ export class UserRepository implements IUserRepository {
         },
       });
 
-      // Create tree entries for all ancestors of new sponsor
+      // 4b. Create tree entries linking to all ancestors of new sponsor
       const ancestorTrees = await tx.userTree.findMany({
         where: { descendant: newSponsorId },
       });
@@ -691,6 +714,62 @@ export class UserRepository implements IUserRepository {
           if (error instanceof Prisma.PrismaClientKnownRequestError && error.code !== 'P2002') {
             throw error;
           }
+        }
+      }
+
+      // 5. ⭐ REBUILD tree for ALL DESCENDANTS recursively
+      // Get all direct children and rebuild them one by one (BFS approach)
+      if (descendantIds.length > 0) {
+        const descendantsWithSponsor = await tx.user.findMany({
+          where: { id: { in: descendantIds } },
+          select: { id: true, sponsorId: true, role: true },
+          orderBy: { createdAt: 'asc' }, // Process in order of creation
+        });
+
+        // Group by levels using BFS
+        const processed = new Set<string>();
+        const queue = descendantsWithSponsor.filter(d => d.sponsorId === userId);
+
+        while (queue.length > 0) {
+          const current = queue.shift()!;
+          if (processed.has(current.id)) continue;
+          processed.add(current.id);
+
+          // Rebuild tree for this descendant
+          // 5a. Self-reference
+          await tx.userTree.create({
+            data: {
+              ancestor: current.id,
+              descendant: current.id,
+              level: 0,
+            },
+          }).catch(() => {}); // Ignore if exists
+
+          // 5b. Link to all ancestors (sponsor's ancestors + sponsor)
+          const sponsorAncestors = await tx.userTree.findMany({
+            where: { descendant: current.sponsorId! },
+          });
+
+          for (const ancestorTree of sponsorAncestors) {
+            try {
+              await tx.userTree.create({
+                data: {
+                  ancestor: ancestorTree.ancestor,
+                  descendant: current.id,
+                  level: ancestorTree.level + 1,
+                },
+              });
+            } catch (error) {
+              // Ignore duplicate errors
+              if (error instanceof Prisma.PrismaClientKnownRequestError && error.code !== 'P2002') {
+                throw error;
+              }
+            }
+          }
+
+          // Add children to queue
+          const children = descendantsWithSponsor.filter(d => d.sponsorId === current.id);
+          queue.push(...children);
         }
       }
     });

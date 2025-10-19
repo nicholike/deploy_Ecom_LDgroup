@@ -707,7 +707,7 @@ const OrdersSection: React.FC<{
       <div className="py-8 text-center text-gray-600">
         <p className="mb-4">Bạn chưa có đơn hàng nào</p>
         <Link
-          to="/cart"
+          to="/"
           className="inline-block rounded-sm bg-[#8B5E1E] px-6 py-2 text-sm font-semibold text-white transition hover:bg-[#6f4715]"
         >
           Mua sắm ngay

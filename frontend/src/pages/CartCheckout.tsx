@@ -662,7 +662,7 @@ const SpecialProductQuantity: React.FC<SpecialProductQuantityProps> = ({
       onChange={handleInputChange}
       onBlur={handleInputBlur}
       onKeyDown={handleKeyDown}
-      className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] md:leading-[2rem] py-0 px-1 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
+      className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] md:leading-[2rem] py-0 px-1 [&::-webkit-outer-spin-button]:scale-75 [&::-webkit-inner-spin-button]:scale-75 md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
       placeholder="0"
       min="0"
     />
@@ -785,7 +785,7 @@ const NormalProductQuantity: React.FC<NormalProductQuantityProps> = ({
       onKeyDown={handleKeyDown}
       disabled={isDisabled}
       style={{ opacity: !isActive ? 0.5 : 1 }}
-      className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white px-1 py-0 leading-[1.7rem] focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
+      className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white px-1 py-0 leading-[1.7rem] focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-outer-spin-button]:scale-75 [&::-webkit-inner-spin-button]:scale-75 md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
       placeholder="0"
       min="0"
     />

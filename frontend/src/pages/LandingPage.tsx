@@ -345,7 +345,7 @@ const LandingPage: React.FC = () => {
         onChange={(value) => handleQuantityChange(product.id, size, value)}
         disabled={!isAvailable}
         style={{ opacity: variant && !variant.active ? 0.5 : 1 }}
-        className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white px-1 py-0 leading-[1.7rem] focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] disabled:opacity-30 disabled:cursor-not-allowed [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
+        className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white px-1 py-0 leading-[1.7rem] focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] disabled:opacity-30 disabled:cursor-not-allowed [&::-webkit-outer-spin-button]:scale-75 [&::-webkit-inner-spin-button]:scale-75 md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
       />
     );
   };
@@ -366,7 +366,7 @@ const LandingPage: React.FC = () => {
       <QuantityInput
         value={quantity}
         onChange={(value) => handleSpecialQuantityChange(product.id, value)}
-        className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white px-1 py-0 leading-[1.7rem] focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
+        className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white px-1 py-0 leading-[1.7rem] focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] [&::-webkit-outer-spin-button]:scale-75 [&::-webkit-inner-spin-button]:scale-75 md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
       />
     );
   };
@@ -507,7 +507,7 @@ const LandingPage: React.FC = () => {
             <tr className="bg-[#8B5E1E] text-white font-normal">
               <th
                 className="px-3 py-2 md:px-6 md:py-2 align-middle"
-                style={{ width: "56%" }}
+                style={{ width: "48%" }}
               >
                 Sản phẩm
               </th>
@@ -515,14 +515,14 @@ const LandingPage: React.FC = () => {
                 <th
                   key={size}
                   className="px-1 py-2 md:px-2 md:py-2 align-middle"
-                  style={{ width: "6%", maxWidth: "60px" }}
+                  style={{ width: "15%" }}
                 >
                   {size}
                 </th>
               ))}
               <th
                 className="px-3 py-2 md:px-6 md:py-2 font-normal leading-tight align-middle"
-                style={{ width: "23%" }}
+                style={{ width: "22%" }}
               >
                 <span className="hidden md:inline-block whitespace-nowrap">Mua sắm</span>
               </th>

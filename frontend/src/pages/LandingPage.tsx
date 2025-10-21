@@ -506,23 +506,20 @@ const LandingPage: React.FC = () => {
           <thead>
             <tr className="bg-[#8B5E1E] text-white font-normal">
               <th
-                className="px-3 py-2 md:px-6 md:py-2 align-middle"
-                style={{ width: "48%" }}
+                className="px-3 py-2 md:px-6 md:py-2 align-middle w-[48%] md:w-[56%]"
               >
                 Sản phẩm
               </th>
               {sizes.map((size) => (
                 <th
                   key={size}
-                  className="px-1 py-2 md:px-2 md:py-2 align-middle"
-                  style={{ width: "15%" }}
+                  className="px-1 py-2 md:px-2 md:py-2 align-middle w-[15%] md:w-[6%]"
                 >
                   {size}
                 </th>
               ))}
               <th
-                className="px-3 py-2 md:px-6 md:py-2 font-normal leading-tight align-middle"
-                style={{ width: "22%" }}
+                className="px-3 py-2 md:px-6 md:py-2 font-normal leading-tight align-middle w-[22%] md:w-[23%]"
               >
                 <span className="hidden md:inline-block whitespace-nowrap">Mua sắm</span>
               </th>

@@ -162,6 +162,58 @@ export const SettingsService = {
     });
     return response;
   },
+
+  // ========================================
+  // PRICING
+  // ========================================
+  async getGlobalPricing(): Promise<{
+    '5ml': {
+      range1to9: number;
+      range10to99: number;
+      range100plus: number;
+    };
+    '20ml': {
+      range1to9: number;
+      range10to99: number;
+      range100plus: number;
+    };
+  }> {
+    const response = await apiClient<{
+      '5ml': {
+        range1to9: number;
+        range10to99: number;
+        range100plus: number;
+      };
+      '20ml': {
+        range1to9: number;
+        range10to99: number;
+        range100plus: number;
+      };
+    }>('/admin/settings/pricing/global', {
+      method: 'GET',
+      authToken: getAuthToken(),
+    });
+    return response;
+  },
+
+  async updateGlobalPricing(data: {
+    '5ml': {
+      range1to9: number;
+      range10to99: number;
+      range100plus: number;
+    };
+    '20ml': {
+      range1to9: number;
+      range10to99: number;
+      range100plus: number;
+    };
+  }): Promise<void> {
+    await apiClient<void>('/admin/settings/pricing/global', {
+      method: 'PUT',
+      body: data, // Let apiClient handle JSON.stringify and Content-Type header
+      authToken: getAuthToken(),
+    });
+  },
 };
 
 

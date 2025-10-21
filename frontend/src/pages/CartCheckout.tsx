@@ -1,14 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartService, type Cart as CartType } from "../services/cart.service";
 import { OrderService } from "../services/order.service";
 import { ProductService } from "../services/product.service";
 import { quotaService, type QuotaResponse } from "../services/quota.service";
+import { SettingsService } from "../services/settings.service";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import type { PriceTier } from "../types/product.types";
+import { TrashIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 
 type SizeKey = "5ml" | "20ml";
+
+type GlobalPricingConfig = {
+  '5ml': {
+    range1to9: number;
+    range10to99: number;
+    range100plus: number;
+  };
+  '20ml': {
+    range1to9: number;
+    range10to99: number;
+    range100plus: number;
+  };
+};
 
 type CartItemDisplay = {
   productId: string;
@@ -30,7 +45,8 @@ type VariantInfo = {
   active: boolean;
 };
 
-type ProductVariantMap = Record<SizeKey, VariantInfo | null>;
+// Extended to support any variant size (including "Standard" for special products)
+type ProductVariantMap = Record<string, VariantInfo | null>;
 
 const createEmptyVariantMap = (): ProductVariantMap => ({
   "5ml": null,
@@ -272,6 +288,510 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+// Price info tooltip component
+type PriceTooltipProps = {
+  size: '5ml' | '20ml';
+  currentQuantity: number;
+  config: {
+    range1to9: number;
+    range10to99: number;
+    range100plus: number;
+  } | null;
+};
+
+const PriceTooltip: React.FC<PriceTooltipProps> = ({ size, currentQuantity, config }) => {
+  const [show, setShow] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  if (!config) return null;
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+        setShow(false);
+      }
+    };
+
+    if (show) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside as any);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside as any);
+    };
+  }, [show]);
+
+  // Determine which tier applies to current quantity
+  const getCurrentTier = () => {
+    if (currentQuantity >= 100) {
+      return { range: '100+', price: config.range100plus };
+    } else if (currentQuantity >= 10) {
+      return { range: '10-99', price: config.range10to99 };
+    } else {
+      return { range: '1-9', price: config.range1to9 };
+    }
+  };
+
+  const currentTier = getCurrentTier();
+  const totalPrice = currentQuantity * currentTier.price;
+
+  return (
+    <div className="relative inline-block ml-1" ref={tooltipRef}>
+      <button
+        type="button"
+        onMouseEnter={() => {
+          // Only hover on desktop
+          if (window.innerWidth >= 768) {
+            setShow(true);
+          }
+        }}
+        onMouseLeave={() => {
+          // Only hover on desktop
+          if (window.innerWidth >= 768) {
+            setShow(false);
+          }
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShow(!show);
+        }}
+        className="text-[#9b6a2a] hover:text-[#7a531f] transition-colors"
+        aria-label="Xem bảng giá"
+      >
+        <InformationCircleIcon className="h-4 w-4 inline-block" />
+      </button>
+      
+      {show && (
+        <div className="absolute left-0 bottom-full mb-2 z-50 w-56 md:w-64 bg-white border-2 border-[#9b6a2a] rounded-lg shadow-xl p-2 md:p-3 text-[10px] md:text-xs">
+          <div className="font-bold text-[#9b6a2a] mb-1.5 md:mb-2 text-center text-[11px] md:text-xs">
+            Bảng giá {size}
+          </div>
+          <div className="space-y-1 md:space-y-1.5">
+            <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-200">
+              <span className="text-gray-700 text-[9px] md:text-xs">1-9 chai:</span>
+              <span className="font-semibold text-[#9b6a2a] text-[9px] md:text-xs">{formatCurrency(config.range1to9)}/chai</span>
+            </div>
+            <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-200">
+              <span className="text-gray-700 text-[9px] md:text-xs">10-99 chai:</span>
+              <span className="font-semibold text-[#9b6a2a] text-[9px] md:text-xs">{formatCurrency(config.range10to99)}/chai</span>
+            </div>
+            <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-200">
+              <span className="text-gray-700 text-[9px] md:text-xs">100+ chai:</span>
+              <span className="font-semibold text-[#9b6a2a] text-[9px] md:text-xs">{formatCurrency(config.range100plus)}/chai</span>
+            </div>
+          </div>
+          
+          {/* Current quantity calculation */}
+          <div className="mt-2 md:mt-3 pt-2 md:pt-3 border-t-2 border-[#9b6a2a] bg-[#fdf8f2] -mx-2 md:-mx-3 px-2 md:px-3 py-1.5 md:py-2 rounded-b-lg">
+            <div className="font-bold text-gray-800 mb-0.5 md:mb-1 text-center text-[10px] md:text-[11px]">
+              Giỏ hàng của bạn
+            </div>
+            <div className="text-center text-[9px] md:text-[10px] text-gray-600 mb-0.5 md:mb-1">
+              {currentQuantity} chai × {formatCurrency(currentTier.price)}
+            </div>
+            <div className="text-center">
+              <span className="text-[9px] md:text-[10px] text-gray-700">Tổng: </span>
+              <span className="font-bold text-[#9b6a2a] text-[11px] md:text-[13px]">{formatCurrency(totalPrice)}</span>
+            </div>
+            <div className="text-center text-[8px] md:text-[9px] text-gray-500 mt-0.5 md:mt-1">
+              (Áp dụng giá: {currentTier.range} chai)
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Total breakdown tooltip component
+type TotalBreakdownTooltipProps = {
+  qty5ml: number;
+  qty20ml: number;
+  qtyKit: number;
+  pricingConfig: GlobalPricingConfig | null;
+  displayItems: CartItemDisplay[];
+};
+
+const TotalBreakdownTooltip: React.FC<TotalBreakdownTooltipProps> = ({ 
+  qty5ml, 
+  qty20ml, 
+  qtyKit,
+  pricingConfig,
+  displayItems
+}) => {
+  const [show, setShow] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+        setShow(false);
+      }
+    };
+
+    if (show) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside as any);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside as any);
+    };
+  }, [show]);
+
+  // Calculate tier and price for each size
+  const get5mlTier = () => {
+    if (!pricingConfig) return { range: '1-9', price: 139000 };
+    const config = pricingConfig['5ml'];
+    if (qty5ml >= 100) return { range: '100+', price: config.range100plus };
+    if (qty5ml >= 10) return { range: '10-99', price: config.range10to99 };
+    return { range: '1-9', price: config.range1to9 };
+  };
+
+  const get20mlTier = () => {
+    if (!pricingConfig) return { range: '1-9', price: 450000 };
+    const config = pricingConfig['20ml'];
+    if (qty20ml >= 100) return { range: '100+', price: config.range100plus };
+    if (qty20ml >= 10) return { range: '10-99', price: config.range10to99 };
+    return { range: '1-9', price: config.range1to9 };
+  };
+
+  const tier5ml = get5mlTier();
+  const tier20ml = get20mlTier();
+  
+  const total5ml = qty5ml * tier5ml.price;
+  const total20ml = qty20ml * tier20ml.price;
+  
+  // Calculate kit total from displayItems
+  const totalKit = displayItems
+    .filter(item => item.isSpecial)
+    .reduce((sum, item) => sum + item.price, 0);
+
+  const grandTotal = total5ml + total20ml + totalKit;
+
+  return (
+    <div className="relative inline-block ml-1" ref={tooltipRef}>
+      <button
+        type="button"
+        onMouseEnter={() => {
+          // Only hover on desktop
+          if (window.innerWidth >= 768) {
+            setShow(true);
+          }
+        }}
+        onMouseLeave={() => {
+          // Only hover on desktop
+          if (window.innerWidth >= 768) {
+            setShow(false);
+          }
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShow(!show);
+        }}
+        className="text-[#9b6a2a] hover:text-[#7a531f] transition-colors"
+        aria-label="Xem chi tiết"
+      >
+        <InformationCircleIcon className="h-4 w-4 inline-block" />
+      </button>
+      
+      {show && (
+        <div className="absolute left-0 bottom-full mb-2 z-50 w-56 md:w-72 bg-white border-2 border-[#9b6a2a] rounded-lg shadow-xl p-2 md:p-3 text-[10px] md:text-xs">
+          <div className="font-bold text-[#9b6a2a] mb-1.5 md:mb-2 text-center text-[11px] md:text-xs">
+            Chi tiết
+          </div>
+          
+          <div className="space-y-1.5 md:space-y-2">
+            {qty5ml > 0 && (
+              <div className="pb-1.5 md:pb-2 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-0.5 md:mb-1">
+                  <span className="text-gray-700 font-semibold text-[10px] md:text-xs">SP 5ml:</span>
+                  <span className="text-[#9b6a2a] font-semibold text-[10px] md:text-xs">{formatCurrency(total5ml)}</span>
+                </div>
+                <div className="text-[9px] md:text-[10px] text-gray-600 text-right">
+                  {qty5ml} chai × {formatCurrency(tier5ml.price)} ({tier5ml.range} chai)
+                </div>
+              </div>
+            )}
+            
+            {qty20ml > 0 && (
+              <div className="pb-1.5 md:pb-2 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-0.5 md:mb-1">
+                  <span className="text-gray-700 font-semibold text-[10px] md:text-xs">SP 20ml:</span>
+                  <span className="text-[#9b6a2a] font-semibold text-[10px] md:text-xs">{formatCurrency(total20ml)}</span>
+                </div>
+                <div className="text-[9px] md:text-[10px] text-gray-600 text-right">
+                  {qty20ml} chai × {formatCurrency(tier20ml.price)} ({tier20ml.range} chai)
+                </div>
+              </div>
+            )}
+            
+            {qtyKit > 0 && (
+              <div className="pb-1.5 md:pb-2 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-0.5 md:mb-1">
+                  <span className="text-gray-700 font-semibold text-[10px] md:text-xs">SP Kit:</span>
+                  <span className="text-[#9b6a2a] font-semibold text-[10px] md:text-xs">{formatCurrency(totalKit)}</span>
+                </div>
+                <div className="text-[9px] md:text-[10px] text-gray-600 text-right">
+                  {qtyKit} bộ
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Grand total */}
+          <div className="mt-2 md:mt-3 pt-2 md:pt-3 border-t-2 border-[#9b6a2a] bg-[#fdf8f2] -mx-2 md:-mx-3 px-2 md:px-3 py-1.5 md:py-2 rounded-b-lg">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-gray-800 text-[10px] md:text-[11px]">TỔNG:</span>
+              <span className="font-bold text-[#9b6a2a] text-[12px] md:text-[14px]">{formatCurrency(grandTotal)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Separate component for special product quantity to maintain local state
+type SpecialProductQuantityProps = {
+  itemId: string | null | undefined;
+  quantity: number;
+  onQuantityChange: (itemId: string | null | undefined, currentQty: number, newQty: number, shouldRemoveIfZero?: boolean) => void;
+  onRemovalRequest?: (itemId: string | null | undefined, currentQty: number) => void;
+};
+
+const SpecialProductQuantity: React.FC<SpecialProductQuantityProps> = ({
+  itemId,
+  quantity,
+  onQuantityChange,
+  onRemovalRequest,
+}) => {
+  const [localValue, setLocalValue] = useState(quantity.toString());
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef(false);
+
+  // Sync local value when prop changes from parent
+  useEffect(() => {
+    setLocalValue(quantity === 0 ? '' : quantity.toString());
+  }, [quantity]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    // Only allow empty string or valid numbers
+    if (value === '' || /^\d+$/.test(value)) {
+      setLocalValue(value);
+      
+      // Clear existing timeout
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      
+      // Set new timeout for API call (only for spinner changes, not manual typing)
+      if (!isTypingRef.current) {
+        debounceTimeoutRef.current = setTimeout(() => {
+          const newQty = value === '' ? 0 : Math.max(0, parseInt(value) || 0);
+          
+          if (newQty === 0) {
+            // Request removal confirmation from parent
+            if (onRemovalRequest) {
+              onRemovalRequest(itemId, quantity);
+            }
+          } else if (newQty !== quantity) {
+            onQuantityChange(itemId, quantity, newQty, false);
+          }
+        }, 500); // 500ms delay for spinner
+      }
+    }
+  };
+
+  const handleInputBlur = () => {
+    // Clear timeout on blur and call immediately
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    const newQty = localValue === '' ? 0 : Math.max(0, parseInt(localValue) || 0);
+
+    // If value is 0/empty, keep it empty for user to continue typing next time
+    if (newQty === 0) {
+      setLocalValue('');
+    } else {
+      setLocalValue(newQty.toString());
+    }
+
+    // Apply change immediately on blur
+    if (newQty === 0) {
+      // Request removal confirmation from parent
+      if (onRemovalRequest) {
+        onRemovalRequest(itemId, quantity);
+      }
+    } else if (newQty !== quantity) {
+      onQuantityChange(itemId, quantity, newQty, false);
+    }
+    
+    // Reset typing flag
+    isTypingRef.current = false;
+  };
+
+  const handleKeyDown = () => {
+    // Mark as typing when user presses keyboard
+    isTypingRef.current = true;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={localValue}
+      onChange={handleInputChange}
+      onBlur={handleInputBlur}
+      onKeyDown={handleKeyDown}
+      className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] md:leading-[2rem] py-0 px-1 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
+      placeholder="0"
+      min="0"
+    />
+  );
+};
+
+// Component for normal product quantity input
+type NormalProductQuantityProps = {
+  productId: string;
+  size: SizeKey;
+  sizeData: { quantity: number; itemId: string | null; variantId: string | null };
+  isActive: boolean;
+  isDisabled: boolean;
+  onUpdate: (finalQuantity: number, originalQuantity: number) => Promise<void>;
+  onRequestRemoval: (productId: string, size: SizeKey, sizeData: { quantity: number; itemId: string | null; variantId: string | null }) => void;
+};
+
+const NormalProductQuantity: React.FC<NormalProductQuantityProps> = ({
+  productId,
+  size,
+  sizeData,
+  isActive,
+  isDisabled,
+  onUpdate,
+  onRequestRemoval,
+}) => {
+  const [localValue, setLocalValue] = useState(sizeData.quantity === 0 ? '' : String(sizeData.quantity));
+  const originalQuantityRef = useRef(sizeData.quantity);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef(false);
+
+  // Sync local value when sizeData.quantity changes from parent (after API reload)
+  useEffect(() => {
+    setLocalValue(sizeData.quantity === 0 ? '' : String(sizeData.quantity));
+    originalQuantityRef.current = sizeData.quantity;
+  }, [sizeData.quantity]);
+
+  const handleFocus = () => {
+    // Store original value when user starts editing
+    originalQuantityRef.current = sizeData.quantity;
+    console.log(`[CartCheckout] onFocus - storing original quantity: ${sizeData.quantity}`);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty string or numbers only - ONLY UPDATE LOCAL STATE
+    if (value === '' || /^\d+$/.test(value)) {
+      setLocalValue(value);
+      
+      // Clear existing timeout
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      
+      // Set new timeout for API call (only for spinner changes, not manual typing)
+      if (!isTypingRef.current) {
+        debounceTimeoutRef.current = setTimeout(async () => {
+          const finalQuantity = value === '' ? 0 : parseInt(value) || 0;
+          const originalQuantity = originalQuantityRef.current;
+          
+          if (finalQuantity !== originalQuantity && (sizeData.itemId || sizeData.variantId)) {
+            await onUpdate(finalQuantity, originalQuantity);
+          }
+        }, 500); // 500ms delay for spinner
+      }
+    }
+  };
+
+  const handleBlur = async () => {
+    // Clear timeout on blur and call immediately
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    const finalQuantity = localValue === '' ? 0 : parseInt(localValue) || 0;
+    const originalQuantity = originalQuantityRef.current;
+
+    console.log(`[CartCheckout] onBlur - productId: ${productId}, size: ${size}, finalQuantity: ${finalQuantity}, originalQuantity: ${originalQuantity}, itemId: ${sizeData.itemId}, variantId: ${sizeData.variantId}`);
+
+    // Allow update if quantity changed AND (itemId exists OR variantId exists for adding new item)
+    if (finalQuantity !== originalQuantity && (sizeData.itemId || sizeData.variantId)) {
+      // Delegate to parent for update/add logic
+      await onUpdate(finalQuantity, originalQuantity);
+    } else if (finalQuantity === originalQuantity) {
+      console.log(`[CartCheckout] No change - skipping update`);
+      // Restore formatted value even if no change
+      setLocalValue(finalQuantity === 0 ? '' : String(finalQuantity));
+    } else {
+      console.log(`[CartCheckout] Cannot update - missing itemId and variantId`);
+      setLocalValue(originalQuantity === 0 ? '' : String(originalQuantity));
+    }
+    
+    // Reset typing flag
+    isTypingRef.current = false;
+  };
+
+  const handleKeyDown = () => {
+    // Mark as typing when user presses keyboard
+    isTypingRef.current = true;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={localValue}
+      onFocus={handleFocus}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      disabled={isDisabled}
+      style={{ opacity: !isActive ? 0.5 : 1 }}
+      className="h-7 w-full border border-black rounded-md text-center text-[11px] bg-white px-1 py-0 leading-[1.7rem] focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:text-[12px] disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
+      placeholder="0"
+      min="0"
+    />
+  );
+};
+
 const CartCheckout: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -286,6 +806,22 @@ const CartCheckout: React.FC = () => {
   const [cartItemCount, setCartItemCount] = useState(0);
   const [quota, setQuota] = useState<QuotaResponse | null>(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
+  const [pricingConfig, setPricingConfig] = useState<GlobalPricingConfig | null>(null);
+
+  // Confirmation modal state
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    type: 'normal' | 'special' | 'delete-product';
+    productId: string;
+    productName?: string;
+    size?: SizeKey;
+    sizeData?: { quantity: number; itemId: string | null; variantId: string | null };
+    specialItemId?: string;
+    specialQuantity?: number;
+  } | null>(null);
+
+  // Debounce API sync (800ms delay)
+  const apiSyncTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Form state
   const [shippingForm, setShippingForm] = useState({
@@ -309,7 +845,42 @@ const CartCheckout: React.FC = () => {
 
   useEffect(() => {
     loadCart();
+    loadPricingConfig();
+
+    // Cleanup: Clear all pending API syncs on unmount
+    return () => {
+      apiSyncTimeouts.current.forEach((timeout) => clearTimeout(timeout));
+      apiSyncTimeouts.current.clear();
+    };
   }, []);
+
+  // Load pricing config
+  const loadPricingConfig = async () => {
+    try {
+      const config = await SettingsService.getGlobalPricing();
+      setPricingConfig(config);
+    } catch (error) {
+      console.error('Failed to load pricing config:', error);
+      // Use default if failed
+      setPricingConfig({
+        '5ml': {
+          range1to9: 139000,
+          range10to99: 109000,
+          range100plus: 99000
+        },
+        '20ml': {
+          range1to9: 450000,
+          range10to99: 360000,
+          range100plus: 330000
+        }
+      });
+    }
+  };
+
+  // Auto-sync cart item count when cart changes
+  useEffect(() => {
+    setCartItemCount(cart?.items?.length || 0);
+  }, [cart]);
 
   // Fetch quota when component mounts and when cart changes
   useEffect(() => {
@@ -371,7 +942,7 @@ const CartCheckout: React.FC = () => {
     };
   }, []);
 
-  const loadProductVariants = async (cartData: CartType | null) => {
+  const loadProductVariants = useCallback(async (cartData: CartType | null) => {
     if (!cartData?.items?.length) {
       setProductVariantsMap({});
       return;
@@ -388,7 +959,12 @@ const CartCheckout: React.FC = () => {
 
             const variantLoaders = (product.variants ?? []).map(async (variant) => {
               const size = variant.size as SizeKey;
-              if (sizes.includes(size) && variant.id) {
+
+              // For special products, accept any size (including "Standard")
+              // For normal products, only accept 5ml and 20ml
+              const shouldLoadVariant = product.isSpecial || sizes.includes(size);
+
+              if (shouldLoadVariant && variant.id) {
                 let tiers: PriceTier[] = [];
                 try {
                   const tierResponse = await ProductService.getVariantPriceTiers(variant.id);
@@ -432,7 +1008,7 @@ const CartCheckout: React.FC = () => {
     } catch (error) {
       console.error("Failed to load product variants:", error);
     }
-  };
+  }, []);
 
   const normalizeName = (value: string) => normalizeText(value);
 
@@ -485,7 +1061,7 @@ const CartCheckout: React.FC = () => {
     return matched ? String(matched.code) : "";
   }, [selectedDistrict, shippingForm.ward]);
 
-  const loadCart = async () => {
+  const loadCart = useCallback(async () => {
     try {
       setLoading(true);
       const cartData = await CartService.getCart();
@@ -500,7 +1076,7 @@ const CartCheckout: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate, loadProductVariants]);
 
   // Transform cart items to display format (group by product, show sizes)
   const displayItems: CartItemDisplay[] = useMemo(() => {
@@ -529,16 +1105,24 @@ const CartCheckout: React.FC = () => {
 
       if (size && sizes.includes(size)) {
         const variantData = variantMap[size];
-        let pricePerUnit = resolvePriceForQuantity(variantData, item.quantity);
 
-        if (pricePerUnit === 0) {
-          const rawPrice = item.productVariant?.salePrice ?? item.productVariant?.price;
-          if (rawPrice !== undefined) {
-            const numericPrice = Number(rawPrice);
-            if (Number.isFinite(numericPrice)) {
-              pricePerUnit = numericPrice;
+        // Use priceBreakdown from API if available (for normal products with global pricing)
+        let itemPrice = 0;
+        if (item.priceBreakdown) {
+          itemPrice = item.priceBreakdown.totalPrice;
+        } else {
+          // Fallback to old logic for special products or if priceBreakdown not available
+          let pricePerUnit = resolvePriceForQuantity(variantData, item.quantity);
+          if (pricePerUnit === 0) {
+            const rawPrice = item.productVariant?.salePrice ?? item.productVariant?.price;
+            if (rawPrice !== undefined) {
+              const numericPrice = Number(rawPrice);
+              if (Number.isFinite(numericPrice)) {
+                pricePerUnit = numericPrice;
+              }
             }
           }
+          itemPrice = pricePerUnit * item.quantity;
         }
 
         displayItem.quantities[size] = {
@@ -546,19 +1130,40 @@ const CartCheckout: React.FC = () => {
           itemId: item.id,
           variantId: item.productVariantId ?? variantData?.variantId ?? null,
         };
-        displayItem.price += pricePerUnit * item.quantity;
+        displayItem.price += itemPrice;
       } else if (item.product.isSpecial) {
-        // Handle special products without variants
+        // Handle special products - use specialPrice from API if available
         displayItem.specialItemId = item.id;
         displayItem.specialQuantity = item.quantity;
 
-        const productPrice = item.product.salePrice ?? item.product.price;
-        if (productPrice !== undefined) {
-          const numericPrice = Number(productPrice);
-          if (Number.isFinite(numericPrice)) {
-            displayItem.price += numericPrice * item.quantity;
+        let itemPrice = 0;
+        if (item.specialPrice !== undefined) {
+          // Use specialPrice from API (already calculated by backend)
+          itemPrice = item.specialPrice;
+        } else {
+          // Fallback: Try to get price from multiple sources
+          let pricePerUnit = 0;
+
+          if (item.productVariant) {
+            pricePerUnit = Number(item.productVariant.salePrice ?? item.productVariant.price ?? 0);
+          } else {
+            const variants = variantMap;
+            const variantKeys = Object.keys(variants);
+            const firstVariant = variantKeys.find(key => variants[key] !== null);
+
+            if (firstVariant && variants[firstVariant]) {
+              pricePerUnit = variants[firstVariant]!.basePrice;
+            } else {
+              pricePerUnit = Number(item.product.salePrice ?? item.product.price ?? 0);
+            }
+          }
+
+          if (Number.isFinite(pricePerUnit) && pricePerUnit > 0) {
+            itemPrice = pricePerUnit * item.quantity;
           }
         }
+
+        displayItem.price += itemPrice;
       }
     });
 
@@ -566,13 +1171,46 @@ const CartCheckout: React.FC = () => {
   }, [cart, productVariantsMap]);
 
   const totalAmount = useMemo(() => {
-    return displayItems.reduce((sum, item) => sum + item.price, 0);
-  }, [displayItems]);
+    // Use totalPrice from API if available (more accurate, calculated by backend)
+    if (cart?.totalPrice !== undefined) {
+      console.log('[CartCheckout] Using cart.totalPrice from API:', cart.totalPrice);
+      return cart.totalPrice;
+    }
+    // Fallback: calculate from displayItems
+    const fallbackTotal = displayItems.reduce((sum, item) => sum + item.price, 0);
+    console.warn('[CartCheckout] cart.totalPrice is undefined, using fallback calculation:', fallbackTotal);
+    console.log('[CartCheckout] cart object:', cart);
+    console.log('[CartCheckout] displayItems:', displayItems);
+    return fallbackTotal;
+  }, [cart, displayItems]);
 
   // Calculate total quantity of products in cart
   const totalCartQuantity = useMemo(() => {
     if (!cart || !cart.items) return 0;
     return cart.items.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cart]);
+
+  // Calculate total quantity by size
+  const totalQuantity5ml = useMemo(() => {
+    if (!cart || !cart.items) return 0;
+    return cart.items
+      .filter(item => item.productVariant?.size === '5ml')
+      .reduce((sum, item) => sum + item.quantity, 0);
+  }, [cart]);
+
+  const totalQuantity20ml = useMemo(() => {
+    if (!cart || !cart.items) return 0;
+    return cart.items
+      .filter(item => item.productVariant?.size === '20ml')
+      .reduce((sum, item) => sum + item.quantity, 0);
+  }, [cart]);
+
+  // Calculate total quantity for special products (Kit)
+  const totalQuantityKit = useMemo(() => {
+    if (!cart || !cart.items) return 0;
+    return cart.items
+      .filter(item => item.product.isSpecial)
+      .reduce((sum, item) => sum + item.quantity, 0);
   }, [cart]);
 
   // Check if cart exceeds quota
@@ -670,11 +1308,42 @@ const CartCheckout: React.FC = () => {
     }));
   };
 
-  const handleQuantityChange = async (
+  const debouncedApiSync = useCallback((itemId: string, apiCall: () => Promise<void>) => {
+    // Clear previous timeout for this item
+    const existingTimeout = apiSyncTimeouts.current.get(itemId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Set new timeout
+    const timeoutId = setTimeout(async () => {
+      try {
+        await apiCall();
+        apiSyncTimeouts.current.delete(itemId);
+
+        // Reload cart to get updated pricing from backend
+        await loadCart();
+      } catch (error: any) {
+        console.error("Failed to sync cart:", error);
+        showToast({
+          tone: "error",
+          title: "Đồng bộ giỏ hàng thất bại",
+          description: error.message || "Vui lòng thử lại.",
+        });
+        // Revert on error by reloading cart
+        await loadCart();
+      }
+    }, 800);
+
+    apiSyncTimeouts.current.set(itemId, timeoutId);
+  }, [showToast, loadCart]);
+
+  const handleQuantityChange = (
     productId: string,
     size: SizeKey,
     sizeData: { quantity: number; itemId: string | null; variantId: string | null },
-    newQuantity: number
+    newQuantity: number,
+    shouldRemoveIfZero: boolean = false
   ) => {
     if (newQuantity === sizeData.quantity) {
       return;
@@ -682,87 +1351,226 @@ const CartCheckout: React.FC = () => {
 
     try {
       if (sizeData.itemId) {
-        if (newQuantity === 0) {
-          await CartService.removeCartItem(sizeData.itemId);
+        if (newQuantity === 0 && shouldRemoveIfZero) {
+          // Only remove when explicitly confirmed (onBlur)
+          setCart(prevCart => {
+            if (!prevCart) return prevCart;
+            return {
+              ...prevCart,
+              items: prevCart.items.filter(item => item.id !== sizeData.itemId)
+            };
+          });
+
+          // Debounced API sync
+          debouncedApiSync(sizeData.itemId, async () => {
+            await CartService.removeCartItem(sizeData.itemId!);
+          });
+        } else if (newQuantity > 0) {
+          // Update quantity in UI immediately
+          setCart(prevCart => {
+            if (!prevCart) return prevCart;
+            return {
+              ...prevCart,
+              items: prevCart.items.map(item =>
+                item.id === sizeData.itemId
+                  ? { ...item, quantity: newQuantity }
+                  : item
+              )
+            };
+          });
+
+          // Debounced API sync
+          debouncedApiSync(sizeData.itemId, async () => {
+            await CartService.updateCartItem(sizeData.itemId!, newQuantity);
+          });
         } else {
-          await CartService.updateCartItem(sizeData.itemId, newQuantity);
+          // newQuantity === 0 but shouldRemoveIfZero === false
+          // Just update UI, don't remove (user is typing)
+          setCart(prevCart => {
+            if (!prevCart) return prevCart;
+            return {
+              ...prevCart,
+              items: prevCart.items.map(item =>
+                item.id === sizeData.itemId
+                  ? { ...item, quantity: 0 }
+                  : item
+              )
+            };
+          });
         }
       } else if (sizeData.variantId) {
         if (newQuantity === 0) {
           return;
         }
-        await CartService.addToCart({
-          productId,
-          productVariantId: sizeData.variantId,
-          quantity: newQuantity,
-        });
+
+        // For adding new items, call API immediately (no debounce)
+        (async () => {
+          try {
+            await CartService.addToCart({
+              productId,
+              productVariantId: sizeData.variantId!,
+              quantity: newQuantity,
+            });
+            // After adding new item, refresh cart to get the new item with ID
+            const updatedCart = await CartService.getCart();
+            setCart(updatedCart);
+            setCartItemCount(updatedCart?.items?.length || 0);
+          } catch (error: any) {
+            console.error("Failed to add to cart:", error);
+            showToast({
+              tone: "error",
+              title: "Thêm vào giỏ hàng thất bại",
+              description: error.message || "Vui lòng thử lại.",
+            });
+          }
+        })();
       } else {
         console.warn(`Missing cart item and variant information for product ${productId} (${size})`);
         return;
       }
-      await loadCart();
     } catch (error: any) {
       console.error("Failed to update cart:", error);
-      showToast({
-        tone: "error",
-        title: "Cập nhật giỏ hàng thất bại",
-        description: error.message || "Vui lòng thử lại.",
-      });
     }
   };
 
-  const renderQuantitySelect = (
+  // Handler for normal product quantity update
+  const handleNormalProductUpdate = useCallback(async (
     productId: string,
     size: SizeKey,
-    sizeData: { quantity: number; itemId: string | null; variantId: string | null }
+    sizeData: { quantity: number; itemId: string | null; variantId: string | null },
+    finalQuantity: number,
+    originalQuantity: number,
   ) => {
-    const variantInfo = productVariantsMap[productId]?.[size];
-    const isActive = variantInfo?.active ?? true;
-    const isDisabled = (!sizeData.itemId && !sizeData.variantId) || !isActive;
+    // Check if setting this to 0 would make ALL columns = 0
+    if (finalQuantity === 0) {
+      // Get current product's other column quantity
+      const displayItem = displayItems.find(item => item.productId === productId);
+      const otherSize = size === '5ml' ? '20ml' : '5ml';
+      const otherQuantity = displayItem?.quantities[otherSize]?.quantity || 0;
 
-    return (
-      <div className="flex justify-center items-center" style={{ opacity: !isActive ? 0.5 : 1 }}>
-        <div className="relative inline-flex items-center">
-          <select
-            value={sizeData.quantity.toString()}
-            onChange={(e) => {
-              handleQuantityChange(
-                productId,
-                size,
-                sizeData,
-                parseInt(e.target.value, 10)
-              );
-            }}
-            disabled={isDisabled}
-            className="h-6 w-10 border border-black rounded-md text-center text-[11px] bg-white appearance-none pr-[10px] pl-1 py-0 leading-[1.5rem] focus:outline-none !text-center md:h-8 md:w-14 md:pr-0 md:pl-0 md:text-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ WebkitAppearance: "none", MozAppearance: "none", backgroundImage: "none" }}
-          >
-            {quantityOptions.map((option) => (
-              <option key={option} value={option.toString()}>
-                {option}
-              </option>
-            ))}
-          </select>
-          <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-[65%] text-[#895B1A]">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-3 h-3"
-            >
-              <path d="M6.293 9.293a1 1 0 0 1 1.414 0L12 13.586l4.293-4.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 0 1 0-1.414Z" />
-            </svg>
-          </span>
-        </div>
-      </div>
-    );
-  };
+      console.log(`[CartCheckout] Checking both columns - ${size}: ${finalQuantity}, ${otherSize}: ${otherQuantity}`);
+
+      // If both columns would be 0, show confirmation modal
+      if (otherQuantity === 0) {
+        console.log(`[CartCheckout] Both columns = 0, showing modal`);
+        setPendingRemoval({ type: 'normal', productId, size, sizeData });
+        setShowRemoveModal(true);
+        return; // Don't update yet, wait for confirmation
+      }
+    }
+
+    // Handle update/add
+    try {
+      // If itemId is null, this is a new item - ADD to cart
+      if (!sizeData.itemId && finalQuantity > 0) {
+        if (!sizeData.variantId) {
+          console.error('[CartCheckout] Missing variantId for new item');
+          showToast({
+            tone: 'error',
+            title: 'Lỗi',
+            description: 'Không tìm thấy thông tin sản phẩm. Vui lòng thử lại.'
+          });
+          return;
+        }
+
+        console.log(`[CartCheckout] Adding new item to cart - variantId: ${sizeData.variantId}, quantity: ${finalQuantity}`);
+        await CartService.addToCart({
+          productId,
+          productVariantId: sizeData.variantId,
+          quantity: finalQuantity,
+        });
+        console.log(`[CartCheckout] addToCart success, calling loadCart()`);
+        await loadCart();
+        console.log(`[CartCheckout] loadCart() completed`);
+        
+        showToast({
+          tone: 'success',
+          title: 'Đã thêm vào giỏ hàng',
+          description: `Đã thêm ${finalQuantity} sản phẩm size ${size}`
+        });
+      } 
+      // If itemId exists, UPDATE existing item
+      else if (sizeData.itemId && finalQuantity > 0) {
+        console.log(`[CartCheckout] Updating cart item - itemId: ${sizeData.itemId}, quantity: ${finalQuantity}`);
+        await CartService.updateCartItem(sizeData.itemId, finalQuantity);
+        console.log(`[CartCheckout] updateCartItem success, calling loadCart()`);
+        await loadCart(); // Reload to get new price from backend
+        console.log(`[CartCheckout] loadCart() completed`);
+      }
+      // If itemId exists and finalQuantity = 0, REMOVE item
+      else if (sizeData.itemId && finalQuantity === 0) {
+        console.log(`[CartCheckout] Removing cart item - itemId: ${sizeData.itemId}`);
+        await CartService.removeCartItem(sizeData.itemId);
+        await loadCart();
+        
+        showToast({
+          tone: 'success',
+          title: 'Đã xóa',
+          description: `Đã xóa sản phẩm size ${size}`
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to update quantity:', error);
+      showToast({
+        tone: 'error',
+        title: 'Cập nhật thất bại',
+        description: error.message || 'Vui lòng thử lại.'
+      });
+      await loadCart(); // Reload to restore original
+    }
+  }, [displayItems, showToast, loadCart]);
+
+  // Handler to remove entire product (all variants)
+  const handleRemoveProduct = useCallback(async (productId: string) => {
+    try {
+      const displayItem = displayItems.find(item => item.productId === productId);
+      if (!displayItem) return;
+
+      // Remove all cart items for this product
+      const itemsToRemove: string[] = [];
+
+      if (displayItem.isSpecial && displayItem.specialItemId) {
+        // Special product - remove the single item
+        itemsToRemove.push(displayItem.specialItemId);
+      } else {
+        // Normal product - remove all size variants
+        sizes.forEach(size => {
+          const itemId = displayItem.quantities[size]?.itemId;
+          if (itemId) {
+            itemsToRemove.push(itemId);
+          }
+        });
+      }
+
+      // Remove all items
+      for (const itemId of itemsToRemove) {
+        await CartService.removeCartItem(itemId);
+      }
+
+      // Reload cart
+      await loadCart();
+
+      showToast({
+        tone: 'success',
+        title: 'Đã xóa sản phẩm',
+        description: `${displayItem.productName} đã được xóa khỏi giỏ hàng.`
+      });
+    } catch (error: any) {
+      console.error('Failed to remove product:', error);
+      showToast({
+        tone: 'error',
+        title: 'Xóa thất bại',
+        description: error.message || 'Vui lòng thử lại.'
+      });
+    }
+  }, [displayItems, sizes, loadCart, showToast]);
 
   // Handle quantity change for special products in cart
   const handleSpecialQuantityChange = async (
     itemId: string | null | undefined,
     currentQuantity: number,
-    newQuantity: number
+    newQuantity: number,
+    shouldRemoveIfZero: boolean = false
   ) => {
     if (!itemId) {
       console.warn('Missing itemId for special product');
@@ -777,43 +1585,70 @@ const CartCheckout: React.FC = () => {
     }
 
     try {
-      if (validQuantity === 0) {
-        await CartService.removeCartItem(itemId);
-      } else {
-        await CartService.updateCartItem(itemId, validQuantity);
+      if (validQuantity === 0 && shouldRemoveIfZero) {
+        // Only remove when explicitly confirmed (onBlur)
+        setCart(prevCart => {
+          if (!prevCart) return prevCart;
+          return {
+            ...prevCart,
+            items: prevCart.items.filter(item => item.id !== itemId)
+          };
+        });
+
+        // Debounced API sync
+        debouncedApiSync(itemId, async () => {
+          await CartService.removeCartItem(itemId);
+        });
+      } else if (validQuantity > 0) {
+        // Call API immediately and reload cart to get new price
+        try {
+          await CartService.updateCartItem(itemId, validQuantity);
+          await loadCart(); // Get new price from backend
+        } catch (error: any) {
+          console.error('Failed to update special product:', error);
+          showToast({
+            tone: 'error',
+            title: 'Cập nhật thất bại',
+            description: error.message || 'Vui lòng thử lại.'
+          });
+          await loadCart(); // Restore original
+        }
       }
-      await loadCart();
     } catch (error: any) {
       console.error("Failed to update special product quantity:", error);
-      showToast({
-        tone: "error",
-        title: "Cập nhật giỏ hàng thất bại",
-        description: error.message || "Vui lòng thử lại.",
-      });
     }
   };
 
-  // Render quantity input for special products in cart
-  const renderSpecialProductQuantity = (
+  const handleSpecialProductRemovalRequest = (
     itemId: string | null | undefined,
-    quantity: number
+    currentQuantity: number
   ) => {
-    return (
-      <div className="flex justify-center items-center">
-        <input
-          type="number"
-          value={quantity}
-          onChange={(e) => {
-            const newQty = parseInt(e.target.value) || 0;
-            handleSpecialQuantityChange(itemId, quantity, newQty);
-          }}
-          className="h-6 w-[88px] border border-black rounded-md text-center text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:w-[120px] md:text-[12px] py-0"
-          min="0"
-          placeholder="0"
-        />
-      </div>
-    );
+    if (!itemId) return;
+
+    setPendingRemoval({
+      type: 'special',
+      productId: '', // Not needed for special products
+      specialItemId: itemId,
+      specialQuantity: currentQuantity,
+    });
+    setShowRemoveModal(true);
   };
+
+
+  // Flush all pending API syncs
+  const flushPendingSyncs = useCallback(async () => {
+    const pendingTimeouts = Array.from(apiSyncTimeouts.current.values());
+
+    // Clear all timeouts and trigger them immediately
+    apiSyncTimeouts.current.forEach((timeout) => clearTimeout(timeout));
+    apiSyncTimeouts.current.clear();
+
+    // Wait a bit for any in-flight API calls to complete
+    if (pendingTimeouts.length > 0) {
+      console.log(`⏳ Flushing ${pendingTimeouts.length} pending cart syncs...`);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }, []);
 
   const handleCheckout = async () => {
     if (!cart || cart.items.length === 0) {
@@ -853,6 +1688,9 @@ const CartCheckout: React.FC = () => {
 
     try {
       setSubmitting(true);
+
+      // Flush any pending cart syncs before checkout
+      await flushPendingSyncs();
 
       const order = await OrderService.createOrder({
         shippingAddress: {
@@ -972,38 +1810,85 @@ const CartCheckout: React.FC = () => {
                   <table className="w-full border-collapse text-[11px] md:text-[13px] text-left">
                     <thead>
                       <tr className="bg-[#9b6a2a] text-white">
-                        <th className="w-[40%] px-3 py-2 font-semibold">Sản phẩm</th>
+                        <th className="w-[35%] px-3 py-2 font-semibold">Sản phẩm</th>
                         {sizes.map((size) => (
                           <th
                             key={size}
-                            className="w-[8%] px-0.5 py-2 text-center font-semibold"
+                            className="px-1 py-2 md:px-2 md:py-2 text-center font-semibold"
+                            style={{ width: "6%", maxWidth: "60px" }}
                           >
                             {size}
                           </th>
                         ))}
-                        <th className="w-[28%] px-3 py-2 text-right font-semibold">Thành tiền</th>
+                        <th className="w-[25%] px-3 py-2 text-right font-semibold">Thành tiền</th>
+                        <th className="w-[8%] px-3 py-2 text-center font-semibold">Xóa</th>
                       </tr>
                     </thead>
                     <tbody>
                       {displayItems.map((item, index) => (
                         <tr key={item.productId} className={index % 2 === 0 ? "bg-[#fdf8f2]" : ""}>
-                          <td className="px-3 py-3 text-gray-900">{item.productName}</td>
+                          <td className="px-3 py-3 text-gray-900 align-middle">{item.productName}</td>
                           {item.isSpecial ? (
-                            <td colSpan={sizes.length} className="px-0.5 py-3 text-center">
-                              {renderSpecialProductQuantity(item.specialItemId, item.specialQuantity || 0)}
+                            <td colSpan={sizes.length} className="py-3 text-center align-middle">
+                              <div className="flex justify-center items-center px-0.5">
+                                <SpecialProductQuantity
+                                  itemId={item.specialItemId}
+                                  quantity={item.specialQuantity || 0}
+                                  onQuantityChange={handleSpecialQuantityChange}
+                                  onRemovalRequest={handleSpecialProductRemovalRequest}
+                                />
+                              </div>
                             </td>
                           ) : (
-                            sizes.map((size) => (
-                              <td
-                                key={`${item.productId}-${size}`}
-                                className="px-0.5 py-3 text-center"
-                              >
-                                {renderQuantitySelect(item.productId, size, item.quantities[size])}
-                              </td>
-                            ))
+                            sizes.map((size) => {
+                              const variantInfo = productVariantsMap[item.productId]?.[size];
+                              const isActive = variantInfo?.active ?? true;
+                              const sizeData = item.quantities[size];
+                              const isDisabled = (!sizeData.itemId && !sizeData.variantId) || !isActive;
+
+                              return (
+                                <td
+                                  key={`${item.productId}-${size}`}
+                                  className="py-3 text-center align-middle"
+                                >
+                                  <div className="flex justify-center items-center px-0.5">
+                                    <NormalProductQuantity
+                                      productId={item.productId}
+                                      size={size}
+                                      sizeData={sizeData}
+                                      isActive={isActive}
+                                      isDisabled={isDisabled}
+                                      onUpdate={async (finalQty, originalQty) => {
+                                        await handleNormalProductUpdate(item.productId, size, sizeData, finalQty, originalQty);
+                                      }}
+                                      onRequestRemoval={(pid, sz, sd) => {
+                                        setPendingRemoval({ type: 'normal', productId: pid, size: sz, sizeData: sd });
+                                        setShowRemoveModal(true);
+                                      }}
+                                    />
+                                  </div>
+                                </td>
+                              );
+                            })
                           )}
-                          <td className="px-3 py-3 text-right font-semibold text-[#9b6a2a]">
+                          <td className="px-3 py-3 text-right font-semibold text-[#9b6a2a] align-middle">
                             {formatCurrency(item.price)}
+                          </td>
+                          <td className="px-3 py-3 text-center align-middle">
+                            <button
+                              onClick={() => {
+                                setPendingRemoval({ 
+                                  type: 'delete-product', 
+                                  productId: item.productId,
+                                  productName: item.productName
+                                });
+                                setShowRemoveModal(true);
+                              }}
+                              className="inline-flex items-center justify-center p-1 text-[#9b6a2a] hover:text-[#7a531f] hover:bg-[#fdf8f2] rounded transition"
+                              title="Xóa sản phẩm"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -1020,28 +1905,69 @@ const CartCheckout: React.FC = () => {
                         {size}
                       </div>
                     ))}
-                    <div className="py-1 text-right pr-2">Thành tiền</div>
+                    <div className="py-1 text-right pr-7">Thành tiền</div>
                   </div>
 
                   {displayItems.map((item) => (
                     <div key={item.productId} className="grid grid-cols-[1.6fr_repeat(2,0.6fr)_1.6fr] gap-x-0.5 items-center text-[11px] md:text-[13px]">
-                      <div className="px-2 text-gray-900">{item.productName}</div>
+                      <div className="px-2 text-gray-900">
+                        <span>{item.productName}</span>
+                      </div>
                       {item.isSpecial ? (
-                        <div className="col-span-2 text-center">
-                          {renderSpecialProductQuantity(item.specialItemId, item.specialQuantity || 0)}
+                        <div className="col-span-2 flex justify-center items-center px-0.5">
+                          <SpecialProductQuantity
+                            itemId={item.specialItemId}
+                            quantity={item.specialQuantity || 0}
+                            onQuantityChange={handleSpecialQuantityChange}
+                            onRemovalRequest={handleSpecialProductRemovalRequest}
+                          />
                         </div>
                       ) : (
-                        sizes.map((size) => (
-                          <div
-                            key={`${item.productId}-${size}`}
-                            className="flex justify-center"
-                          >
-                            {renderQuantitySelect(item.productId, size, item.quantities[size])}
-                          </div>
-                        ))
+                        sizes.map((size) => {
+                          const variantInfo = productVariantsMap[item.productId]?.[size];
+                          const isActive = variantInfo?.active ?? true;
+                          const sizeData = item.quantities[size];
+                          const isDisabled = (!sizeData.itemId && !sizeData.variantId) || !isActive;
+
+                          return (
+                            <div
+                              key={`${item.productId}-${size}`}
+                              className="flex justify-center items-center px-0.5"
+                            >
+                              <NormalProductQuantity
+                                productId={item.productId}
+                                size={size}
+                                sizeData={sizeData}
+                                isActive={isActive}
+                                isDisabled={isDisabled}
+                                onUpdate={async (finalQty, originalQty) => {
+                                  await handleNormalProductUpdate(item.productId, size, sizeData, finalQty, originalQty);
+                                }}
+                                onRequestRemoval={(pid, sz, sd) => {
+                                  setPendingRemoval({ type: 'normal', productId: pid, size: sz, sizeData: sd });
+                                  setShowRemoveModal(true);
+                                }}
+                              />
+                            </div>
+                          );
+                        })
                       )}
-                      <div className="pr-2 text-right font-semibold text-[#9b6a2a]">
-                        {formatCurrency(item.price)}
+                      <div className="pr-2 text-right font-semibold text-[#9b6a2a] flex items-center justify-end gap-1">
+                        <span>{formatCurrency(item.price)}</span>
+                        <button
+                          onClick={() => {
+                            setPendingRemoval({ 
+                              type: 'delete-product', 
+                              productId: item.productId,
+                              productName: item.productName
+                            });
+                            setShowRemoveModal(true);
+                          }}
+                          className="inline-flex items-center justify-center p-0.5 text-[#9b6a2a] hover:text-[#7a531f] hover:bg-[#fdf8f2] rounded transition flex-shrink-0"
+                          title="Xóa sản phẩm"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1090,9 +2016,52 @@ const CartCheckout: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex justify-between border-t border-black/70 py-1 font-extrabold pt-4">
-                <span>Tổng đơn đặt hàng</span>
-                <span className="text-[#9b6a2a]">{formatCurrency(totalAmount)}</span>
+              <div className="border-t border-black/70 pt-4 space-y-2">
+                {totalQuantity5ml > 0 && (
+                  <div className="flex justify-between py-1 font-extrabold">
+                    <span className="flex items-center">
+                      Tổng số lượng 5ml
+                      <PriceTooltip 
+                        size="5ml" 
+                        currentQuantity={totalQuantity5ml}
+                        config={pricingConfig?.['5ml'] || null} 
+                      />
+                    </span>
+                    <span className="text-[#9b6a2a]">{totalQuantity5ml} chai</span>
+                  </div>
+                )}
+                {totalQuantity20ml > 0 && (
+                  <div className="flex justify-between py-1 font-extrabold">
+                    <span className="flex items-center">
+                      Tổng số lượng 20ml
+                      <PriceTooltip 
+                        size="20ml" 
+                        currentQuantity={totalQuantity20ml}
+                        config={pricingConfig?.['20ml'] || null} 
+                      />
+                    </span>
+                    <span className="text-[#9b6a2a]">{totalQuantity20ml} chai</span>
+                  </div>
+                )}
+                {totalQuantityKit > 0 && (
+                  <div className="flex justify-between py-1 font-extrabold">
+                    <span>Tổng số lượng Kit</span>
+                    <span className="text-[#9b6a2a]">{totalQuantityKit} bộ</span>
+                  </div>
+                )}
+                <div className="flex justify-between py-1 font-extrabold">
+                  <span className="flex items-center">
+                    Tổng đơn đặt hàng
+                    <TotalBreakdownTooltip 
+                      qty5ml={totalQuantity5ml}
+                      qty20ml={totalQuantity20ml}
+                      qtyKit={totalQuantityKit}
+                      pricingConfig={pricingConfig}
+                      displayItems={displayItems}
+                    />
+                  </span>
+                  <span className="text-[#9b6a2a]">{formatCurrency(totalAmount)}</span>
+                </div>
               </div>
               <hr className="border-black/70" />
 
@@ -1297,6 +2266,89 @@ const CartCheckout: React.FC = () => {
             </section>
           )}
         </div>
+
+        {/* Confirmation Modal */}
+        {showRemoveModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl border-2 border-[#8B5E1E] shadow-lg relative p-5 sm:p-8 max-w-md w-[90%] mx-auto">
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRemoveModal(false);
+                  setPendingRemoval(null);
+                  loadCart();
+                }}
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 hover:opacity-70 transition"
+                aria-label="Đóng"
+              >
+                <img src="/circle-xmark 1.svg" alt="Đóng" className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+
+              {/* Header */}
+              <h3 className="font-bold text-[15px] sm:text-[18px] leading-tight mb-5 sm:mb-8 text-black uppercase">
+                Xác nhận xóa sản phẩm
+              </h3>
+
+              {/* Content */}
+              <p className="text-[11px] md:text-[14px] text-black mb-2">
+                Bạn có chắc muốn xóa sản phẩm
+              </p>
+              {pendingRemoval?.productName && (
+                <p className="text-[11px] md:text-[14px] text-[#8B5E1E] font-bold mb-2">
+                  "{pendingRemoval.productName}"
+                </p>
+              )}
+              <p className="text-[11px] md:text-[14px] text-black mb-6 sm:mb-8">
+                khỏi giỏ hàng?
+              </p>
+
+              {/* Buttons */}
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowRemoveModal(false);
+                    setPendingRemoval(null);
+                    loadCart();
+                  }}
+                  className="px-4 py-2.5 sm:py-3 text-[12px] md:text-[14px] font-bold border-2 border-[#8B5E1E] text-[#8B5E1E] rounded-md hover:bg-[#8B5E1E] hover:text-white transition uppercase"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() => {
+                    if (pendingRemoval) {
+                      if (pendingRemoval.type === 'delete-product') {
+                        // Delete entire product
+                        handleRemoveProduct(pendingRemoval.productId);
+                      } else if (pendingRemoval.type === 'normal' && pendingRemoval.size && pendingRemoval.sizeData) {
+                        handleQuantityChange(
+                          pendingRemoval.productId,
+                          pendingRemoval.size,
+                          pendingRemoval.sizeData,
+                          0,
+                          true
+                        );
+                      } else if (pendingRemoval.type === 'special' && pendingRemoval.specialItemId !== undefined) {
+                        handleSpecialQuantityChange(
+                          pendingRemoval.specialItemId,
+                          pendingRemoval.specialQuantity || 0,
+                          0,
+                          true
+                        );
+                      }
+                    }
+                    setShowRemoveModal(false);
+                    setPendingRemoval(null);
+                  }}
+                  className="px-4 py-2.5 sm:py-3 text-[12px] md:text-[14px] font-bold text-white bg-[#8B5E1E] rounded-md hover:bg-[#6f4715] transition uppercase"
+                >
+                  Xóa
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -370,10 +370,19 @@ export class PaymentService {
       // Return pending order payment info
       // For direct account transfer: just use order number as description
       // SePay will hook directly to the main account
+      
+      // 🔍 DEBUG: Log payment info
+      const amount = Number(pendingOrder.totalAmount);
+      this.logger.log(`[getPaymentInfo] Pending Order: ${pendingOrder.pendingNumber}`);
+      this.logger.log(`  - totalAmount (raw): ${pendingOrder.totalAmount}`);
+      this.logger.log(`  - amount (converted): ${amount}`);
+      this.logger.log(`  - subtotal: ${pendingOrder.subtotal}`);
+      this.logger.log(`  - shippingFee: ${pendingOrder.shippingFee}`);
+      
       return {
         orderId: pendingOrder.id,
         orderNumber: pendingOrder.pendingNumber,
-        amount: Number(pendingOrder.totalAmount),
+        amount,
         paymentStatus: 'PENDING',
         bankAccount: {
           accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',

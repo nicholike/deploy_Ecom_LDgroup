@@ -762,12 +762,6 @@ export default function EditProduct() {
                           SKU
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          Qty ≥ 10 (₫)
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          Qty ≥ 100 (₫)
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
                           Default
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
@@ -778,8 +772,7 @@ export default function EditProduct() {
                     <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900/40">
                       {variants.map((variant, index) => {
                         const isNewVariant = !variant.id;
-                        const { tier10, tier100 } = tierSummary[index] || { tier10: "", tier100: "" };
-                        
+
                         return (
                           <tr
                             key={variant.id ?? `new-${index}`}
@@ -814,39 +807,13 @@ export default function EditProduct() {
                                   placeholder="DEMO-5ML"
                                   value={variant.sku}
                                   onChange={(e) => updateVariant(index, "sku", e.target.value)}
-                                  className="w-32 rounded border border-gray-200 bg-white/80 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100"
+                                  className="w-full rounded border border-gray-200 bg-white/80 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100"
                                 />
                               ) : (
                                 <span className="text-sm text-gray-700 dark:text-gray-200">
                                   {variant.sku || "—"}
                                 </span>
                               )}
-                            </td>
-
-                            {/* Qty ≥ 10 */}
-                            <td className="px-3 py-2">
-                              <input
-                                type="number"
-                                min={0}
-                                placeholder="Giá khi mua ≥ 10"
-                                value={tier10}
-                                onChange={(e) => updateVariantTierPrice(index, 10, e.target.value)}
-                                className="w-28 rounded border border-gray-200 bg-white/80 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100"
-                                disabled={!isNewVariant && variant.active === false}
-                              />
-                            </td>
-
-                            {/* Qty ≥ 100 */}
-                            <td className="px-3 py-2">
-                              <input
-                                type="number"
-                                min={0}
-                                placeholder="Giá khi mua ≥ 100"
-                                value={tier100}
-                                onChange={(e) => updateVariantTierPrice(index, 100, e.target.value)}
-                                className="w-28 rounded border border-gray-200 bg-white/80 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100"
-                                disabled={!isNewVariant && variant.active === false}
-                              />
                             </td>
 
                             {/* Default */}

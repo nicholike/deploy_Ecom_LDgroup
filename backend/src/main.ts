@@ -56,7 +56,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false, // Temporarily disabled for string literal keys in DTOs
       transform: true,
       transformOptions: {
         enableImplicitConversion: true,

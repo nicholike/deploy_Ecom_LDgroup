@@ -3,6 +3,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/
 export interface Order {
   id: string;
   orderNumber: string;
+  pendingNumber?: string; // For pending orders (before payment confirmation)
   userId: string;
   subtotal: number;
   shippingFee: number;
@@ -17,6 +18,7 @@ export interface Order {
   customerNote?: string;
   createdAt: string;
   updatedAt: string;
+  expiresAt?: string; // For pending orders
   items: Array<{
     id: string;
     productId: string;

@@ -1,5 +1,20 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
+export interface PriceBreakdown {
+  tier100Count: number;
+  tier100Price: number;
+  tier100Total: number;
+  tier10Count: number;
+  tier10Price: number;
+  tier10Total: number;
+  singleCount: number;
+  singlePrice: number;
+  singleTotal: number;
+  totalQuantity: number;
+  totalPrice: number;
+  size: '5ml' | '20ml';
+}
+
 export interface CartItem {
   id: string;
   productId: string;
@@ -12,6 +27,7 @@ export interface CartItem {
     thumbnail?: string;
     price?: number;
     salePrice?: number;
+    isSpecial?: boolean;
   };
   productVariant?: {
     id: string;
@@ -20,6 +36,8 @@ export interface CartItem {
     salePrice?: number;
     stock: number;
   } | null;
+  priceBreakdown?: PriceBreakdown | null;
+  specialPrice?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +56,7 @@ export interface Cart {
   id: string;
   userId: string;
   items: CartItem[];
+  totalPrice?: number;
   quotaInfo?: QuotaInfo | null;
   createdAt: string;
   updatedAt: string;

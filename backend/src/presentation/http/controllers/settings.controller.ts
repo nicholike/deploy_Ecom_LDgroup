@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpStatus,
   HttpException,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PrismaService } from '@infrastructure/database/prisma.service';
@@ -16,6 +17,9 @@ import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { Roles } from '@shared/decorators/roles.decorator';
 import { UserRole } from '@shared/constants/user-roles.constant';
+import { PricingService } from '@infrastructure/services/pricing/pricing.service';
+import { formatPriceConfig, GlobalPriceConfig } from '@shared/utils/global-pricing.util';
+import { UpdateGlobalPricingDto } from '@presentation/http/dto/update-global-pricing.dto';
 
 /**
  * SETTINGS CONTROLLER
@@ -32,7 +36,12 @@ import { UserRole } from '@shared/constants/user-roles.constant';
 @Roles(UserRole.ADMIN)
 @ApiBearerAuth()
 export class SettingsController {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(SettingsController.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pricingService: PricingService,
+  ) {}
 
   // ========================================
   // COMMISSION SETTINGS
@@ -432,6 +441,92 @@ export class SettingsController {
       success: true,
       message: `Initialized ${results.created} settings, skipped ${results.skipped} existing`,
       data: results,
+    };
+  }
+
+  // ========================================
+  // GLOBAL PRICING SETTINGS
+  // ========================================
+
+  @Get('pricing/global')
+  @ApiOperation({ summary: 'Get global product pricing configuration' })
+  @ApiResponse({ status: 200 })
+  async getGlobalPricing() {
+    const config = await this.pricingService.getPriceConfig();
+
+    // Ensure config exists in DB (auto-create if not exists)
+    const existing = await this.prisma.systemSetting.findUnique({
+      where: { key: 'global_product_pricing' },
+    });
+
+    if (!existing) {
+      // Auto-create with current config (from default)
+      await this.prisma.systemSetting.create({
+        data: {
+          key: 'global_product_pricing',
+          value: formatPriceConfig(config),
+          type: 'JSON',
+          category: 'PRICING',
+          label: 'Cấu hình giá sản phẩm toàn cục',
+          description: 'Giá theo bội số cho sản phẩm 5ml và 20ml',
+          required: true,
+          editable: true,
+        },
+      });
+    }
+
+    return {
+      success: true,
+      data: config,
+    };
+  }
+
+  @Put('pricing/global')
+  @ApiOperation({ summary: 'Update global product pricing configuration' })
+  @ApiResponse({ status: 200 })
+  async updateGlobalPricing(@Body() dto: UpdateGlobalPricingDto) {
+    this.logger.log('=== PRICING UPDATE START ===');
+    this.logger.log('1. Raw DTO:', dto);
+    this.logger.log('2. DTO type:', typeof dto);
+    this.logger.log('3. DTO keys:', Object.keys(dto));
+    this.logger.log('4. DTO["5ml"]:', dto['5ml']);
+    this.logger.log('5. DTO["20ml"]:', dto['20ml']);
+    this.logger.log('6. JSON.stringify(dto):', JSON.stringify(dto));
+
+    const config: GlobalPriceConfig = {
+      '5ml': dto['5ml'],
+      '20ml': dto['20ml'],
+    };
+
+    this.logger.log('7. Config after mapping:', config);
+    const jsonValue = formatPriceConfig(config);
+    this.logger.log('8. JSON value to save:', jsonValue);
+
+    // Upsert setting
+    await this.prisma.systemSetting.upsert({
+      where: { key: 'global_product_pricing' },
+      create: {
+        key: 'global_product_pricing',
+        value: jsonValue,
+        type: 'JSON',
+        category: 'PRICING',
+        label: 'Cấu hình giá sản phẩm toàn cục',
+        description: 'Giá theo bội số cho sản phẩm 5ml và 20ml',
+        required: true,
+        editable: true,
+      },
+      update: {
+        value: jsonValue,
+      },
+    });
+
+    // Clear cache
+    this.pricingService.clearCache();
+
+    return {
+      success: true,
+      message: 'Global pricing updated successfully',
+      data: config,
     };
   }
 }

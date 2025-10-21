@@ -49,17 +49,18 @@ export class CartController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get user cart with quota info' })
+  @ApiOperation({ summary: 'Get user cart with quota info and pricing' })
   @ApiResponse({ status: 200 })
   async getCart(
     @CurrentUser('userId') userId: string,
     @CurrentUser('role') userRole: string,
   ) {
-    const cart = await this.cartRepository.getCartByUserId(userId);
+    // Get cart with pricing calculations
+    const cart = await this.cartRepository.getCartWithPricing(userId);
 
     // Get quota info (skip for admin)
     let quotaInfo = null;
-    if (userRole !== UserRole.ADMIN) {
+    if (userRole !== UserRole.ADMIN && cart) {
       quotaInfo = await this.userRepository.getQuotaInfo(userId);
 
       // Calculate total quantity in cart
@@ -74,9 +75,41 @@ export class CartController {
       }
     }
 
-    return {
+    const response = {
       ...cart,
       quotaInfo,
+    };
+
+    console.log('[CartController] Returning cart with totalPrice:', response.totalPrice);
+    console.log('[CartController] Cart items count:', response.items?.length || 0);
+
+    return response;
+  }
+
+  @Get('pricing-preview')
+  @ApiOperation({ summary: 'Calculate pricing preview for cart (real-time)' })
+  @ApiResponse({ status: 200 })
+  async getCartPricingPreview(@CurrentUser('userId') userId: string) {
+    const cart = await this.cartRepository.getCartWithPricing(userId);
+
+    if (!cart) {
+      return {
+        items: [],
+        totalPrice: 0,
+      };
+    }
+
+    // Return simplified pricing info
+    return {
+      items: cart.items.map(item => ({
+        id: item.id,
+        productId: item.productId,
+        productVariantId: item.productVariantId,
+        quantity: item.quantity,
+        priceBreakdown: item.priceBreakdown,
+        specialPrice: item.specialPrice,
+      })),
+      totalPrice: cart.totalPrice,
     };
   }
 
@@ -132,6 +165,7 @@ export class CartController {
     @Param('itemId') itemId: string,
     @Body() dto: UpdateCartItemDto,
   ) {
+    console.log(`[CartController] PUT /cart/items/${itemId} - userId: ${userId}, quantity: ${dto.quantity}`);
     return this.cartRepository.updateItemQuantity(userId, itemId, dto.quantity);
   }
 

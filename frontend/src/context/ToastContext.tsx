@@ -24,10 +24,25 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
 const generateToastId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-const toneStyles: Record<ToastTone, { bg: string; border: string; icon: string }> = {
-  success: { bg: "bg-green-50", border: "border-green-300", icon: "text-green-600" },
-  error: { bg: "bg-red-50", border: "border-red-300", icon: "text-red-600" },
-  info: { bg: "bg-blue-50", border: "border-blue-300", icon: "text-blue-600" },
+const toneStyles: Record<ToastTone, { bg: string; border: string; icon: string; text: string }> = {
+  success: { 
+    bg: "bg-green-500/20", 
+    border: "border-green-400/50", 
+    icon: "text-green-600", 
+    text: "text-gray-800" 
+  },
+  error: { 
+    bg: "bg-red-500/20", 
+    border: "border-red-400/50", 
+    icon: "text-red-600", 
+    text: "text-gray-800" 
+  },
+  info: { 
+    bg: "bg-blue-500/20", 
+    border: "border-blue-400/50", 
+    icon: "text-blue-600", 
+    text: "text-gray-800" 
+  },
 };
 
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -71,25 +86,25 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed inset-0 z-[60] flex flex-col items-end gap-2 px-3 py-4 sm:px-4">
+      <div className="pointer-events-none fixed inset-0 z-[60] flex flex-col items-end gap-2 px-3 pt-16 py-4 sm:px-4">
         {toasts.map((toast) => {
           const styles = toneStyles[toast.tone];
           return (
             <div
               key={toast.id}
               role="status"
-              className={`pointer-events-auto w-full max-w-[16rem] rounded-lg border bg-white shadow-md ring-1 ring-black/5 ${styles.bg} ${styles.border}`}
+              className={`pointer-events-auto w-full max-w-[200px] backdrop-blur-md ${styles.bg} ${styles.border} border px-2 py-1.5 rounded-md text-[10px] text-left shadow-md`}
             >
-              <div className="flex items-start gap-2 px-3 py-2.5">
-                <span className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center text-sm ${styles.icon}`}>
+              <div className="flex items-start gap-1.5">
+                <span className={`inline-flex h-3 w-3 items-center justify-center text-[9px] font-semibold ${styles.icon}`}>
                   {toast.tone === "success" && "✓"}
                   {toast.tone === "error" && "!"}
                   {toast.tone === "info" && "i"}
                 </span>
-                <div className="flex-1 text-[12px] leading-relaxed text-gray-900">
-                  <p className="font-semibold">{toast.title}</p>
+                <div className={`flex-1 ${styles.text}`}>
+                  <p className="font-medium leading-tight text-[10px]">{toast.title}</p>
                   {toast.description && (
-                    <p className="mt-0.5 whitespace-pre-line text-[11px] leading-snug text-gray-700">
+                    <p className="mt-0.5 text-[8px] leading-snug opacity-90 whitespace-pre-line">
                       {toast.description}
                     </p>
                   )}
@@ -97,10 +112,10 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 <button
                   type="button"
                   onClick={() => removeToast(toast.id)}
-                  className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition hover:bg-black/5 hover:text-gray-700"
+                  className={`ml-1 inline-flex h-3 w-3 items-center justify-center rounded-full transition hover:bg-white/10 ${styles.text} opacity-70 hover:opacity-100`}
                   aria-label="Đóng thông báo"
                 >
-                  ×
+                  <img src="/circle-xmark 1.svg" alt="Close" className="h-2.5 w-2.5" />
                 </button>
               </div>
             </div>

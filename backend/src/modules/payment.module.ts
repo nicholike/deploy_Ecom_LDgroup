@@ -14,9 +14,10 @@ import { WalletRepository } from '@infrastructure/database/repositories/wallet.r
 import { PendingOrderService } from '@infrastructure/services/pending-order/pending-order.service';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { EmailModule } from '@infrastructure/services/email/email.module';
+import { PricingModule } from './pricing.module';
 
 @Module({
-  imports: [EmailModule],
+  imports: [EmailModule, PricingModule],
   controllers: [PaymentController],
   providers: [
     PaymentService,

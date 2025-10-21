@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProductService } from "../services/product.service";
 import type { ProductResponse } from "../types/product.types";
@@ -20,6 +20,98 @@ type ProductDisplay = {
 };
 
 const sizes: SizeKey[] = ["5ml", "20ml"];
+
+// Component for quantity input with better UX (can delete 0 and type new number)
+type QuantityInputProps = {
+  value: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+};
+
+const QuantityInput: React.FC<QuantityInputProps> = ({ value, onChange, disabled = false, className = "", style }) => {
+  const [localValue, setLocalValue] = useState(value === 0 ? '' : String(value));
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef(false);
+
+  // Sync with parent when value changes
+  useEffect(() => {
+    setLocalValue(value === 0 ? '' : String(value));
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    // Allow empty string or valid numbers only
+    if (inputValue === '' || /^\d+$/.test(inputValue)) {
+      setLocalValue(inputValue);
+      
+      // Clear existing timeout
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      
+      // Set new timeout for API call (only for spinner changes, not manual typing)
+      if (!isTypingRef.current) {
+        debounceTimeoutRef.current = setTimeout(() => {
+          const numValue = inputValue === '' ? 0 : parseInt(inputValue) || 0;
+          const finalValue = Math.max(0, numValue);
+          onChange(finalValue);
+        }, 500); // 500ms delay for spinner
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    // Clear timeout on blur and call immediately
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    const numValue = localValue === '' ? 0 : parseInt(localValue) || 0;
+    const finalValue = Math.max(0, numValue);
+
+    // Update parent state immediately on blur
+    onChange(finalValue);
+
+    // Update local display
+    setLocalValue(finalValue === 0 ? '' : String(finalValue));
+    
+    // Reset typing flag
+    isTypingRef.current = false;
+  };
+
+  const handleKeyDown = () => {
+    // Mark as typing when user presses keyboard
+    isTypingRef.current = true;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      disabled={disabled}
+      className={className}
+      style={style}
+      placeholder="0"
+      min="0"
+    />
+  );
+};
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -248,31 +340,13 @@ const LandingPage: React.FC = () => {
     const selectedQty = product.selectedQuantities[size];
 
     return (
-      <div className="flex justify-center items-center" style={{ opacity: variant && !variant.active ? 0.5 : 1 }}>
-        <div className="relative inline-flex items-center">
-          <select
-            value={selectedQty.toString()}
-            onChange={(e) => handleQuantityChange(product.id, size, parseInt(e.target.value))}
-            disabled={!isAvailable}
-            className="h-7 w-12 border border-black rounded-md text-center text-[11px] bg-white appearance-none pr-5 pl-2 py-0 leading-[1.7rem] focus:outline-none md:h-8 md:w-14 md:pr-0 md:pl-0 md:text-[12px] disabled:opacity-30 disabled:cursor-not-allowed"
-            style={{ WebkitAppearance: "none", MozAppearance: "none", backgroundImage: "none" }}
-          >
-            <option value="0">0</option>
-            <option value="10">10</option>
-            <option value="100">100</option>
-          </select>
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#895B1A]">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-3 h-3" 
-            >
-              <path d="M6.293 9.293a1 1 0 0 1 1.414 0L12 13.586l4.293-4.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 0 1 0-1.414Z" />
-            </svg>
-          </span>
-        </div>
-      </div>  
+      <QuantityInput
+        value={selectedQty}
+        onChange={(value) => handleQuantityChange(product.id, size, value)}
+        disabled={!isAvailable}
+        style={{ opacity: variant && !variant.active ? 0.5 : 1 }}
+        className="h-7 w-[60px] border border-black rounded-md text-center text-[11px] bg-white px-1 py-0 leading-[1.7rem] focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:w-[70px] md:text-[12px] disabled:opacity-30 disabled:cursor-not-allowed [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
+      />
     );
   };
 
@@ -289,16 +363,11 @@ const LandingPage: React.FC = () => {
     const quantity = product.specialQuantity || 0;
 
     return (
-      <div className="flex justify-center items-center">
-        <input
-          type="number"
-          value={quantity}
-          onChange={(e) => handleSpecialQuantityChange(product.id, parseInt(e.target.value) || 0)}
-          className="h-7 w-[104px] border border-black rounded-md text-center text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:w-[128px] md:text-[12px] py-0"
-          min="0"
-          placeholder="0"
-        />
-      </div>
+      <QuantityInput
+        value={quantity}
+        onChange={(value) => handleSpecialQuantityChange(product.id, value)}
+        className="h-7 w-[120px] border border-black rounded-md text-center text-[11px] bg-white px-1 py-0 leading-[1.7rem] focus:outline-none focus:ring-1 focus:ring-[#895B1A] md:h-8 md:w-[140px] md:text-[12px] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none md:[&::-webkit-outer-spin-button]:appearance-none md:[&::-webkit-inner-spin-button]:appearance-none"
+      />
     );
   };
 
@@ -446,7 +515,7 @@ const LandingPage: React.FC = () => {
                 <th
                   key={size}
                   className="px-1 py-2 md:px-2 md:py-2 align-middle"
-                  style={{ width: "6%" }}
+                  style={{ width: "6%", maxWidth: "60px" }}
                 >
                   {size}
                 </th>
@@ -469,18 +538,21 @@ const LandingPage: React.FC = () => {
                   {product.isSpecial ? (
                     <td
                       colSpan={sizes.length}
-                      className="px-1 py-2 md:px-2 md:py-3 align-middle text-center"
+                      className="py-3 align-middle text-center"
                     >
-                      {renderSpecialProductQuantity(product)}
+                      <div className="flex justify-center items-center px-0.5">
+                        {renderSpecialProductQuantity(product)}
+                      </div>
                     </td>
                   ) : (
                     sizes.map((size) => (
                       <td
                         key={`${product.id}-${size}`}
-                        className="px-1 py-2 md:px-2 md:py-3 align-middle"
-                        style={{ width: "6%" }}
+                        className="py-3 align-middle"
                       >
-                        {renderQuantitySelect(product, size)}
+                        <div className="flex justify-center items-center px-0.5">
+                          {renderQuantitySelect(product, size)}
+                        </div>
                       </td>
                     ))
                   )}

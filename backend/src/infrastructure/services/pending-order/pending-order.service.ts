@@ -6,6 +6,7 @@ import { UserRepository } from '@infrastructure/database/repositories/user.repos
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { PendingOrderStatus } from '@prisma/client';
 import { EmailService } from '../email/email.service';
+import { PricingService } from '../pricing/pricing.service';
 
 /**
  * PENDING ORDER SERVICE
@@ -36,6 +37,7 @@ export class PendingOrderService {
     private readonly userRepository: UserRepository,
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly pricingService: PricingService,
   ) {}
 
   /**
@@ -59,53 +61,22 @@ export class PendingOrderService {
 
     // 2. Validate stock and calculate pricing
     const itemsWithPricing = [];
-    let subtotal = 0;
+    const normalItems: Array<{ cartItem: any; product: any; variant: any; size: '5ml' | '20ml' }> = [];
+    let specialProductsTotal = 0;
 
+    // First pass: separate special products and collect normal products
     for (const cartItem of cart.items) {
+      const product = await this.prisma.product.findUnique({
+        where: { id: cartItem.productId },
+      });
+      if (!product) {
+        throw new NotFoundException(`Product ${cartItem.productId} not found`);
+      }
+
       const variantId = cartItem.productVariantId;
 
-      if (variantId) {
-        // Case 1: Product has variant (with size/color)
-        const variant = await this.prisma.productVariant.findUnique({
-          where: { id: variantId },
-          include: { product: true },
-        });
-        if (!variant) {
-          throw new NotFoundException(`Product variant ${variantId} not found`);
-        }
-
-        // Check stock
-        if (variant.stock < cartItem.quantity) {
-          throw new Error(
-            `Sản phẩm "${variant.product.name} - ${variant.size}" không đủ hàng (còn ${variant.stock})`,
-          );
-        }
-
-        // Get effective price (sale price or regular price)
-        const effectivePrice = Number(variant.salePrice || variant.price);
-        const itemSubtotal = effectivePrice * cartItem.quantity;
-
-        itemsWithPricing.push({
-          productId: cartItem.productId,
-          productVariantId: variantId,
-          productName: variant.product.name,
-          variantSize: variant.size,
-          sku: variant.sku,
-          quantity: cartItem.quantity,
-          price: effectivePrice,
-          subtotal: itemSubtotal,
-        });
-
-        subtotal += itemSubtotal;
-      } else {
-        // Case 2: Product without variant (simple product)
-        const product = await this.prisma.product.findUnique({
-          where: { id: cartItem.productId },
-        });
-        if (!product) {
-          throw new NotFoundException(`Product ${cartItem.productId} not found`);
-        }
-
+      // Special product - use fixed price
+      if (product.isSpecial) {
         // Check stock
         const productStock = product.stock || 0;
         if (productStock < cartItem.quantity) {
@@ -114,13 +85,36 @@ export class PendingOrderService {
           );
         }
 
-        // Get effective price (sale price or regular price)
-        const effectivePrice = Number(product.salePrice || product.price);
+        // Get price from product first, then fallback to variant
+        let effectivePrice = Number(product.salePrice || product.price || 0);
+        
+        // If product has no price, try to get from variant
+        if (effectivePrice === 0 && variantId) {
+          const variant = await this.prisma.productVariant.findUnique({
+            where: { id: variantId },
+          });
+          if (variant) {
+            effectivePrice = Number(variant.salePrice || variant.price || 0);
+          }
+        }
+        
+        // If still no price, try to get from any variant of this product
+        if (effectivePrice === 0) {
+          const anyVariant = await this.prisma.productVariant.findFirst({
+            where: { productId: product.id },
+          });
+          if (anyVariant) {
+            effectivePrice = Number(anyVariant.salePrice || anyVariant.price || 0);
+          }
+        }
+
         const itemSubtotal = effectivePrice * cartItem.quantity;
+
+        this.logger.log(`[Special Product] ${product.name}: price=${effectivePrice}, qty=${cartItem.quantity}, subtotal=${itemSubtotal}`);
 
         itemsWithPricing.push({
           productId: cartItem.productId,
-          productVariantId: null,
+          productVariantId: variantId || null,
           productName: product.name,
           variantSize: null,
           sku: product.sku,
@@ -129,15 +123,103 @@ export class PendingOrderService {
           subtotal: itemSubtotal,
         });
 
-        subtotal += itemSubtotal;
+        specialProductsTotal += itemSubtotal;
+      } else if (variantId) {
+        // Normal product with variant - collect for batch pricing
+        const variant = await this.prisma.productVariant.findUnique({
+          where: { id: variantId },
+        });
+        if (!variant) {
+          throw new NotFoundException(`Product variant ${variantId} not found`);
+        }
+
+        // Check stock (unlimited for now)
+        // if (variant.stock < cartItem.quantity) {
+        //   throw new Error(
+        //     `Sản phẩm "${product.name} - ${variant.size}" không đủ hàng (còn ${variant.stock})`,
+        //   );
+        // }
+
+        const size = variant.size as '5ml' | '20ml';
+        if (size !== '5ml' && size !== '20ml') {
+          throw new Error(`Invalid variant size: ${size}`);
+        }
+
+        normalItems.push({ cartItem, product, variant, size });
+      } else {
+        throw new Error(`Product ${product.name} has no variant`);
       }
     }
+
+    // Second pass: calculate pricing for normal products (grouped by size)
+    // This ensures all 5ml products get the same tier price based on TOTAL 5ml quantity
+    let normalProductsTotal = 0;
+    
+    if (normalItems.length > 0) {
+      const itemsForPricing = normalItems.map(({ cartItem, size }) => ({
+        quantity: cartItem.quantity,
+        size
+      }));
+
+      const { priceBreakdownBySize } = await this.pricingService.calculatePriceForItems(itemsForPricing);
+
+      // Calculate total quantity per size to get the correct proportional price
+      const totalQuantityBySize = new Map<'5ml' | '20ml', number>();
+      for (const { cartItem, size } of normalItems) {
+        const current = totalQuantityBySize.get(size) || 0;
+        totalQuantityBySize.set(size, current + cartItem.quantity);
+      }
+
+      // Apply calculated pricing to each normal item proportionally
+      for (const { cartItem, product, variant, size } of normalItems) {
+        const breakdown = priceBreakdownBySize.get(size);
+        if (!breakdown) {
+          throw new Error(`No pricing breakdown for size ${size}`);
+        }
+
+        // Calculate proportional price for this item
+        // breakdown.totalPrice is for ALL items of this size
+        // We need to calculate the proportion for this specific item
+        const totalQty = totalQuantityBySize.get(size) || 1;
+        const itemProportion = cartItem.quantity / totalQty;
+        const itemSubtotal = breakdown.totalPrice * itemProportion;
+        const itemPricePerUnit = itemSubtotal / cartItem.quantity;
+
+        this.logger.log(`[Normal Product] ${product.name} (${size}): qty=${cartItem.quantity}, total_${size}=${totalQty}, tier=${breakdown.appliedRange}, price_per_unit=${itemPricePerUnit.toFixed(0)}, subtotal=${itemSubtotal.toFixed(0)}`);
+
+        itemsWithPricing.push({
+          productId: cartItem.productId,
+          productVariantId: variant.id,
+          productName: product.name,
+          variantSize: variant.size,
+          sku: variant.sku,
+          quantity: cartItem.quantity,
+          price: Math.round(itemPricePerUnit),
+          subtotal: Math.round(itemSubtotal),
+          priceBreakdown: breakdown,
+        });
+
+        normalProductsTotal += itemSubtotal;
+      }
+    }
+
+    const subtotal = specialProductsTotal + normalProductsTotal;
+
+    this.logger.log(`[Pricing Summary] Special: ${specialProductsTotal}, Normal: ${normalProductsTotal}, Total: ${subtotal}`);
 
     // 3. Calculate shipping fee (you can add logic based on address, weight, etc.)
     const shippingFee = 0; // Free shipping for now
 
     // 4. Calculate total
     const totalAmount = subtotal + shippingFee;
+
+    // 🔍 DEBUG: Log pricing calculation
+    this.logger.log(`[createPendingOrderFromCart] Pricing calculation:`);
+    this.logger.log(`  - Subtotal: ${subtotal}`);
+    this.logger.log(`  - Shipping Fee: ${shippingFee}`);
+    this.logger.log(`  - Total Amount: ${totalAmount}`);
+    this.logger.log(`  - Items count: ${itemsWithPricing.length}`);
+    this.logger.log(`  - Items:`, JSON.stringify(itemsWithPricing, null, 2));
 
     // 5. Set expiry time (30 minutes from now)
     const expiresAt = new Date(Date.now() + this.EXPIRY_MINUTES * 60 * 1000);

@@ -357,13 +357,13 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
           sku: variant.sku.trim(),
         }));
 
+        // Only validate SKU (price is handled by global pricing)
         const validVariants = hydratedVariants.filter((variant) => {
-          const tier10 = variant.priceTiers?.find((tier) => tier.minQuantity === 10);
-          return variant.sku !== "" && Number(tier10?.price) > 0;
+          return variant.sku !== "";
         });
 
         if (validVariants.length === 0) {
-          alert("Please fill in at least one variant with SKU and Price");
+          alert("Please fill in at least one variant with SKU");
           setLoading(false);
           return;
         }
@@ -375,14 +375,11 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
               index === 0 ? { ...variant, isDefault: true } : variant,
             );
 
+        // Price is handled by global pricing, set dummy value
         const requestVariants = normalisedVariants.map((variant) => {
-          const tier10 = variant.priceTiers?.find((tier) => tier.minQuantity === 10);
-          const priceForRequest =
-            Number(tier10?.price) > 0 ? Number(tier10?.price) : Number(variant.price) || 0;
-
           return sanitizeVariantForRequest({
             ...variant,
-            price: priceForRequest,
+            price: 1, // Dummy value, actual price from global pricing
           } as ProductVariant);
         });
 
@@ -401,37 +398,8 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
 
         const result: ProductResponse = await ProductService.createProduct(productData);
 
-        // Save price tiers SEQUENTIALLY to avoid transaction conflicts
-        const tierErrors: string[] = [];
-        const createdVariants = Array.isArray(result.variants) ? result.variants : [];
-
-        for (const createdVariant of createdVariants) {
-          const sourceVariant = normalisedVariants.find(
-            (variant) => variant.sku === createdVariant.sku,
-          );
-
-          if (!sourceVariant || !createdVariant.id) {
-            continue;
-          }
-
-          const tiers = extractTierPrices(sourceVariant);
-          if (tiers.length === 0) {
-            continue;
-          }
-
-          try {
-            await ProductService.setVariantPriceTiers(createdVariant.id, tiers);
-          } catch (error: any) {
-            console.error("Failed to save price tiers:", error);
-            tierErrors.push(error?.message || "Failed to save price tiers");
-          }
-        }
-
-        if (tierErrors.length > 0) {
-          alert(`Product created but failed to save all price tiers:\n${tierErrors.join("\n")}`);
-        } else {
-          alert("Product created successfully!");
-        }
+        // No need to save price tiers - using global pricing
+        alert("Product created successfully!");
       }
 
       setFormData({
@@ -481,7 +449,7 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
         <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 via-white to-gray-50 px-6 py-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <h1 className="text-lg font-semibold text-gray-800 dark:text-white/90">Add a new Product</h1>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Fill in product variants and tier prices. Base SKU sẽ tự áp dụng cho từng size.
+            Điền thông tin sản phẩm và variants. Giá sẽ được tính tự động theo global pricing.
           </p>
         </div>
 
@@ -646,12 +614,6 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
                           SKU
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          Qty ≥ 10 (₫)
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          Qty ≥ 100 (₫)
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
                           Default
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
@@ -661,7 +623,6 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900/40">
                       {variants.map((variant, index) => {
-                        const { tier10, tier100 } = tierSummary[index] || { tier10: "", tier100: "" };
                         return (
                           <tr key={`${variant.size}-${index}`} className={index < 3 ? "bg-blue-50/30 dark:bg-blue-900/10" : ""}>
                             <td className="px-3 py-2">
@@ -680,27 +641,7 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
                                 placeholder="DIOR-SAU-5ML"
                                 value={variant.sku}
                                 onChange={(e) => updateVariant(index, "sku", e.target.value)}
-                                className="w-32 rounded border border-gray-200 bg-white/80 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100"
-                              />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input
-                                type="number"
-                                min={0}
-                                placeholder="Giá khi mua ≥ 10"
-                                value={tier10}
-                                onChange={(e) => updateVariantTierPrice(index, 10, e.target.value)}
-                                className="w-28 rounded border border-gray-200 bg-white/80 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100"
-                              />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input
-                                type="number"
-                                min={0}
-                                placeholder="Giá khi mua ≥ 100"
-                                value={tier100}
-                                onChange={(e) => updateVariantTierPrice(index, 100, e.target.value)}
-                                className="w-28 rounded border border-gray-200 bg-white/80 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100"
+                                className="w-full rounded border border-gray-200 bg-white/80 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100"
                               />
                             </td>
                             <td className="px-3 py-2 text-center">
@@ -729,8 +670,7 @@ const updateVariantTierPrice = (index: number, minQuantity: number, rawValue: st
                   </table>
                 </div>
                 <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                  💡 Điền giá cơ bản và giá ưu đãi khi khách mua từ 10 / 100 sản phẩm. Hệ thống sẽ tự
-                  áp dụng chiết khấu theo số lượng khi tạo đơn.
+                  💡 Giá sản phẩm được tính tự động theo cấu hình global pricing (bội 100, bội 10, lẻ).
                 </p>
               </div>
             </section>

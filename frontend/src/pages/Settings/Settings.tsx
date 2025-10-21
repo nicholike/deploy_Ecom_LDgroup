@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { SettingsService, type SystemSetting } from '../../services/settings.service';
 import { useToast } from '../../context/ToastContext';
 
-type Tab = 'system' | 'email' | 'bank';
+type Tab = 'system' | 'email' | 'bank' | 'pricing';
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('system');
@@ -10,6 +10,7 @@ const Settings: React.FC = () => {
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'system', label: 'Hệ thống', icon: '⚙️' },
+    { id: 'pricing', label: 'Giá sản phẩm', icon: '💰' },
     { id: 'email', label: 'Email', icon: '📧' },
     { id: 'bank', label: 'Ngân hàng', icon: '🏦' },
   ];
@@ -52,6 +53,7 @@ const Settings: React.FC = () => {
       {/* Tab Content */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
         {activeTab === 'system' && <SystemTab showToast={showToast} />}
+        {activeTab === 'pricing' && <PricingTab showToast={showToast} />}
         {activeTab === 'email' && <EmailTab showToast={showToast} />}
         {activeTab === 'bank' && <BankTab showToast={showToast} />}
       </div>
@@ -356,6 +358,251 @@ const EmailTab: React.FC<{ showToast: any }> = ({ showToast }) => {
         <p className="text-sm text-blue-800 dark:text-blue-300">
           💡 <strong>Gợi ý:</strong> Chỉnh sửa email templates trong tab "Hệ thống" hoặc qua
           database. Các biến có thể dùng: {'{orderNumber}'}, {'{amount}'}, {'{siteName}'}, ...
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ========================================
+// PRICING TAB
+// ========================================
+const PricingTab: React.FC<{ showToast: any }> = ({ showToast }) => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [pricing, setPricing] = useState<{
+    '5ml': { range1to9: number; range10to99: number; range100plus: number };
+    '20ml': { range1to9: number; range10to99: number; range100plus: number };
+  } | null>(null);
+
+  useEffect(() => {
+    loadPricing();
+  }, []);
+
+  const loadPricing = async () => {
+    try {
+      setLoading(true);
+      const data = await SettingsService.getGlobalPricing();
+      console.log('Loaded pricing data:', data);
+      setPricing(data);
+    } catch (error: any) {
+      console.error('Failed to load pricing:', error);
+      // Set default pricing if load fails
+      setPricing({
+        '5ml': { range1to9: 139000, range10to99: 109000, range100plus: 99000 },
+        '20ml': { range1to9: 450000, range10to99: 360000, range100plus: 330000 },
+      });
+      showToast({
+        tone: 'warning',
+        title: 'Sử dụng giá mặc định',
+        description: 'Không thể tải cấu hình, đang dùng giá mặc định',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!pricing) return;
+
+    console.log('Saving pricing:', pricing);
+    console.log('5ml pricing:', pricing['5ml']);
+    console.log('20ml pricing:', pricing['20ml']);
+
+    try {
+      setSaving(true);
+      await SettingsService.updateGlobalPricing(pricing);
+      showToast({
+        tone: 'success',
+        title: 'Thành công',
+        description: 'Đã cập nhật giá sản phẩm',
+      });
+      await loadPricing();
+    } catch (error: any) {
+      console.error('Failed to update pricing:', error);
+      showToast({
+        tone: 'error',
+        title: 'Lỗi',
+        description: error.message || 'Không thể cập nhật giá',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updatePrice = (
+    size: '5ml' | '20ml',
+    range: 'range1to9' | 'range10to99' | 'range100plus',
+    value: string
+  ) => {
+    if (!pricing) return;
+    const numValue = parseInt(value) || 0;
+    setPricing({
+      ...pricing,
+      [size]: {
+        ...pricing[size],
+        [range]: numValue,
+      },
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-[#8B5E1E]"></div>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!pricing) {
+    return (
+      <div className="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Không thể tải cấu hình giá. Vui lòng thử lại sau.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Cấu hình giá sản phẩm
+        </h2>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          Thiết lập giá theo khoảng số lượng cho sản phẩm 5ml và 20ml
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {/* 5ml Pricing */}
+        <div>
+          <h3 className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+            Giá 5ml
+          </h3>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+              <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
+                Giá khoảng 1-9 chai (mỗi chai)
+              </label>
+              <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
+                Áp dụng khi tổng số lượng 5ml trong giỏ hàng từ 1-9 chai
+              </p>
+              <input
+                type="number"
+                value={pricing['5ml'].range1to9}
+                onChange={(e) => updatePrice('5ml', 'range1to9', e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+              <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
+                Giá khoảng 10-99 chai (mỗi chai)
+              </label>
+              <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
+                Áp dụng khi tổng số lượng 5ml trong giỏ hàng từ 10-99 chai
+              </p>
+              <input
+                type="number"
+                value={pricing['5ml'].range10to99}
+                onChange={(e) => updatePrice('5ml', 'range10to99', e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+              <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
+                Giá khoảng 100+ chai (mỗi chai)
+              </label>
+              <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
+                Áp dụng khi tổng số lượng 5ml trong giỏ hàng từ 100 chai trở lên
+              </p>
+              <input
+                type="number"
+                value={pricing['5ml'].range100plus}
+                onChange={(e) => updatePrice('5ml', 'range100plus', e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 20ml Pricing */}
+        <div>
+          <h3 className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+            Giá 20ml
+          </h3>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+              <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
+                Giá khoảng 1-9 chai (mỗi chai)
+              </label>
+              <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
+                Áp dụng khi tổng số lượng 20ml trong giỏ hàng từ 1-9 chai
+              </p>
+              <input
+                type="number"
+                value={pricing['20ml'].range1to9}
+                onChange={(e) => updatePrice('20ml', 'range1to9', e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+              <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
+                Giá khoảng 10-99 chai (mỗi chai)
+              </label>
+              <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
+                Áp dụng khi tổng số lượng 20ml trong giỏ hàng từ 10-99 chai
+              </p>
+              <input
+                type="number"
+                value={pricing['20ml'].range10to99}
+                onChange={(e) => updatePrice('20ml', 'range10to99', e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+              <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
+                Giá khoảng 100+ chai (mỗi chai)
+              </label>
+              <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
+                Áp dụng khi tổng số lượng 20ml trong giỏ hàng từ 100 chai trở lên
+              </p>
+              <input
+                type="number"
+                value={pricing['20ml'].range100plus}
+                onChange={(e) => updatePrice('20ml', 'range100plus', e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded-md bg-[#8B5E1E] px-6 py-2 text-sm font-medium text-white hover:bg-[#6d4a17] disabled:opacity-50"
+        >
+          {saving ? 'Đang lưu...' : 'Lưu cấu hình'}
+        </button>
+      </div>
+
+      {/* Info */}
+      <div className="mt-6 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+        <p className="text-sm text-blue-800 dark:text-blue-300">
+          💡 <strong>Ví dụ:</strong> Giỏ hàng có 3 sản phẩm 5ml (A: 5 chai, B: 7 chai, C: 3 chai) = <strong>Tổng 15 chai</strong>
+          <br />→ 15 chai thuộc khoảng <strong>10-99</strong> → Giá áp dụng: <strong>{pricing['5ml'].range10to99.toLocaleString()}đ/chai</strong>
+          <br />→ Tổng tiền: 15 × {pricing['5ml'].range10to99.toLocaleString()}đ = <strong>{(15 * pricing['5ml'].range10to99).toLocaleString()}đ</strong>
         </p>
       </div>
     </div>

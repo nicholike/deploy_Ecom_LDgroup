@@ -13,9 +13,10 @@ import { PendingOrderCleanupService } from '../infrastructure/services/pending-o
 import { PrismaService } from '../infrastructure/database/prisma.service';
 import { CommissionModule } from './commission.module';
 import { EmailModule } from '../infrastructure/services/email/email.module';
+import { PricingModule } from './pricing.module';
 
 @Module({
-  imports: [forwardRef(() => CommissionModule), EmailModule],
+  imports: [forwardRef(() => CommissionModule), EmailModule, PricingModule],
   controllers: [OrderController],
   providers: [
     OrderRepository,

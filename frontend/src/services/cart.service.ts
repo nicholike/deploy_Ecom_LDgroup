@@ -42,12 +42,28 @@ export interface CartItem {
   updatedAt: string;
 }
 
+export interface QuotaSizeInfo {
+  limit: number;
+  used: number;
+  remaining: number;
+  inCart?: number;
+  remainingAfterCart?: number;
+}
+
 export interface QuotaInfo {
+  // New size-specific quotas
+  quota5ml: QuotaSizeInfo;
+  quota20ml: QuotaSizeInfo;
+  quotaSpecial: QuotaSizeInfo;
+  
+  // Period info
+  quotaPeriodStart: string | null;
+  quotaPeriodEnd: string | null;
+  
+  // DEPRECATED: Old total quota (kept for backwards compatibility)
   quotaLimit: number;
   quotaUsed: number;
   quotaRemaining: number;
-  quotaPeriodStart: string | null;
-  quotaPeriodEnd: string | null;
   cartQuantity?: number;
   remainingAfterCart?: number;
 }

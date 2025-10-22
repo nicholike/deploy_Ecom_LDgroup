@@ -200,6 +200,28 @@ const LandingPage: React.FC = () => {
     // Sort special products first
     if (a.isSpecial && !b.isSpecial) return -1;
     if (!a.isSpecial && b.isSpecial) return 1;
+    
+    // If both are normal products, sort by number in name (1->45)
+    if (!a.isSpecial && !b.isSpecial) {
+      // Extract number from product name (e.g., "LUXURY W.45" -> 45)
+      const matchA = a.name.match(/\d+/);
+      const matchB = b.name.match(/\d+/);
+      const numA = matchA ? parseInt(matchA[0]) : null;
+      const numB = matchB ? parseInt(matchB[0]) : null;
+      
+      // Products without numbers go first (right after special products)
+      if (numA === null && numB !== null) return -1;
+      if (numA !== null && numB === null) return 1;
+      
+      // If both have numbers, sort by number (1->45)
+      if (numA !== null && numB !== null) {
+        return numA - numB;
+      }
+      
+      // If both don't have numbers, sort alphabetically
+      return a.name.localeCompare(b.name);
+    }
+    
     return 0;
   });
 

@@ -46,10 +46,20 @@ model User {
   rejectedBy      String?   @map("rejected_by")
   rejectionReason String?   @map("rejection_reason") @db.Text
 
-  // Purchase Limit (300 products per 30 days from first order)
+  // Purchase Limit (per 30 days from first order)
   quotaPeriodStart DateTime? @map("quota_period_start") // Start of current 30-day period
-  quotaLimit       Int       @default(300) @map("quota_limit") // Max products allowed
-  quotaUsed        Int       @default(0) @map("quota_used")    // Used in current period
+  
+  // NEW: Size-specific quota (5ml: 300, 20ml: 300, special: 10)
+  quota5mlLimit     Int @default(300) @map("quota_5ml_limit")
+  quota5mlUsed      Int @default(0) @map("quota_5ml_used")
+  quota20mlLimit    Int @default(300) @map("quota_20ml_limit")
+  quota20mlUsed     Int @default(0) @map("quota_20ml_used")
+  quotaSpecialLimit Int @default(10) @map("quota_special_limit")
+  quotaSpecialUsed  Int @default(0) @map("quota_special_used")
+  
+  // DEPRECATED: Old total quota (kept for backwards compatibility)
+  quotaLimit Int @default(300) @map("quota_limit")
+  quotaUsed  Int @default(0) @map("quota_used")
 
   // Timestamps
   createdAt   DateTime  @default(now()) @map("created_at")

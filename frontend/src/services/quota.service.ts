@@ -1,13 +1,29 @@
 import { apiClient } from "./apiClient";
 
+export interface QuotaSizeInfo {
+  limit: number;
+  used: number;
+  remaining: number;
+  inCart?: number;
+  remainingAfterCart?: number;
+}
+
 export interface QuotaResponse {
+  // NEW: Size-specific quota
+  quota5ml: QuotaSizeInfo;
+  quota20ml: QuotaSizeInfo;
+  quotaSpecial: QuotaSizeInfo;
+  
+  // Period info
+  quotaPeriodStart: string | null;
+  quotaPeriodEnd: string | null;
+  isPeriodExpired?: boolean;
+  message?: string;
+  
+  // DEPRECATED: Old total quota (for backwards compatibility)
   quotaLimit: number;
   quotaUsed: number;
   quotaRemaining: number;
-  quotaPeriodStart: string | null;
-  quotaPeriodEnd: string | null;
-  isPeriodExpired: boolean;
-  message?: string;
   cartQuantity?: number;
   remainingAfterCart?: number;
 }

@@ -49,6 +49,19 @@ export class ProductRepository implements IProductRepository {
     return product ? this.toDomain(product) : null;
   }
 
+  /**
+   * Find product with variants (for quota checking)
+   * Returns raw Prisma data with variants included
+   */
+  async findByIdWithVariants(id: string): Promise<any | null> {
+    return await this.prisma.product.findUnique({
+      where: { id },
+      include: {
+        variants: true,
+      },
+    });
+  }
+
   async findBySlug(slug: string): Promise<Product | null> {
     const product = await this.prisma.product.findUnique({
       where: { slug },

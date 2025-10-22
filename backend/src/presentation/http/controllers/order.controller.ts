@@ -22,6 +22,7 @@ import { CartRepository } from '@infrastructure/database/repositories/cart.repos
 import { UserRepository } from '@infrastructure/database/repositories/user.repository';
 import { WalletRepository } from '@infrastructure/database/repositories/wallet.repository';
 import { PriceTierRepository } from '@infrastructure/database/repositories/price-tier.repository';
+import { ProductRepository } from '@infrastructure/database/repositories/product.repository';
 import { PendingOrderService } from '@infrastructure/services/pending-order/pending-order.service';
 import { OrderStatus, PaymentStatus, WalletTransactionType } from '@prisma/client';
 import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
@@ -93,6 +94,7 @@ export class OrderController {
     private readonly userRepository: UserRepository,
     private readonly walletRepository: WalletRepository,
     private readonly priceTierRepository: PriceTierRepository,
+    private readonly productRepository: ProductRepository,
     private readonly pendingOrderService: PendingOrderService,
   ) {}
 
@@ -120,8 +122,32 @@ export class OrderController {
       throw new HttpException('Giỏ hàng trống', HttpStatus.BAD_REQUEST);
     }
 
-    // Calculate total quantity
-    const totalQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+    // Calculate quantities by size
+    let qty5ml = 0;
+    let qty20ml = 0;
+    let qtySpecial = 0;
+
+    for (const item of cart.items) {
+      const product = await this.productRepository.findByIdWithVariants(item.productId);
+      if (!product) {
+        throw new HttpException(`Product ${item.productId} not found`, HttpStatus.NOT_FOUND);
+      }
+
+      if (product.isSpecial) {
+        qtySpecial += item.quantity;
+      } else if (item.productVariantId) {
+        const variant = product.variants?.find((v: any) => v.id === item.productVariantId);
+        if (!variant) {
+          throw new HttpException(`Variant ${item.productVariantId} not found`, HttpStatus.NOT_FOUND);
+        }
+
+        if (variant.size === '5ml') {
+          qty5ml += item.quantity;
+        } else if (variant.size === '20ml') {
+          qty20ml += item.quantity;
+        }
+      }
+    }
 
     // Check quota for non-admin users
     // NOTE: We still check quota here, but we DON'T update it
@@ -142,6 +168,9 @@ export class OrderController {
         await this.userRepository.update(userId, {
           quotaPeriodStart: now,
           quotaUsed: 0,
+          quota5mlUsed: 0,
+          quota20mlUsed: 0,
+          quotaSpecialUsed: 0,
         });
       }
 
@@ -158,10 +187,24 @@ export class OrderController {
         throw new HttpException('Quota info not found', HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
-      // Check if exceeds limit
-      if (totalQuantity > quotaInfo.quotaRemaining) {
+      // Check each quota limit
+      const errors: string[] = [];
+      
+      if (qty5ml > quotaInfo.quota5ml.remaining) {
+        errors.push(`5ml: vượt quá ${qty5ml - quotaInfo.quota5ml.remaining} chai (còn lại: ${quotaInfo.quota5ml.remaining}/${quotaInfo.quota5ml.limit})`);
+      }
+
+      if (qty20ml > quotaInfo.quota20ml.remaining) {
+        errors.push(`20ml: vượt quá ${qty20ml - quotaInfo.quota20ml.remaining} chai (còn lại: ${quotaInfo.quota20ml.remaining}/${quotaInfo.quota20ml.limit})`);
+      }
+
+      if (qtySpecial > quotaInfo.quotaSpecial.remaining) {
+        errors.push(`Sản phẩm đặc biệt: vượt quá ${qtySpecial - quotaInfo.quotaSpecial.remaining} chai (còn lại: ${quotaInfo.quotaSpecial.remaining}/${quotaInfo.quotaSpecial.limit})`);
+      }
+
+      if (errors.length > 0) {
         throw new HttpException(
-          `Không thể đặt hàng. Vượt quá giới hạn ${totalQuantity - quotaInfo.quotaRemaining} sản phẩm. (Còn lại: ${quotaInfo.quotaRemaining})`,
+          `Không thể đặt hàng. Vượt quá hạn mức:\n${errors.join('\n')}`,
           HttpStatus.BAD_REQUEST,
         );
       }

@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { CartRepository } from '@infrastructure/database/repositories/cart.repository';
 import { UserRepository } from '@infrastructure/database/repositories/user.repository';
+import { ProductRepository } from '@infrastructure/database/repositories/product.repository';
 import { UserRole } from '@shared/constants/user-roles.constant';
 
 class AddToCartDto {
@@ -46,10 +47,11 @@ export class CartController {
   constructor(
     private readonly cartRepository: CartRepository,
     private readonly userRepository: UserRepository,
+    private readonly productRepository: ProductRepository,
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get user cart with quota info and pricing' })
+  @ApiOperation({ summary: 'Get user cart with size-specific quota info and pricing' })
   @ApiResponse({ status: 200 })
   async getCart(
     @CurrentUser('userId') userId: string,
@@ -60,17 +62,44 @@ export class CartController {
 
     // Get quota info (skip for admin)
     let quotaInfo = null;
-    if (userRole !== UserRole.ADMIN && cart) {
+    if (userRole !== UserRole.ADMIN) {
       quotaInfo = await this.userRepository.getQuotaInfo(userId);
 
-      // Calculate total quantity in cart
-      const cartQuantity = cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+      if (quotaInfo && cart) {
+        // Calculate quantities in cart by size
+        let cart5mlQty = 0;
+        let cart20mlQty = 0;
+        let cartSpecialQty = 0;
 
-      if (quotaInfo) {
+        for (const item of cart.items || []) {
+          const product = await this.productRepository.findById(item.productId);
+          if (product?.isSpecial) {
+            cartSpecialQty += item.quantity;
+          } else if (item.productVariant?.size === '5ml') {
+            cart5mlQty += item.quantity;
+          } else if (item.productVariant?.size === '20ml') {
+            cart20mlQty += item.quantity;
+          }
+        }
+
+        // Add cart quantities to quota info
         quotaInfo = {
           ...quotaInfo,
-          cartQuantity,
-          remainingAfterCart: quotaInfo.quotaRemaining - cartQuantity,
+          quota5ml: {
+            ...quotaInfo.quota5ml,
+            inCart: cart5mlQty,
+            remainingAfterCart: quotaInfo.quota5ml.remaining - cart5mlQty,
+          },
+          quota20ml: {
+            ...quotaInfo.quota20ml,
+            inCart: cart20mlQty,
+            remainingAfterCart: quotaInfo.quota20ml.remaining - cart20mlQty,
+          },
+          quotaSpecial: {
+            ...quotaInfo.quotaSpecial,
+            inCart: cartSpecialQty,
+            remainingAfterCart: quotaInfo.quotaSpecial.remaining - cartSpecialQty,
+          },
         };
       }
     }
@@ -114,7 +143,7 @@ export class CartController {
   }
 
   @Post('items')
-  @ApiOperation({ summary: 'Add item to cart (with quota check)' })
+  @ApiOperation({ summary: 'Add item to cart (with size-specific quota check)' })
   @ApiResponse({ status: 201 })
   async addToCart(
     @CurrentUser('userId') userId: string,
@@ -123,9 +152,11 @@ export class CartController {
   ) {
     // Skip quota check for admin
     if (userRole !== UserRole.ADMIN) {
-      // Get current cart
-      const cart = await this.cartRepository.getCartByUserId(userId);
-      const currentCartQty = cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+      // Get product info to determine if special (with variants)
+      const product = await this.productRepository.findByIdWithVariants(dto.productId);
+      if (!product) {
+        throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
+      }
 
       // Get quota info
       const quotaInfo = await this.userRepository.getQuotaInfo(userId);
@@ -133,12 +164,43 @@ export class CartController {
         throw new HttpException('User quota info not found', HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
+      // Determine quota type based on product type
+      let quotaType: 'special' | '5ml' | '20ml' = 'special';
+      let currentQuota: { limit: number; used: number; remaining: number };
+      let sizeName = 'sản phẩm đặc biệt';
+
+      if (product.isSpecial) {
+        // Special product
+        quotaType = 'special';
+        currentQuota = quotaInfo.quotaSpecial;
+        sizeName = 'sản phẩm đặc biệt';
+      } else if (dto.productVariantId) {
+        // Get variant to check size
+        const variant = product.variants?.find((v: any) => v.id === dto.productVariantId);
+        if (!variant) {
+          throw new HttpException('Product variant not found', HttpStatus.NOT_FOUND);
+        }
+
+        if (variant.size === '5ml') {
+          quotaType = '5ml';
+          currentQuota = quotaInfo.quota5ml;
+          sizeName = '5ml';
+        } else if (variant.size === '20ml') {
+          quotaType = '20ml';
+          currentQuota = quotaInfo.quota20ml;
+          sizeName = '20ml';
+        } else {
+          throw new HttpException(`Unsupported variant size: ${variant.size}`, HttpStatus.BAD_REQUEST);
+        }
+      } else {
+        throw new HttpException('productVariantId is required for normal products', HttpStatus.BAD_REQUEST);
+      }
+
       // Check if adding this quantity would exceed limit
-      const totalAfterAdd = currentCartQty + dto.quantity;
-      if (totalAfterAdd > quotaInfo.quotaRemaining) {
-        const exceeded = totalAfterAdd - quotaInfo.quotaRemaining;
+      if (dto.quantity > currentQuota.remaining) {
+        const exceeded = dto.quantity - currentQuota.remaining;
         throw new HttpException(
-          `Cannot add ${dto.quantity} items. You can only add ${quotaInfo.quotaRemaining - currentCartQty} more products. (Exceeded by ${exceeded})`,
+          `Không thể thêm ${dto.quantity} chai ${sizeName}. Bạn chỉ có thể thêm ${currentQuota.remaining} chai nữa (Hạn mức ${sizeName}: ${currentQuota.limit} chai/30 ngày). Vượt quá ${exceeded} chai.`,
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -152,8 +214,10 @@ export class CartController {
 
     return {
       ...result,
-      message: userRole !== UserRole.ADMIN ? `Item added. You can purchase ${updatedQuota?.quotaRemaining} more products.` : 'Item added to cart.',
-      quotaRemaining: updatedQuota?.quotaRemaining,
+      message: userRole !== UserRole.ADMIN 
+        ? `Đã thêm vào giỏ hàng. Hạn mức còn lại - 5ml: ${updatedQuota?.quota5ml.remaining}, 20ml: ${updatedQuota?.quota20ml.remaining}, Đặc biệt: ${updatedQuota?.quotaSpecial.remaining}` 
+        : 'Item added to cart.',
+      quotaInfo: updatedQuota,
     };
   }
 

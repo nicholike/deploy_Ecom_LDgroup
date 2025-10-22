@@ -531,27 +531,69 @@ export class OrderRepository {
         // Refunds are now handled manually by admin to prevent errors
         // If order was paid, admin will process refund separately
 
-        // 5. Return quota to user (inside transaction, atomic decrement)
-        const totalQuantity = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+        // 5. Return quota to user BY SIZE (inside transaction, atomic decrement)
+        // Calculate quantities by size
+        let qty5ml = 0;
+        let qty20ml = 0;
+        let qtySpecial = 0;
+
+        for (const item of order.items) {
+          if (item.product.isSpecial) {
+            qtySpecial += item.quantity;
+          } else if (item.productVariant) {
+            if (item.productVariant.size === '5ml') {
+              qty5ml += item.quantity;
+            } else if (item.productVariant.size === '20ml') {
+              qty20ml += item.quantity;
+            }
+          }
+        }
 
         try {
           const user = await tx.user.findUnique({
             where: { id: order.userId },
-            select: { quotaUsed: true },
+            select: { 
+              quotaUsed: true,
+              quota5mlUsed: true,
+              quota20mlUsed: true,
+              quotaSpecialUsed: true,
+            },
           });
 
-          if (user && user.quotaUsed > 0) {
-            // Calculate new quota (max 0 to prevent negative)
-            const newQuota = Math.max(0, user.quotaUsed - totalQuantity);
+          if (user) {
+            const updateData: any = {};
 
-            await tx.user.update({
-              where: { id: order.userId },
-              data: {
-                quotaUsed: newQuota,
-              },
-            });
+            // Calculate new quotas (max 0 to prevent negative)
+            if (qty5ml > 0) {
+              const newQuota5ml = Math.max(0, user.quota5mlUsed - qty5ml);
+              updateData.quota5mlUsed = newQuota5ml;
+            }
 
-            this.logger.log(`✅ Returned ${totalQuantity} quota to user ${order.userId}`);
+            if (qty20ml > 0) {
+              const newQuota20ml = Math.max(0, user.quota20mlUsed - qty20ml);
+              updateData.quota20mlUsed = newQuota20ml;
+            }
+
+            if (qtySpecial > 0) {
+              const newQuotaSpecial = Math.max(0, user.quotaSpecialUsed - qtySpecial);
+              updateData.quotaSpecialUsed = newQuotaSpecial;
+            }
+
+            // Also update old total quota for backwards compatibility
+            const totalQuantity = qty5ml + qty20ml + qtySpecial;
+            if (totalQuantity > 0) {
+              const newQuota = Math.max(0, user.quotaUsed - totalQuantity);
+              updateData.quotaUsed = newQuota;
+            }
+
+            if (Object.keys(updateData).length > 0) {
+              await tx.user.update({
+                where: { id: order.userId },
+                data: updateData,
+              });
+
+              this.logger.log(`✅ Returned quota to user ${order.userId}: 5ml=${qty5ml}, 20ml=${qty20ml}, special=${qtySpecial}`);
+            }
           }
         } catch (error) {
           this.logger.error(`❌ Failed to return quota:`, error);
@@ -583,6 +625,8 @@ export class OrderRepository {
         });
 
         this.logger.log(`✅ Order ${orderId} cancelled successfully`);
+
+        const totalQuantity = qty5ml + qty20ml + qtySpecial;
 
         return {
           message: 'Order cancelled successfully',

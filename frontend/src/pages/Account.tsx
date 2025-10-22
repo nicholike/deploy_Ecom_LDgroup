@@ -911,8 +911,8 @@ const QuotaModal: React.FC<{ quotaInfo: QuotaResponse | null; summary: QuotaSumm
   }
 
   return (
-    <Modal isOpen={open} onClose={onClose} showCloseButton={false} className="max-w-3xl w-[90%] mx-auto">
-      <div className="bg-white rounded-xl border-2 border-[#8B5E1E] shadow-lg relative p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
+    <Modal isOpen={open} onClose={onClose} showCloseButton={false} className="max-w-3xl w-[90%] mx-auto px-4 !bg-transparent !rounded-none !shadow-none">
+      <div className="bg-white rounded-xl border-2 border-[#8B5E1E] shadow-lg relative px-4 py-4 sm:px-6 sm:py-5 max-h-[90vh] overflow-y-auto">
         {/* Close button */}
         <button
           type="button"
@@ -944,27 +944,107 @@ const QuotaModal: React.FC<{ quotaInfo: QuotaResponse | null; summary: QuotaSumm
           </div>
         </div>
 
-        {/* Thống kê hạn mức */}
-        <div className="mb-4 sm:mb-5 grid gap-3 grid-cols-2 lg:grid-cols-4">
-          <QuotaStatCard label="Hạn mức 30 ngày" value={`${formatNumber(quotaInfo.quotaLimit)} sp`} accent />
-          <QuotaStatCard label="Đã mua trong kỳ" value={`${formatNumber(quotaInfo.quotaUsed)} sp`} />
-          <QuotaStatCard
-            label="Còn lại"
-            value={`${formatNumber(Math.max(0, quotaInfo.quotaRemaining))} sp`}
-            emphasize={quotaInfo.quotaRemaining <= 0}
-          />
-          <QuotaStatCard
-            label="Trong giỏ hàng"
-            value={
-              quotaInfo.cartQuantity !== undefined ? `${formatNumber(quotaInfo.cartQuantity)} sp` : "—"
-            }
-            hint={
-              quotaInfo.remainingAfterCart !== undefined
-                ? `Sau đặt hàng: ${formatNumber(quotaInfo.remainingAfterCart)} sp`
-                : "Thêm sản phẩm vào giỏ để xem."
-            }
-            hintEmphasize={quotaInfo.remainingAfterCart !== undefined && quotaInfo.remainingAfterCart < 0}
-          />
+        {/* Thống kê hạn mức theo size - Dạng bảng */}
+        <div className="mb-4 sm:mb-5">
+          <div className="overflow-x-auto rounded-lg border-2 border-[#9b6a2a]">
+            <table className="w-full text-[11px] sm:text-sm">
+              <thead>
+                <tr className="bg-[#9b6a2a] text-white">
+                  <th className="px-3 py-2 sm:px-4 sm:py-3 text-left font-bold">Size</th>
+                  <th className="px-2 py-2 sm:px-3 sm:py-3 text-center font-bold">Hạn mức</th>
+                  <th className="px-2 py-2 sm:px-3 sm:py-3 text-center font-bold">Đã mua</th>
+                  <th className="px-2 py-2 sm:px-3 sm:py-3 text-center font-bold">Còn lại</th>
+                  <th className="px-2 py-2 sm:px-3 sm:py-3 text-center font-bold">Trong giỏ</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white">
+                {/* 5ml */}
+                <tr className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-bold text-gray-900">5ml</td>
+                  <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-semibold text-[#9b6a2a]">
+                    {formatNumber(quotaInfo.quota5ml.limit)}
+                  </td>
+                  <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center text-gray-700">
+                    {formatNumber(quotaInfo.quota5ml.used)}
+                  </td>
+                  <td className={`px-2 py-2.5 sm:px-3 sm:py-3 text-center font-bold ${
+                    quotaInfo.quota5ml.remaining <= 0 ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    {formatNumber(quotaInfo.quota5ml.remaining)}
+                  </td>
+                  <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-semibold text-blue-600">
+                    {quotaInfo.quota5ml.inCart !== undefined && quotaInfo.quota5ml.inCart > 0 
+                      ? formatNumber(quotaInfo.quota5ml.inCart) 
+                      : '—'}
+                  </td>
+                </tr>
+                {/* 20ml */}
+                <tr className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-bold text-gray-900">20ml</td>
+                  <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-semibold text-[#9b6a2a]">
+                    {formatNumber(quotaInfo.quota20ml.limit)}
+                  </td>
+                  <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center text-gray-700">
+                    {formatNumber(quotaInfo.quota20ml.used)}
+                  </td>
+                  <td className={`px-2 py-2.5 sm:px-3 sm:py-3 text-center font-bold ${
+                    quotaInfo.quota20ml.remaining <= 0 ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    {formatNumber(quotaInfo.quota20ml.remaining)}
+                  </td>
+                  <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-semibold text-blue-600">
+                    {quotaInfo.quota20ml.inCart !== undefined && quotaInfo.quota20ml.inCart > 0 
+                      ? formatNumber(quotaInfo.quota20ml.inCart) 
+                      : '—'}
+                  </td>
+                </tr>
+                {/* Kit */}
+                <tr className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-bold text-gray-900">Kit</td>
+                  <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-semibold text-[#9b6a2a]">
+                    {formatNumber(quotaInfo.quotaSpecial.limit)}
+                  </td>
+                  <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center text-gray-700">
+                    {formatNumber(quotaInfo.quotaSpecial.used)}
+                  </td>
+                  <td className={`px-2 py-2.5 sm:px-3 sm:py-3 text-center font-bold ${
+                    quotaInfo.quotaSpecial.remaining <= 0 ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    {formatNumber(quotaInfo.quotaSpecial.remaining)}
+                  </td>
+                  <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-semibold text-blue-600">
+                    {quotaInfo.quotaSpecial.inCart !== undefined && quotaInfo.quotaSpecial.inCart > 0 
+                      ? formatNumber(quotaInfo.quotaSpecial.inCart) 
+                      : '—'}
+                  </td>
+                </tr>
+                {/* Tổng cộng */}
+                <tr className="bg-[#fdf8f2] border-t-2 border-[#9b6a2a] font-bold">
+                  <td className="px-3 py-3 sm:px-4 sm:py-4 text-gray-900 uppercase text-xs sm:text-sm">
+                    Tổng cộng
+                  </td>
+                  <td className="px-2 py-3 sm:px-3 sm:py-4 text-center text-[#9b6a2a]">
+                    {formatNumber(quotaInfo.quota5ml.limit + quotaInfo.quota20ml.limit + quotaInfo.quotaSpecial.limit)}
+                  </td>
+                  <td className="px-2 py-3 sm:px-3 sm:py-4 text-center text-gray-800">
+                    {formatNumber(quotaInfo.quota5ml.used + quotaInfo.quota20ml.used + quotaInfo.quotaSpecial.used)}
+                  </td>
+                  <td className={`px-2 py-3 sm:px-3 sm:py-4 text-center ${
+                    (quotaInfo.quota5ml.remaining + quotaInfo.quota20ml.remaining + quotaInfo.quotaSpecial.remaining) <= 0 
+                      ? 'text-red-600' 
+                      : 'text-green-600'
+                  }`}>
+                    {formatNumber(quotaInfo.quota5ml.remaining + quotaInfo.quota20ml.remaining + quotaInfo.quotaSpecial.remaining)}
+                  </td>
+                  <td className="px-2 py-3 sm:px-3 sm:py-4 text-center text-blue-600">
+                    {((quotaInfo.quota5ml.inCart || 0) + (quotaInfo.quota20ml.inCart || 0) + (quotaInfo.quotaSpecial.inCart || 0)) > 0
+                      ? formatNumber((quotaInfo.quota5ml.inCart || 0) + (quotaInfo.quota20ml.inCart || 0) + (quotaInfo.quotaSpecial.inCart || 0))
+                      : '—'}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Thông tin chu kỳ */}
@@ -995,9 +1075,9 @@ const QuotaModal: React.FC<{ quotaInfo: QuotaResponse | null; summary: QuotaSumm
         </div>
 
         {/* Ghi chú */}
-        <div className="border-t border-gray-200 pt-3 sm:pt-4">
+        <div className="border-t border-gray-200 pt-3 sm:pt-4 -mb-1">
           <h4 className="font-bold text-[13px] sm:text-sm uppercase text-gray-800 mb-2">Ghi chú</h4>
-          <ul className="list-disc space-y-1.5 pl-5 text-[11px] sm:text-sm text-gray-600">
+          <ul className="list-disc space-y-1 pl-5 text-[11px] sm:text-sm text-gray-600">
             <li>Chu kỳ kéo dài 30 ngày từ đơn hàng đầu tiên.</li>
             <li>Chu kỳ mới tự động bắt đầu khi kết thúc hoặc đặt đơn mới sau khi hết hạn.</li>
             <li>"Còn lại" là số sản phẩm bạn có thể đặt trong chu kỳ hiện tại.</li>
@@ -1035,8 +1115,8 @@ const WithdrawModal: React.FC<{
   ];
 
   return (
-    <Modal isOpen={open} onClose={onClose} showCloseButton={false} className="max-w-md w-[90%] mx-auto">
-      <div className="bg-white rounded-xl border-2 border-[#8B5E1E] shadow-lg relative p-5 sm:p-8">
+    <Modal isOpen={open} onClose={onClose} showCloseButton={false} className="max-w-md w-[90%] mx-auto px-4 !bg-transparent !rounded-none !shadow-none">
+      <div className="bg-white rounded-xl border-2 border-[#8B5E1E] shadow-lg relative px-4 py-4 sm:px-6 sm:py-5">
         {/* Close button */}
         <button
           type="button"
@@ -1173,8 +1253,8 @@ const ChangePasswordModal: React.FC<{ open: boolean; onClose: () => void }> = ({
   };
 
   return (
-    <Modal isOpen={open} onClose={onClose} showCloseButton={false} className="max-w-md w-[90%] mx-auto">
-      <div className="bg-white rounded-xl border-2 border-[#8B5E1E] shadow-lg relative p-5 sm:p-8">
+    <Modal isOpen={open} onClose={onClose} showCloseButton={false} className="max-w-md w-[90%] mx-auto px-4 !bg-transparent !rounded-none !shadow-none">
+      <div className="bg-white rounded-xl border-2 border-[#8B5E1E] shadow-lg relative px-4 py-4 sm:px-6 sm:py-5">
         {/* Close button */}
           <button
             type="button"

@@ -4,6 +4,7 @@ import { OrderRepository } from '@infrastructure/database/repositories/order.rep
 import { NotificationRepository } from '@infrastructure/database/repositories/notification.repository';
 import { CartRepository } from '@infrastructure/database/repositories/cart.repository';
 import { UserRepository } from '@infrastructure/database/repositories/user.repository';
+import { ProductRepository } from '@infrastructure/database/repositories/product.repository';
 import { PendingOrderRepository } from '@infrastructure/database/repositories/pending-order.repository';
 import { PendingOrderService } from '@infrastructure/services/pending-order/pending-order.service';
 import { PaymentStatus, NotificationType, PendingOrderStatus } from '@prisma/client';
@@ -30,6 +31,7 @@ export class PaymentService {
     private readonly notificationRepository: NotificationRepository,
     private readonly cartRepository: CartRepository,
     private readonly userRepository: UserRepository,
+    private readonly productRepository: ProductRepository,
     private readonly pendingOrderRepository: PendingOrderRepository,
     private readonly pendingOrderService: PendingOrderService,
     private readonly emailService: EmailService,
@@ -253,17 +255,54 @@ export class PaymentService {
         this.logger.error(`Failed to clear cart for user ${order.userId}:`, error);
       }
 
-      // ✅ UPDATE QUOTA - Now that payment is confirmed
+      // ✅ UPDATE QUOTA BY SIZE - Now that payment is confirmed
       // 🔧 FIX: Use atomic increment to prevent race condition
       try {
         const user = await this.userRepository.findById(order.userId);
         if (user && user.role !== UserRole.ADMIN) {
-          const totalQuantity = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+          // Calculate quantities by size from pending order items
+          let qty5ml = 0;
+          let qty20ml = 0;
+          let qtySpecial = 0;
 
-          // Use atomic increment instead of read-modify-write
-          await this.userRepository.incrementQuota(order.userId, totalQuantity);
+          for (const item of items) {
+            // Get product to check if special (with variants)
+            const product = await this.productRepository.findByIdWithVariants(item.productId);
+            if (!product) {
+              this.logger.warn(`Product ${item.productId} not found, skipping quota update`);
+              continue;
+            }
 
-          this.logger.log(`✅ Quota updated for user ${order.userId}: +${totalQuantity}`);
+            if (product.isSpecial) {
+              qtySpecial += item.quantity;
+            } else if (item.productVariantId) {
+              const variant = product.variants?.find((v: any) => v.id === item.productVariantId);
+              if (variant) {
+                if (variant.size === '5ml') {
+                  qty5ml += item.quantity;
+                } else if (variant.size === '20ml') {
+                  qty20ml += item.quantity;
+                }
+              }
+            }
+          }
+
+          // Use atomic increment by size
+          if (qty5ml > 0 || qty20ml > 0 || qtySpecial > 0) {
+            await this.userRepository.incrementQuotaBySize(order.userId, {
+              '5ml': qty5ml,
+              '20ml': qty20ml,
+              special: qtySpecial,
+            });
+
+            this.logger.log(`✅ Quota updated for user ${order.userId}: 5ml=${qty5ml}, 20ml=${qty20ml}, special=${qtySpecial}`);
+          }
+
+          // Also update old total quota for backwards compatibility
+          const totalQuantity = qty5ml + qty20ml + qtySpecial;
+          if (totalQuantity > 0) {
+            await this.userRepository.incrementQuota(order.userId, totalQuantity);
+          }
         }
       } catch (error) {
         this.logger.error(`Failed to update quota for user ${order.userId}:`, error);

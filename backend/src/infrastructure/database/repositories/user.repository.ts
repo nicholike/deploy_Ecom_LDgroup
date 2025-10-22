@@ -451,6 +451,13 @@ export class UserRepository implements IUserRepository {
     quotaPeriodStart: Date | null;
     quotaLimit: number;
     quotaUsed: number;
+    // NEW: Size-specific quota
+    quota5mlLimit: number;
+    quota5mlUsed: number;
+    quota20mlLimit: number;
+    quota20mlUsed: number;
+    quotaSpecialLimit: number;
+    quotaSpecialUsed: number;
     firstName: string;
     lastName: string;
     phone: string;
@@ -475,19 +482,50 @@ export class UserRepository implements IUserRepository {
   /**
    * Get user quota info (for purchase limit)
    */
+  /**
+   * Get quota info with size-specific details
+   * - 5ml: 300 limit
+   * - 20ml: 300 limit
+   * - Special: 10 limit
+   */
   async getQuotaInfo(userId: string): Promise<{
+    // NEW: Size-specific quota
+    quota5ml: {
+      limit: number;
+      used: number;
+      remaining: number;
+    };
+    quota20ml: {
+      limit: number;
+      used: number;
+      remaining: number;
+    };
+    quotaSpecial: {
+      limit: number;
+      used: number;
+      remaining: number;
+    };
+    // Period info
+    quotaPeriodStart: Date | null;
+    quotaPeriodEnd: Date | null;
+    // DEPRECATED: Old total quota (for backwards compatibility)
     quotaLimit: number;
     quotaUsed: number;
     quotaRemaining: number;
-    quotaPeriodStart: Date | null;
-    quotaPeriodEnd: Date | null;
   } | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
+        quota5mlLimit: true,
+        quota5mlUsed: true,
+        quota20mlLimit: true,
+        quota20mlUsed: true,
+        quotaSpecialLimit: true,
+        quotaSpecialUsed: true,
+        quotaPeriodStart: true,
+        // Old fields for backwards compatibility
         quotaLimit: true,
         quotaUsed: true,
-        quotaPeriodStart: true,
       },
     });
 
@@ -498,11 +536,29 @@ export class UserRepository implements IUserRepository {
       : null;
 
     return {
+      // Size-specific quota
+      quota5ml: {
+        limit: user.quota5mlLimit,
+        used: user.quota5mlUsed,
+        remaining: user.quota5mlLimit - user.quota5mlUsed,
+      },
+      quota20ml: {
+        limit: user.quota20mlLimit,
+        used: user.quota20mlUsed,
+        remaining: user.quota20mlLimit - user.quota20mlUsed,
+      },
+      quotaSpecial: {
+        limit: user.quotaSpecialLimit,
+        used: user.quotaSpecialUsed,
+        remaining: user.quotaSpecialLimit - user.quotaSpecialUsed,
+      },
+      // Period
+      quotaPeriodStart: user.quotaPeriodStart,
+      quotaPeriodEnd,
+      // DEPRECATED: Old total quota
       quotaLimit: user.quotaLimit,
       quotaUsed: user.quotaUsed,
       quotaRemaining: user.quotaLimit - user.quotaUsed,
-      quotaPeriodStart: user.quotaPeriodStart,
-      quotaPeriodEnd,
     };
   }
 
@@ -570,6 +626,91 @@ export class UserRepository implements IUserRepository {
    * 🔧 ATOMIC: Increment quota (prevents race condition)
    * Use this instead of read-modify-write pattern
    */
+  /**
+   * 🆕 ATOMIC: Increment quota by size
+   * @param userId User ID
+   * @param quotaBySize Object with quantities for each size: { "5ml": 10, "20ml": 5, "special": 1 }
+   */
+  async incrementQuotaBySize(userId: string, quotaBySize: { 
+    '5ml'?: number; 
+    '20ml'?: number; 
+    special?: number;
+  }): Promise<void> {
+    const updateData: any = {};
+    
+    if (quotaBySize['5ml']) {
+      updateData.quota5mlUsed = { increment: quotaBySize['5ml'] };
+    }
+    
+    if (quotaBySize['20ml']) {
+      updateData.quota20mlUsed = { increment: quotaBySize['20ml'] };
+    }
+    
+    if (quotaBySize.special) {
+      updateData.quotaSpecialUsed = { increment: quotaBySize.special };
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+      });
+    }
+  }
+
+  /**
+   * 🆕 ATOMIC: Decrement quota by size (for order cancellation)
+   * @param userId User ID
+   * @param quotaBySize Object with quantities for each size: { "5ml": 10, "20ml": 5, "special": 1 }
+   */
+  async decrementQuotaBySize(userId: string, quotaBySize: { 
+    '5ml'?: number; 
+    '20ml'?: number; 
+    special?: number;
+  }): Promise<void> {
+    // Get current quota to ensure we don't go negative
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { 
+        quota5mlUsed: true,
+        quota20mlUsed: true,
+        quotaSpecialUsed: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const updateData: any = {};
+    
+    if (quotaBySize['5ml']) {
+      const newQuota5ml = Math.max(0, user.quota5mlUsed - quotaBySize['5ml']);
+      updateData.quota5mlUsed = newQuota5ml;
+    }
+    
+    if (quotaBySize['20ml']) {
+      const newQuota20ml = Math.max(0, user.quota20mlUsed - quotaBySize['20ml']);
+      updateData.quota20mlUsed = newQuota20ml;
+    }
+    
+    if (quotaBySize.special) {
+      const newQuotaSpecial = Math.max(0, user.quotaSpecialUsed - quotaBySize.special);
+      updateData.quotaSpecialUsed = newQuotaSpecial;
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+      });
+    }
+  }
+
+  /**
+   * ⚠️ DEPRECATED: Use incrementQuotaBySize instead
+   * Kept for backwards compatibility
+   */
   async incrementQuota(userId: string, amount: number): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
@@ -582,9 +723,8 @@ export class UserRepository implements IUserRepository {
   }
 
   /**
-   * 🔧 ATOMIC: Decrement quota (prevents race condition)
-   * Use this instead of read-modify-write pattern
-   * Ensures quotaUsed never goes below 0
+   * ⚠️ DEPRECATED: Use decrementQuotaBySize instead
+   * Kept for backwards compatibility
    */
   async decrementQuota(userId: string, amount: number): Promise<void> {
     // Get current quota first to ensure we don't go negative

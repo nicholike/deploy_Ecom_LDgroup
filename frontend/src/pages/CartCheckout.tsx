@@ -406,6 +406,135 @@ const PriceTooltip: React.FC<PriceTooltipProps> = ({ size, currentQuantity, conf
   );
 };
 
+// Quota info tooltip component
+type QuotaTooltipProps = {
+  quotaInfo: any; // Cart quotaInfo from API
+};
+
+const QuotaTooltip: React.FC<QuotaTooltipProps> = ({ quotaInfo }) => {
+  const [show, setShow] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  if (!quotaInfo) return null;
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+        setShow(false);
+      }
+    };
+
+    if (show) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside as any);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside as any);
+    };
+  }, [show]);
+
+  return (
+    <div className="relative inline-block ml-1" ref={tooltipRef}>
+      <button
+        type="button"
+        onMouseEnter={() => {
+          if (window.innerWidth >= 768) {
+            setShow(true);
+          }
+        }}
+        onMouseLeave={() => {
+          if (window.innerWidth >= 768) {
+            setShow(false);
+          }
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShow(!show);
+        }}
+        className="text-[#9b6a2a] hover:text-[#7a531f] transition-colors"
+        aria-label="Xem hạn mức mua hàng"
+      >
+        <InformationCircleIcon className="h-4 w-4 inline-block" />
+      </button>
+      
+      {show && (
+        <div className="absolute left-[-30px] md:left-0 top-full mt-2 z-50 w-[280px] md:w-96 bg-white border-2 border-[#9b6a2a] rounded-lg shadow-xl p-1.5 md:p-3 text-[8px] md:text-xs">
+          <div className="font-bold text-[#9b6a2a] mb-1 md:mb-2 text-center text-[9px] md:text-xs">
+            Hạn mức 30 ngày
+          </div>
+          
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-[8px] md:text-[10px]">
+              <thead>
+                <tr className="bg-[#9b6a2a] text-white">
+                  <th className="px-1 md:px-2 py-0.5 md:py-1 text-left font-semibold text-[8px] md:text-[10px]">Size</th>
+                  <th className="px-0.5 md:px-1 py-0.5 md:py-1 text-center font-semibold text-[8px] md:text-[10px]">Hạn mức</th>
+                  <th className="px-0.5 md:px-1 py-0.5 md:py-1 text-center font-semibold text-[8px] md:text-[10px]">Đã dùng</th>
+                  <th className="px-0.5 md:px-1 py-0.5 md:py-1 text-center font-semibold text-[8px] md:text-[10px]">Còn lại</th>
+                  <th className="px-0.5 md:px-1 py-0.5 md:py-1 text-center font-semibold text-[8px] md:text-[10px]">Giỏ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* 5ml */}
+                <tr className="border-b border-gray-200">
+                  <td className="px-1 md:px-2 py-1 md:py-1.5 font-semibold text-gray-800">5ml</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center text-gray-700">{quotaInfo.quota5ml.limit}</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center text-gray-700">{quotaInfo.quota5ml.used}</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center font-semibold text-[#9b6a2a]">{quotaInfo.quota5ml.remaining}</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center font-semibold text-[#9b6a2a]">
+                    {quotaInfo.quota5ml.inCart !== undefined && quotaInfo.quota5ml.inCart > 0 
+                      ? quotaInfo.quota5ml.inCart 
+                      : '—'}
+                  </td>
+                </tr>
+                
+                {/* 20ml */}
+                <tr className="border-b border-gray-200">
+                  <td className="px-1 md:px-2 py-1 md:py-1.5 font-semibold text-gray-800">20ml</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center text-gray-700">{quotaInfo.quota20ml.limit}</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center text-gray-700">{quotaInfo.quota20ml.used}</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center font-semibold text-[#9b6a2a]">{quotaInfo.quota20ml.remaining}</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center font-semibold text-[#9b6a2a]">
+                    {quotaInfo.quota20ml.inCart !== undefined && quotaInfo.quota20ml.inCart > 0 
+                      ? quotaInfo.quota20ml.inCart 
+                      : '—'}
+                  </td>
+                </tr>
+                
+                {/* Special */}
+                <tr className="border-b border-gray-200">
+                  <td className="px-1 md:px-2 py-1 md:py-1.5 font-semibold text-gray-800 text-[7px] md:text-[8px]">Kit</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center text-gray-700">{quotaInfo.quotaSpecial.limit}</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center text-gray-700">{quotaInfo.quotaSpecial.used}</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center font-semibold text-[#9b6a2a]">{quotaInfo.quotaSpecial.remaining}</td>
+                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center font-semibold text-[#9b6a2a]">
+                    {quotaInfo.quotaSpecial.inCart !== undefined && quotaInfo.quotaSpecial.inCart > 0 
+                      ? quotaInfo.quotaSpecial.inCart 
+                      : '—'}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Period info */}
+          {quotaInfo.quotaPeriodStart && (
+            <div className="mt-1.5 md:mt-3 pt-1.5 md:pt-3 border-t-2 border-[#9b6a2a] bg-[#fdf8f2] -mx-1.5 md:-mx-3 px-1.5 md:px-3 py-1 md:py-2 rounded-b-lg">
+              <div className="text-center text-[7px] md:text-[10px] text-gray-700">
+                Kỳ hạn: {new Date(quotaInfo.quotaPeriodStart).toLocaleDateString('vi-VN')} - {quotaInfo.quotaPeriodEnd ? new Date(quotaInfo.quotaPeriodEnd).toLocaleDateString('vi-VN') : 'N/A'}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Total breakdown tooltip component
 type TotalBreakdownTooltipProps = {
   qty5ml: number;
@@ -1215,9 +1344,14 @@ const CartCheckout: React.FC = () => {
 
   // Check if cart exceeds quota
   const quotaExceeded = useMemo(() => {
-    if (!quota) return false;
-    return totalCartQuantity > quota.quotaRemaining;
-  }, [quota, totalCartQuantity]);
+    if (!quota || !cart?.quotaInfo) return false;
+    // Check if any size quota is exceeded
+    return (
+      (cart.quotaInfo.quota5ml.inCart || 0) > cart.quotaInfo.quota5ml.remaining ||
+      (cart.quotaInfo.quota20ml.inCart || 0) > cart.quotaInfo.quota20ml.remaining ||
+      (cart.quotaInfo.quotaSpecial.inCart || 0) > cart.quotaInfo.quotaSpecial.remaining
+    );
+  }, [quota, cart]);
 
   useEffect(() => {
     if (!shippingForm.city) {
@@ -1662,10 +1796,22 @@ const CartCheckout: React.FC = () => {
 
     // Validate quota before checkout
     if (quota && quotaExceeded) {
+      const errors: string[] = [];
+      if (cart?.quotaInfo) {
+        if ((cart.quotaInfo.quota5ml.inCart || 0) > cart.quotaInfo.quota5ml.remaining) {
+          errors.push(`5ml vượt ${(cart.quotaInfo.quota5ml.inCart || 0) - cart.quotaInfo.quota5ml.remaining} chai`);
+        }
+        if ((cart.quotaInfo.quota20ml.inCart || 0) > cart.quotaInfo.quota20ml.remaining) {
+          errors.push(`20ml vượt ${(cart.quotaInfo.quota20ml.inCart || 0) - cart.quotaInfo.quota20ml.remaining} chai`);
+        }
+        if ((cart.quotaInfo.quotaSpecial.inCart || 0) > cart.quotaInfo.quotaSpecial.remaining) {
+          errors.push(`Đặc biệt vượt ${(cart.quotaInfo.quotaSpecial.inCart || 0) - cart.quotaInfo.quotaSpecial.remaining} chai`);
+        }
+      }
       showToast({
         tone: "error",
         title: "Vượt quá hạn mức mua hàng",
-        description: `Bạn chỉ có thể mua thêm ${quota.quotaRemaining} sản phẩm trong kỳ này. Giỏ hàng hiện có ${totalCartQuantity} sản phẩm.`,
+        description: `Vượt hạn mức:\n${errors.join('\n')}`,
       });
       return;
     }
@@ -1791,7 +1937,10 @@ const CartCheckout: React.FC = () => {
       <main className="mt-6 flex justify-center mx-4 md:mx-0">
         <div className="w-full space-y-6 md:w-[65%]">
           <section className="space-y-4">
-            <h2 className="text-[14px] font-extrabold md:text-[16px]">GIỎ HÀNG</h2>
+            <h2 className="text-[14px] font-extrabold md:text-[16px] flex items-center">
+              GIỎ HÀNG
+              {cart?.quotaInfo && <QuotaTooltip quotaInfo={cart.quotaInfo} />}
+            </h2>
 
             {displayItems.length === 0 ? (
               <div className="text-center py-12">
@@ -1978,44 +2127,6 @@ const CartCheckout: React.FC = () => {
 
           {displayItems.length > 0 && (
             <section className="space-y-3 text-[11px] md:text-[13px]">
-              {/* Quota Info - Hiển thị giới hạn mua hàng */}
-              {cart?.quotaInfo && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 space-y-2">
-                  <h3 className="font-extrabold text-yellow-800">Thông tin hạn mức mua hàng</h3>
-                  <div className="text-[10px] md:text-[12px] text-yellow-900 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Hạn mức tối đa:</span>
-                      <span className="font-semibold">{cart.quotaInfo.quotaLimit} sản phẩm</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Đã sử dụng:</span>
-                      <span className="font-semibold">{cart.quotaInfo.quotaUsed} sản phẩm</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Còn lại:</span>
-                      <span className="font-semibold">{cart.quotaInfo.quotaRemaining} sản phẩm</span>
-                    </div>
-                    {cart.quotaInfo.cartQuantity !== undefined && (
-                      <>
-                        <div className="flex justify-between text-orange-700">
-                          <span>Số lượng trong giỏ:</span>
-                          <span className="font-bold">{cart.quotaInfo.cartQuantity} sản phẩm</span>
-                        </div>
-                        <div className="flex justify-between text-red-700">
-                          <span>Còn lại sau khi đặt hàng:</span>
-                          <span className="font-bold">{cart.quotaInfo.remainingAfterCart} sản phẩm</span>
-                        </div>
-                      </>
-                    )}
-                    {cart.quotaInfo.quotaPeriodStart && (
-                      <div className="mt-2 pt-2 border-t border-yellow-300 text-[9px] md:text-[11px]">
-                        Kỳ hạn: {new Date(cart.quotaInfo.quotaPeriodStart).toLocaleDateString('vi-VN')} - {cart.quotaInfo.quotaPeriodEnd ? new Date(cart.quotaInfo.quotaPeriodEnd).toLocaleDateString('vi-VN') : 'N/A'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               <div className="border-t border-black/70 pt-4 space-y-2">
                 {totalQuantity5ml > 0 && (
                   <div className="flex justify-between py-1 font-extrabold">
@@ -2215,10 +2326,21 @@ const CartCheckout: React.FC = () => {
                           <p className="text-[11px] md:text-[12px] font-semibold text-red-800 mb-1">
                             Vượt quá hạn mức mua hàng
                           </p>
-                          <p className="text-[10px] md:text-[11px] text-red-700">
-                            Bạn chỉ có thể mua thêm <strong>{quota.quotaRemaining}</strong> sản phẩm. 
-                            Giỏ hàng hiện có <strong>{totalCartQuantity}</strong> sản phẩm.
-                          </p>
+                          <div className="text-[10px] md:text-[11px] text-red-700 space-y-1">
+                            {cart?.quotaInfo && (
+                              <>
+                                {(cart.quotaInfo.quota5ml.inCart || 0) > cart.quotaInfo.quota5ml.remaining && (
+                                  <p>• 5ml vượt <strong>{(cart.quotaInfo.quota5ml.inCart || 0) - cart.quotaInfo.quota5ml.remaining}</strong> chai</p>
+                                )}
+                                {(cart.quotaInfo.quota20ml.inCart || 0) > cart.quotaInfo.quota20ml.remaining && (
+                                  <p>• 20ml vượt <strong>{(cart.quotaInfo.quota20ml.inCart || 0) - cart.quotaInfo.quota20ml.remaining}</strong> chai</p>
+                                )}
+                                {(cart.quotaInfo.quotaSpecial.inCart || 0) > cart.quotaInfo.quotaSpecial.remaining && (
+                                  <p>• Đặc biệt vượt <strong>{(cart.quotaInfo.quotaSpecial.inCart || 0) - cart.quotaInfo.quotaSpecial.remaining}</strong> chai</p>
+                                )}
+                              </>
+                            )}
+                          </div>
                           {quota.quotaPeriodEnd && (
                             <p className="text-[10px] md:text-[11px] text-red-600 mt-1">
                               Hạn mức sẽ được làm mới sau: {new Date(quota.quotaPeriodEnd).toLocaleDateString('vi-VN')}
@@ -2234,17 +2356,43 @@ const CartCheckout: React.FC = () => {
                           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                         </svg>
                         <div className="flex-1">
-                          <p className="text-[11px] md:text-[12px] font-semibold text-blue-800 mb-1">
-                            Hạn mức mua hàng
+                          <p className="text-[11px] md:text-[12px] font-semibold text-blue-800 mb-1.5">
+                            Hạn mức mua hàng (30 ngày)
                           </p>
-                          <p className="text-[10px] md:text-[11px] text-blue-700">
-                            Đã sử dụng: <strong>{quota.quotaUsed}</strong> / {quota.quotaLimit} sản phẩm
-                            {totalCartQuantity > 0 && (
-                              <> · Sau đặt hàng này: <strong>{quota.quotaUsed + totalCartQuantity}</strong> / {quota.quotaLimit}</>
-                            )}
-                          </p>
+                          <div className="space-y-1 text-[10px] md:text-[11px] text-blue-700">
+                            {/* 5ml */}
+                            <div className="flex justify-between items-center">
+                              <span>5ml:</span>
+                              <span>
+                                <strong>{quota.quota5ml.used}</strong> / {quota.quota5ml.limit}
+                                {cart?.quotaInfo?.quota5ml.inCart !== undefined && cart.quotaInfo.quota5ml.inCart > 0 && (
+                                  <span className="text-orange-600"> · Sau đặt: <strong>{quota.quota5ml.used + cart.quotaInfo.quota5ml.inCart}</strong></span>
+                                )}
+                              </span>
+                            </div>
+                            {/* 20ml */}
+                            <div className="flex justify-between items-center">
+                              <span>20ml:</span>
+                              <span>
+                                <strong>{quota.quota20ml.used}</strong> / {quota.quota20ml.limit}
+                                {cart?.quotaInfo?.quota20ml.inCart !== undefined && cart.quotaInfo.quota20ml.inCart > 0 && (
+                                  <span className="text-orange-600"> · Sau đặt: <strong>{quota.quota20ml.used + cart.quotaInfo.quota20ml.inCart}</strong></span>
+                                )}
+                              </span>
+                            </div>
+                            {/* Special */}
+                            <div className="flex justify-between items-center">
+                              <span>Kit:</span>
+                              <span>
+                                <strong>{quota.quotaSpecial.used}</strong> / {quota.quotaSpecial.limit}
+                                {cart?.quotaInfo?.quotaSpecial.inCart !== undefined && cart.quotaInfo.quotaSpecial.inCart > 0 && (
+                                  <span className="text-orange-600"> · Sau đặt: <strong>{quota.quotaSpecial.used + cart.quotaInfo.quotaSpecial.inCart}</strong></span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
                           {quota.quotaPeriodEnd && (
-                            <p className="text-[10px] md:text-[11px] text-blue-600 mt-1">
+                            <p className="text-[9px] md:text-[10px] text-blue-600 mt-1.5 pt-1.5 border-t border-blue-200">
                               Kỳ hiện tại đến: {new Date(quota.quotaPeriodEnd).toLocaleDateString('vi-VN')}
                             </p>
                           )}

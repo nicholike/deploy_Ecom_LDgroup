@@ -178,6 +178,7 @@ export const SettingsService = {
       range100plus: number;
     };
   }> {
+    // PUBLIC ENDPOINT - No authentication required
     const response = await apiClient<{
       '5ml': {
         range1to9: number;
@@ -189,9 +190,9 @@ export const SettingsService = {
         range10to99: number;
         range100plus: number;
       };
-    }>('/admin/settings/pricing/global', {
+    }>('/settings/pricing/global', {
       method: 'GET',
-      authToken: getAuthToken(),
+      authToken: null, // Public endpoint
     });
     return response;
   },

@@ -170,10 +170,21 @@ export class CartController {
       let sizeName = 'sản phẩm đặc biệt';
 
       if (product.isSpecial) {
-        // Special product
+        // Special product - NO LIMIT, skip quota check
+        // We still track usage but don't enforce limit
         quotaType = 'special';
         currentQuota = quotaInfo.quotaSpecial;
         sizeName = 'sản phẩm đặc biệt';
+        
+        // Skip quota check for special products (unlimited)
+        // Continue to add item without checking limit
+        const result = await this.cartRepository.addItem(userId, dto);
+        const updatedQuota = await this.userRepository.getQuotaInfo(userId);
+        return {
+          ...result,
+          message: `Đã thêm vào giỏ hàng. Hạn mức còn lại - 5ml: ${updatedQuota?.quota5ml.remaining}, 20ml: ${updatedQuota?.quota20ml.remaining}, Kit: Không giới hạn`,
+          quotaInfo: updatedQuota,
+        };
       } else if (dto.productVariantId) {
         // Get variant to check size
         const variant = product.variants?.find((v: any) => v.id === dto.productVariantId);

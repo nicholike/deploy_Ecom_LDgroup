@@ -49,12 +49,12 @@ model User {
   // Purchase Limit (per 30 days from first order)
   quotaPeriodStart DateTime? @map("quota_period_start") // Start of current 30-day period
   
-  // NEW: Size-specific quota (5ml: 300, 20ml: 300, special: 10)
+  // NEW: Size-specific quota (5ml: 300, 20ml: 300, special: unlimited)
   quota5mlLimit     Int @default(300) @map("quota_5ml_limit")
   quota5mlUsed      Int @default(0) @map("quota_5ml_used")
   quota20mlLimit    Int @default(300) @map("quota_20ml_limit")
   quota20mlUsed     Int @default(0) @map("quota_20ml_used")
-  quotaSpecialLimit Int @default(10) @map("quota_special_limit")
+  quotaSpecialLimit Int @default(999999) @map("quota_special_limit") // -1 = unlimited, but use large number for safety
   quotaSpecialUsed  Int @default(0) @map("quota_special_used")
   
   // DEPRECATED: Old total quota (kept for backwards compatibility)

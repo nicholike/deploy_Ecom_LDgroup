@@ -505,30 +505,22 @@ const QuotaTooltip: React.FC<QuotaTooltipProps> = ({ quotaInfo }) => {
                   </td>
                 </tr>
                 
-                {/* Special */}
-                <tr className="border-b border-gray-200">
-                  <td className="px-1 md:px-2 py-1 md:py-1.5 font-semibold text-gray-800 text-[7px] md:text-[8px]">Kit</td>
-                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center text-gray-700">{quotaInfo.quotaSpecial.limit}</td>
-                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center text-gray-700">{quotaInfo.quotaSpecial.used}</td>
-                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center font-semibold text-[#9b6a2a]">{quotaInfo.quotaSpecial.remaining}</td>
-                  <td className="px-0.5 md:px-1 py-1 md:py-1.5 text-center font-semibold text-[#9b6a2a]">
-                    {quotaInfo.quotaSpecial.inCart !== undefined && quotaInfo.quotaSpecial.inCart > 0 
-                      ? quotaInfo.quotaSpecial.inCart 
-                      : '—'}
-                  </td>
-                </tr>
+                {/* Kit removed - no limit */}
               </tbody>
             </table>
           </div>
 
-          {/* Period info */}
-          {quotaInfo.quotaPeriodStart && (
-            <div className="mt-1.5 md:mt-3 pt-1.5 md:pt-3 border-t-2 border-[#9b6a2a] bg-[#fdf8f2] -mx-1.5 md:-mx-3 px-1.5 md:px-3 py-1 md:py-2 rounded-b-lg">
+          {/* Period info and note */}
+          <div className="mt-1.5 md:mt-3 pt-1.5 md:pt-3 border-t-2 border-[#9b6a2a] bg-[#fdf8f2] -mx-1.5 md:-mx-3 px-1.5 md:px-3 py-1 md:py-2 rounded-b-lg space-y-1">
+            {quotaInfo.quotaPeriodStart && (
               <div className="text-center text-[7px] md:text-[10px] text-gray-700">
                 Kỳ hạn: {new Date(quotaInfo.quotaPeriodStart).toLocaleDateString('vi-VN')} - {quotaInfo.quotaPeriodEnd ? new Date(quotaInfo.quotaPeriodEnd).toLocaleDateString('vi-VN') : 'N/A'}
               </div>
+            )}
+            <div className="text-center text-[6px] md:text-[9px] text-gray-600 italic">
+              * Kit không giới hạn
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
@@ -1345,11 +1337,12 @@ const CartCheckout: React.FC = () => {
   // Check if cart exceeds quota
   const quotaExceeded = useMemo(() => {
     if (!quota || !cart?.quotaInfo) return false;
-    // Check if any size quota is exceeded
+    // Check if any size quota is exceeded (Kit has no limit)
     return (
       (cart.quotaInfo.quota5ml.inCart || 0) > cart.quotaInfo.quota5ml.remaining ||
-      (cart.quotaInfo.quota20ml.inCart || 0) > cart.quotaInfo.quota20ml.remaining ||
-      (cart.quotaInfo.quotaSpecial.inCart || 0) > cart.quotaInfo.quotaSpecial.remaining
+      (cart.quotaInfo.quota20ml.inCart || 0) > cart.quotaInfo.quota20ml.remaining
+      // Special products (Kit) have no limit
+      // || (cart.quotaInfo.quotaSpecial.inCart || 0) > cart.quotaInfo.quotaSpecial.remaining
     );
   }, [quota, cart]);
 
@@ -1804,9 +1797,10 @@ const CartCheckout: React.FC = () => {
         if ((cart.quotaInfo.quota20ml.inCart || 0) > cart.quotaInfo.quota20ml.remaining) {
           errors.push(`20ml vượt ${(cart.quotaInfo.quota20ml.inCart || 0) - cart.quotaInfo.quota20ml.remaining} chai`);
         }
-        if ((cart.quotaInfo.quotaSpecial.inCart || 0) > cart.quotaInfo.quotaSpecial.remaining) {
-          errors.push(`Đặc biệt vượt ${(cart.quotaInfo.quotaSpecial.inCart || 0) - cart.quotaInfo.quotaSpecial.remaining} chai`);
-        }
+        // Kit has no limit - no check needed
+        // if ((cart.quotaInfo.quotaSpecial.inCart || 0) > cart.quotaInfo.quotaSpecial.remaining) {
+        //   errors.push(`Đặc biệt vượt ${(cart.quotaInfo.quotaSpecial.inCart || 0) - cart.quotaInfo.quotaSpecial.remaining} chai`);
+        // }
       }
       showToast({
         tone: "error",
@@ -2335,9 +2329,7 @@ const CartCheckout: React.FC = () => {
                                 {(cart.quotaInfo.quota20ml.inCart || 0) > cart.quotaInfo.quota20ml.remaining && (
                                   <p>• 20ml vượt <strong>{(cart.quotaInfo.quota20ml.inCart || 0) - cart.quotaInfo.quota20ml.remaining}</strong> chai</p>
                                 )}
-                                {(cart.quotaInfo.quotaSpecial.inCart || 0) > cart.quotaInfo.quotaSpecial.remaining && (
-                                  <p>• Đặc biệt vượt <strong>{(cart.quotaInfo.quotaSpecial.inCart || 0) - cart.quotaInfo.quotaSpecial.remaining}</strong> chai</p>
-                                )}
+                                {/* Kit has no limit - no warning needed */}
                               </>
                             )}
                           </div>
@@ -2380,16 +2372,10 @@ const CartCheckout: React.FC = () => {
                                 )}
                               </span>
                             </div>
-                            {/* Special */}
-                            <div className="flex justify-between items-center">
-                              <span>Kit:</span>
-                              <span>
-                                <strong>{quota.quotaSpecial.used}</strong> / {quota.quotaSpecial.limit}
-                                {cart?.quotaInfo?.quotaSpecial.inCart !== undefined && cart.quotaInfo.quotaSpecial.inCart > 0 && (
-                                  <span className="text-orange-600"> · Sau đặt: <strong>{quota.quotaSpecial.used + cart.quotaInfo.quotaSpecial.inCart}</strong></span>
-                                )}
-                              </span>
-                            </div>
+                            {/* Kit removed - no limit */}
+                          </div>
+                          <div className="text-[8px] md:text-[9px] text-gray-600 italic mt-1">
+                            * Kit không giới hạn
                           </div>
                           {quota.quotaPeriodEnd && (
                             <p className="text-[9px] md:text-[10px] text-blue-600 mt-1.5 pt-1.5 border-t border-blue-200">

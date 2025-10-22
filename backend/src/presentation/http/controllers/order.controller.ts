@@ -198,9 +198,10 @@ export class OrderController {
         errors.push(`20ml: vượt quá ${qty20ml - quotaInfo.quota20ml.remaining} chai (còn lại: ${quotaInfo.quota20ml.remaining}/${quotaInfo.quota20ml.limit})`);
       }
 
-      if (qtySpecial > quotaInfo.quotaSpecial.remaining) {
-        errors.push(`Sản phẩm đặc biệt: vượt quá ${qtySpecial - quotaInfo.quotaSpecial.remaining} chai (còn lại: ${quotaInfo.quotaSpecial.remaining}/${quotaInfo.quotaSpecial.limit})`);
-      }
+      // Special products (Kit) have no limit - skip check
+      // if (qtySpecial > quotaInfo.quotaSpecial.remaining) {
+      //   errors.push(`Sản phẩm đặc biệt: vượt quá ${qtySpecial - quotaInfo.quotaSpecial.remaining} chai (còn lại: ${quotaInfo.quotaSpecial.remaining}/${quotaInfo.quotaSpecial.limit})`);
+      // }
 
       if (errors.length > 0) {
         throw new HttpException(

@@ -3,127 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đơn hàng đã thanh toán</title>
+    <title>Đặt hàng thành công - LD Perfume Oil Luxury</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f4;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
         }
         .container {
             max-width: 600px;
-            margin: 20px auto;
+            margin: 30px auto;
             background-color: #ffffff;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
         }
         .header {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            padding: 30px;
+            background-color: #8b5e1e;
+            padding: 20px 15px;
             text-align: center;
-            color: #ffffff;
         }
         .header h1 {
+            color: #ffffff;
+            font-size: 18px;
             margin: 0;
-            font-size: 24px;
         }
         .content {
-            padding: 40px 30px;
+            padding: 25px 20px;
         }
         .content h2 {
             color: #333333;
-            margin-top: 0;
+            font-size: 16px;
+            margin: 0 0 15px 0;
         }
         .content p {
             color: #666666;
-            line-height: 1.6;
+            line-height: 1.5;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .success-badge {
+            background-color: #d4f4dd;
+            border-left: 4px solid #28a745;
+            padding: 12px 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .success-badge p {
+            color: #155724;
+            font-weight: bold;
+            margin: 0;
+            font-size: 14px;
+        }
+        .order-info {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 5px;
             margin: 15px 0;
         }
-        .success-box {
-            background-color: #d4edda;
-            border-left: 4px solid #28a745;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 5px;
-        }
-        .success-box h3 {
-            margin: 0 0 10px 0;
-            color: #155724;
-        }
-        .success-box p {
-            margin: 5px 0;
-            color: #155724;
-        }
-        .order-summary {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        .order-summary table {
+        .order-info table {
             width: 100%;
         }
-        .order-summary td {
-            padding: 8px 0;
+        .order-info td {
+            padding: 6px 0;
             color: #333333;
+            font-size: 14px;
         }
-        .order-summary td:first-child {
+        .order-info td:first-child {
+            font-weight: bold;
+            width: 40%;
+        }
+        .total-amount {
+            color: #8b5e1e;
+            font-size: 16px;
             font-weight: bold;
         }
         .footer {
-            background-color: #f8f9fa;
-            padding: 20px 30px;
+            background-color: #f8f8f8;
+            padding: 15px 20px;
             text-align: center;
-            color: #6c757d;
-            font-size: 12px;
+            border-top: 1px solid #e0e0e0;
         }
-        .footer a {
-            color: #11998e;
-            text-decoration: none;
+        .footer p {
+            color: #999999;
+            font-size: 12px;
+            margin: 4px 0;
+        }
+        .footer strong {
+            color: #8b5e1e;
+        }
+        @media only screen and (max-width: 600px) {
+            .content {
+                padding: 20px 15px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <h1>💳 Thanh toán thành công!</h1>
+            <h1>LD Perfume Oil Luxury</h1>
         </div>
+
+        <!-- Content -->
         <div class="content">
             <h2>Xin chào {{username}},</h2>
 
-            <div class="success-box">
-                <h3>✅ Đơn hàng đã được thanh toán</h3>
-                <p>Chúng tôi đã nhận được thanh toán cho đơn hàng <strong>{{orderNumber}}</strong></p>
+            <!-- Success Badge -->
+            <div class="success-badge">
+                <p>✅ Đặt hàng thành công! Cảm ơn bạn đã mua hàng.</p>
             </div>
 
-            <div class="order-summary">
+            <p>Chúng tôi đã nhận được thanh toán và tạo đơn hàng của bạn thành công.</p>
+
+            <!-- Order Info -->
+            <div class="order-info">
                 <table>
                     <tr>
                         <td>Mã đơn hàng:</td>
                         <td><strong>{{orderNumber}}</strong></td>
                     </tr>
                     <tr>
-                        <td>Ngày thanh toán:</td>
+                        <td>Ngày đặt:</td>
                         <td>{{formatDate paidAt}}</td>
                     </tr>
                     <tr>
-                        <td>Số tiền:</td>
-                        <td><strong style="color: #11998e; font-size: 18px;">{{formatCurrency totalAmount}}</strong></td>
+                        <td>Tổng tiền:</td>
+                        <td class="total-amount">{{formatCurrency totalAmount}}</td>
                     </tr>
                 </table>
             </div>
 
-            <p>Đơn hàng của bạn đang được xử lý và sẽ sớm được giao đến bạn trong <strong>2-5 ngày</strong>.</p>
-            <p>Bạn có thể theo dõi trạng thái đơn hàng trong mục "Đơn hàng của tôi" trên website.</p>
-            <p>Cảm ơn bạn đã tin tưởng và mua hàng tại <strong>{{company.name}}</strong>! 🎉</p>
+            <p><strong>Thông tin giao hàng:</strong></p>
+            <p>• Đơn hàng sẽ được xử lý và giao trong <strong>2-5 ngày</strong></p>
+            <p>• Bạn có thể theo dõi đơn hàng tại mục "Đơn hàng của tôi"</p>
+            <p>• Hotline hỗ trợ: <strong>{{company.hotline}}</strong></p>
+
+            <p style="margin-top: 30px;">Cảm ơn bạn đã tin tưởng <strong>LD Perfume Oil Luxury</strong>!</p>
         </div>
+
+        <!-- Footer -->
         <div class="footer">
-            <p><strong>{{company.name}}</strong></p>
-            <p>Website: <a href="{{company.website}}">{{company.website}}</a></p>
+            <p><strong>LD Perfume Oil Luxury</strong></p>
+            <p>Website: {{company.website}}</p>
             <p>Email: {{company.email}} | Hotline: {{company.hotline}}</p>
-            <p style="margin-top: 15px;">© 2025 {{company.name}}. All rights reserved.</p>
+            <p style="margin-top: 15px; color: #cccccc;">© 2025 LD Perfume Oil Luxury</p>
         </div>
     </div>
 </body>

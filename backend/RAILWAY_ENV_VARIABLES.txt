@@ -57,9 +57,9 @@ RESEND_API_KEY=re_YOUR_API_KEY_HERE
 # Email sender (must use verified domain or onboarding@resend.dev for testing)
 # For testing: Use onboarding@resend.dev (works immediately)
 # For production: Add your domain in Resend and verify it
-EMAIL_FROM=LD Group <onboarding@resend.dev>
+EMAIL_FROM=LD Perfume Oil Luxury <onboarding@resend.dev>
 
-COMPANY_NAME=LD Group
+COMPANY_NAME=LD Perfume Oil Luxury
 
 COMPANY_WEBSITE=https://doitac.ldgroup.vn
 

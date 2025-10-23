@@ -177,7 +177,7 @@ export class AuthService {
 
     // 🔒 Security: Always return same message to prevent email enumeration
     const response = {
-      message: 'Yêu cầu đặt lại mật khẩu đã được ghi nhận. Vui lòng liên hệ admin để được hỗ trợ.',
+      message: 'Nếu email tồn tại trong hệ thống, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.',
     };
 
     if (!user || !user.isActive()) {
@@ -188,19 +188,7 @@ export class AuthService {
       return response;
     }
 
-    // 📢 LOG FOR ADMIN: User needs password reset
-    this.logger.warn(
-      `🔐 PASSWORD RESET REQUEST:\n` +
-      `   User ID: ${user.id}\n` +
-      `   Username: ${user.username}\n` +
-      `   Email: ${user.email.value}\n` +
-      `   Name: ${user.firstName} ${user.lastName}\n` +
-      `   Time: ${new Date().toLocaleString('vi-VN')}\n` +
-      `   → Admin: Please contact this user to reset their password`
-    );
-
-    // Optional: Create token for admin to use (admin can use script to reset)
-    // But NOT returned to user for security
+    // Generate reset token
     const token = CryptoUtil.generateRandomString(32);
     const tokenHash = CryptoUtil.hash(token);
 
@@ -217,9 +205,27 @@ export class AuthService {
 
     await this.passwordResetTokenRepository.create(resetToken);
 
-    // Admin can check logs to see who needs password reset
-    // Then admin contacts user directly (phone, zalo, etc.)
-    // Or admin can reset password manually using admin script
+    // Build reset URL
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+    // Send email
+    const emailSent = await this.emailService.sendPasswordResetEmail(
+      user.email.value,
+      resetUrl,
+      user.username
+    );
+
+    // Log for monitoring
+    if (emailSent) {
+      this.logger.log(
+        `✅ Password reset email sent to ${user.email.value} (User: ${user.username})`
+      );
+    } else {
+      this.logger.warn(
+        `⚠️ Failed to send password reset email to ${user.email.value} (User: ${user.username})`
+      );
+    }
 
     return response;
   }

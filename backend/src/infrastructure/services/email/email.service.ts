@@ -43,7 +43,7 @@ export class EmailService {
 
     // Company info for email footers
     this.companyInfo = {
-      name: this.configService.get<string>('COMPANY_NAME', 'LD Group'),
+      name: this.configService.get<string>('COMPANY_NAME', 'LD Perfume Oil Luxury'),
       website: this.configService.get<string>('COMPANY_WEBSITE', 'https://doitac.ldgroup.vn'),
       email: this.configService.get<string>('COMPANY_EMAIL', 'support@ldgroup.vn'),
       hotline: this.configService.get<string>('COMPANY_HOTLINE', '076 788 6252'),
@@ -135,7 +135,7 @@ export class EmailService {
         }
       }
 
-      const fromEmail = this.configService.get<string>('EMAIL_FROM', 'LD Group <onboarding@resend.dev>');
+      const fromEmail = this.configService.get<string>('EMAIL_FROM', 'LD Perfume Oil Luxury <onboarding@resend.dev>');
 
       // 🚀 Send email using Resend (super simple!)
       await this.resend.emails.send({
@@ -156,11 +156,18 @@ export class EmailService {
 
   /**
    * Send password reset email
-   * 🔕 DISABLED: Email service disabled - return reset token in API response instead
    */
   async sendPasswordResetEmail(to: string, resetUrl: string, username: string): Promise<boolean> {
-    this.logger.debug(`🔕 Password reset email disabled. User should receive token in API response.`);
-    return true; // Return true to not break existing code
+    return this.sendEmail({
+      to,
+      subject: 'Đặt lại mật khẩu - LD Perfume Oil Luxury',
+      template: 'reset-password',
+      context: {
+        username,
+        resetUrl,
+        expiryHours: 24,
+      },
+    });
   }
 
   /**
@@ -184,7 +191,6 @@ export class EmailService {
 
   /**
    * Send order confirmed/paid notification
-   * 🔕 DISABLED: User requirement - only send order created and password reset emails
    */
   async sendOrderConfirmedEmail(
     to: string,
@@ -195,8 +201,17 @@ export class EmailService {
       paidAt: Date;
     },
   ): Promise<boolean> {
-    this.logger.debug(`🔕 Order confirmed email disabled for ${to}`);
-    return true; // Return true to not break existing code
+    return this.sendEmail({
+      to,
+      subject: 'Đặt hàng thành công - LD Perfume Oil Luxury',
+      template: 'order-confirmed',
+      context: {
+        username: orderData.username,
+        orderNumber: orderData.orderNumber,
+        totalAmount: orderData.totalAmount,
+        paidAt: orderData.paidAt,
+      },
+    });
   }
 
   /**

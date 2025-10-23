@@ -60,48 +60,46 @@ export class CartController {
     // Get cart with pricing calculations
     const cart = await this.cartRepository.getCartWithPricing(userId);
 
-    // Get quota info (skip for admin)
+    // Get quota info (always include, even for admin for UI consistency)
     let quotaInfo = null;
-    if (userRole !== UserRole.ADMIN) {
-      quotaInfo = await this.userRepository.getQuotaInfo(userId);
+    quotaInfo = await this.userRepository.getQuotaInfo(userId);
 
-      if (quotaInfo && cart) {
-        // Calculate quantities in cart by size
-        let cart5mlQty = 0;
-        let cart20mlQty = 0;
-        let cartSpecialQty = 0;
+    if (quotaInfo && cart) {
+      // Calculate quantities in cart by size
+      let cart5mlQty = 0;
+      let cart20mlQty = 0;
+      let cartSpecialQty = 0;
 
-        for (const item of cart.items || []) {
-          const product = await this.productRepository.findById(item.productId);
-          if (product?.isSpecial) {
-            cartSpecialQty += item.quantity;
-          } else if (item.productVariant?.size === '5ml') {
-            cart5mlQty += item.quantity;
-          } else if (item.productVariant?.size === '20ml') {
-            cart20mlQty += item.quantity;
-          }
+      for (const item of cart.items || []) {
+        const product = await this.productRepository.findById(item.productId);
+        if (product?.isSpecial) {
+          cartSpecialQty += item.quantity;
+        } else if (item.productVariant?.size === '5ml') {
+          cart5mlQty += item.quantity;
+        } else if (item.productVariant?.size === '20ml') {
+          cart20mlQty += item.quantity;
         }
-
-        // Add cart quantities to quota info
-        quotaInfo = {
-          ...quotaInfo,
-          quota5ml: {
-            ...quotaInfo.quota5ml,
-            inCart: cart5mlQty,
-            remainingAfterCart: quotaInfo.quota5ml.remaining - cart5mlQty,
-          },
-          quota20ml: {
-            ...quotaInfo.quota20ml,
-            inCart: cart20mlQty,
-            remainingAfterCart: quotaInfo.quota20ml.remaining - cart20mlQty,
-          },
-          quotaSpecial: {
-            ...quotaInfo.quotaSpecial,
-            inCart: cartSpecialQty,
-            remainingAfterCart: quotaInfo.quotaSpecial.remaining - cartSpecialQty,
-          },
-        };
       }
+
+      // Add cart quantities to quota info
+      quotaInfo = {
+        ...quotaInfo,
+        quota5ml: {
+          ...quotaInfo.quota5ml,
+          inCart: cart5mlQty,
+          remainingAfterCart: quotaInfo.quota5ml.remaining - cart5mlQty,
+        },
+        quota20ml: {
+          ...quotaInfo.quota20ml,
+          inCart: cart20mlQty,
+          remainingAfterCart: quotaInfo.quota20ml.remaining - cart20mlQty,
+        },
+        quotaSpecial: {
+          ...quotaInfo.quotaSpecial,
+          inCart: cartSpecialQty,
+          remainingAfterCart: quotaInfo.quotaSpecial.remaining - cartSpecialQty,
+        },
+      };
     }
 
     const response = {

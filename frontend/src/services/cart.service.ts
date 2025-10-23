@@ -1,18 +1,11 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export interface PriceBreakdown {
-  tier100Count: number;
-  tier100Price: number;
-  tier100Total: number;
-  tier10Count: number;
-  tier10Price: number;
-  tier10Total: number;
-  singleCount: number;
-  singlePrice: number;
-  singleTotal: number;
+  pricePerUnit: number;
   totalQuantity: number;
   totalPrice: number;
   size: '5ml' | '20ml';
+  appliedRange: '1-9' | '10-49' | '50-99' | '100+';
 }
 
 export interface CartItem {

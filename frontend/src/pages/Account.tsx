@@ -10,6 +10,7 @@ import { commissionService } from "../services/commission.service";
 import { quotaService, type QuotaResponse } from "../services/quota.service";
 import { Modal } from "../components/ui/modal";
 import { authService, type AuthUser } from "../services/authService";
+import { apiClient } from "../services/apiClient";
 
 const WALLET_COLOR = "#8B5E1E";
 const MIN_WITHDRAW_AMOUNT = 500_000;
@@ -1200,6 +1201,20 @@ const WithdrawModal: React.FC<{
 };
 
 const ChangePasswordModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+  const [activeTab, setActiveTab] = useState<'profile' | 'password'>('password');
+  
+  // Profile tab states
+  const { user, accessToken } = useAuth();
+  const [profileForm, setProfileForm] = useState({
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    phone: user?.phone || "",
+  });
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
+
+  // Password tab states  
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -1208,7 +1223,50 @@ const ChangePasswordModal: React.FC<{ open: boolean; onClose: () => void }> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { changePassword } = useAuth();
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  // Update profile form when user changes
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        phone: user.phone || "",
+      });
+    }
+  }, [user]);
+
+  const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setProfileError(null);
+    setProfileMessage(null);
+    setProfileSubmitting(true);
+
+    try {
+      if (!user?.id || !accessToken) {
+        throw new Error("Không tìm thấy thông tin người dùng");
+      }
+
+      // Use apiClient to call the API
+      await apiClient(`/users/${user.id}`, {
+        method: 'PUT',
+        body: profileForm,
+        authToken: accessToken,
+      });
+
+      setProfileMessage("Cập nhật thông tin thành công!");
+      
+      // Reload profile after 1.5s
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Không thể cập nhật thông tin";
+      setProfileError(errorMessage);
+    } finally {
+      setProfileSubmitting(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (newPassword !== confirmPassword) {
@@ -1238,22 +1296,116 @@ const ChangePasswordModal: React.FC<{ open: boolean; onClose: () => void }> = ({
     <Modal isOpen={open} onClose={onClose} showCloseButton={false} className="max-w-md w-[90%] mx-auto px-4 !bg-transparent !rounded-none !shadow-none">
       <div className="bg-white rounded-xl border-2 border-[#8B5E1E] shadow-lg relative px-4 py-4 sm:px-6 sm:py-5">
         {/* Close button */}
-          <button
-            type="button"
-            onClick={onClose}
+        <button
+          type="button"
+          onClick={onClose}
           className="absolute top-4 right-4 sm:top-6 sm:right-6 hover:opacity-70 transition"
           aria-label="Đóng"
-          >
+        >
           <img src="/circle-xmark 1.svg" alt="Đóng" className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
+        </button>
 
         {/* Header */}
-        <h3 className="font-bold text-[15px] sm:text-[18px] leading-tight mb-5 sm:mb-8 text-black uppercase">
-          Đổi mật khẩu
+        <h3 className="font-bold text-[15px] sm:text-[18px] leading-tight mb-3 sm:mb-5 text-black uppercase">
+          Cài đặt tài khoản
         </h3>
 
-        {/* Form */}
-        <form className="space-y-4 sm:space-y-5 text-black" onSubmit={handleSubmit}>
+        {/* Tabs */}
+        <div className="flex border-b border-gray-300 mb-5">
+          <button
+            type="button"
+            onClick={() => setActiveTab('password')}
+            className={`flex-1 py-2 px-4 text-[12px] sm:text-[14px] font-semibold transition ${
+              activeTab === 'password'
+                ? 'border-b-2 border-[#8B5E1E] text-[#8B5E1E]'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Đổi mật khẩu
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('profile')}
+            className={`flex-1 py-2 px-4 text-[12px] sm:text-[14px] font-semibold transition ${
+              activeTab === 'profile'
+                ? 'border-b-2 border-[#8B5E1E] text-[#8B5E1E]'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Sửa thông tin
+          </button>
+        </div>
+
+        {/* Profile Tab */}
+        {activeTab === 'profile' && (
+          <form className="space-y-4 sm:space-y-5 text-black" onSubmit={handleProfileSubmit}>
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="firstName" className="font-bold w-24 sm:w-32 flex-shrink-0 text-[11px] md:text-[14px]">
+                Họ
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+                value={profileForm.firstName}
+                onChange={(e) => setProfileForm(prev => ({ ...prev, firstName: e.target.value }))}
+                placeholder="Nhập họ"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="lastName" className="font-bold w-24 sm:w-32 flex-shrink-0 text-[11px] md:text-[14px]">
+                Tên
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+                value={profileForm.lastName}
+                onChange={(e) => setProfileForm(prev => ({ ...prev, lastName: e.target.value }))}
+                placeholder="Nhập tên"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="phone" className="font-bold w-24 sm:w-32 flex-shrink-0 text-[11px] md:text-[14px]">
+                Số điện thoại
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+                value={profileForm.phone}
+                onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Nhập số điện thoại"
+              />
+            </div>
+
+            {profileError && (
+              <p className="text-[11px] sm:text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                {profileError}
+              </p>
+            )}
+
+            {profileMessage && (
+              <p className="text-[11px] sm:text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                {profileMessage}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={profileSubmitting}
+              className="w-full bg-[#8B5E1E] text-white font-bold text-[12px] md:text-[14px] rounded-md py-2.5 sm:py-3 mt-5 sm:mt-7 uppercase hover:bg-[#6f4715] transition disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {profileSubmitting ? "Đang xử lý..." : "Cập nhật thông tin"}
+            </button>
+          </form>
+        )}
+
+        {/* Password Tab */}
+        {activeTab === 'password' && (
+          <form className="space-y-4 sm:space-y-5 text-black" onSubmit={handlePasswordSubmit}>
           {/* Mật khẩu hiện tại */}
           <div className="flex items-center justify-between gap-2">
             <label htmlFor="current-password" className="font-bold w-24 sm:w-32 flex-shrink-0 text-[11px] md:text-[14px]">
@@ -1316,18 +1468,19 @@ const ChangePasswordModal: React.FC<{ open: boolean; onClose: () => void }> = ({
             </p>
           )}
 
-          {/* Submit button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-[#8B5E1E] text-white font-bold text-[12px] md:text-[14px] rounded-md py-2.5 sm:py-3 mt-5 sm:mt-7 uppercase hover:bg-[#6f4715] transition disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? "Đang xử lý..." : "Cập nhật mật khẩu"}
-          </button>
-      </form>
-    </div>
-  </Modal>
-);
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-[#8B5E1E] text-white font-bold text-[12px] md:text-[14px] rounded-md py-2.5 sm:py-3 mt-5 sm:mt-7 uppercase hover:bg-[#6f4715] transition disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? "Đang xử lý..." : "Cập nhật mật khẩu"}
+            </button>
+          </form>
+        )}
+      </div>
+    </Modal>
+  );
 };
 
 const OrderDetailModal: React.FC<{ order: OrderType; onClose: () => void }> = ({ order, onClose }) => (

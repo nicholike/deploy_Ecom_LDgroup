@@ -94,9 +94,12 @@ async function testNewPricing() {
         if (total >= 100) {
           pricePerUnit = priceSettings.range100plus;
           range = '100+';
+        } else if (total >= 50) {
+          pricePerUnit = priceSettings.range50to99;
+          range = '50-99';
         } else if (total >= 10) {
-          pricePerUnit = priceSettings.range10to99;
-          range = '10-99';
+          pricePerUnit = priceSettings.range10to49;
+          range = '10-49';
         } else {
           pricePerUnit = priceSettings.range1to9;
           range = '1-9';

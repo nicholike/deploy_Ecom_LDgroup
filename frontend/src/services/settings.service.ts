@@ -169,12 +169,14 @@ export const SettingsService = {
   async getGlobalPricing(): Promise<{
     '5ml': {
       range1to9: number;
-      range10to99: number;
+      range10to49: number;
+      range50to99: number;
       range100plus: number;
     };
     '20ml': {
       range1to9: number;
-      range10to99: number;
+      range10to49: number;
+      range50to99: number;
       range100plus: number;
     };
   }> {
@@ -182,12 +184,14 @@ export const SettingsService = {
     const response = await apiClient<{
       '5ml': {
         range1to9: number;
-        range10to99: number;
+        range10to49: number;
+        range50to99: number;
         range100plus: number;
       };
       '20ml': {
         range1to9: number;
-        range10to99: number;
+        range10to49: number;
+        range50to99: number;
         range100plus: number;
       };
     }>('/settings/pricing/global', {
@@ -200,12 +204,14 @@ export const SettingsService = {
   async updateGlobalPricing(data: {
     '5ml': {
       range1to9: number;
-      range10to99: number;
+      range10to49: number;
+      range50to99: number;
       range100plus: number;
     };
     '20ml': {
       range1to9: number;
-      range10to99: number;
+      range10to49: number;
+      range50to99: number;
       range100plus: number;
     };
   }): Promise<void> {

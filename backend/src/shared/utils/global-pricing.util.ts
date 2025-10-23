@@ -3,7 +3,8 @@
  *
  * Tính giá sản phẩm theo logic khoảng số lượng:
  * - 1-9 chai: giá cao nhất
- * - 10-99 chai: giá trung bình
+ * - 10-49 chai: giá trung bình cao
+ * - 50-99 chai: giá trung bình thấp
  * - 100+ chai: giá thấp nhất
  * - Áp dụng cho 5ml và 20ml
  * - Tính theo TỔNG số lượng của tất cả sản phẩm cùng dung tích
@@ -11,9 +12,10 @@
  */
 
 export interface PriceSettings {
-  range1to9: number;     // Giá cho khoảng 1-9 chai
-  range10to99: number;   // Giá cho khoảng 10-99 chai
-  range100plus: number;  // Giá cho khoảng 100+ chai
+  range1to9: number;       // Giá cho khoảng 1-9 chai
+  range10to49: number;     // Giá cho khoảng 10-49 chai
+  range50to99: number;     // Giá cho khoảng 50-99 chai
+  range100plus: number;    // Giá cho khoảng 100+ chai
 }
 
 export interface GlobalPriceConfig {
@@ -26,7 +28,7 @@ export interface PriceBreakdown {
   totalQuantity: number;   // Tổng số lượng
   totalPrice: number;      // Tổng tiền
   size: '5ml' | '20ml';    // Dung tích
-  appliedRange: '1-9' | '10-99' | '100+'; // Khoảng giá được áp dụng
+  appliedRange: '1-9' | '10-49' | '50-99' | '100+'; // Khoảng giá được áp dụng
 }
 
 /**
@@ -59,14 +61,17 @@ export function calculateRangePrice(
 
   // Xác định khoảng giá dựa trên tổng số lượng
   let pricePerUnit: number;
-  let appliedRange: '1-9' | '10-99' | '100+';
+  let appliedRange: '1-9' | '10-49' | '50-99' | '100+';
 
   if (quantity >= 100) {
     pricePerUnit = settings.range100plus;
     appliedRange = '100+';
+  } else if (quantity >= 50) {
+    pricePerUnit = settings.range50to99;
+    appliedRange = '50-99';
   } else if (quantity >= 10) {
-    pricePerUnit = settings.range10to99;
-    appliedRange = '10-99';
+    pricePerUnit = settings.range10to49;
+    appliedRange = '10-49';
   } else {
     pricePerUnit = settings.range1to9;
     appliedRange = '1-9';
@@ -109,7 +114,8 @@ export function parsePriceConfig(jsonString: string): GlobalPriceConfig {
 
     const validate = (settings: any, size: string) => {
       if (typeof settings.range1to9 !== 'number' ||
-          typeof settings.range10to99 !== 'number' ||
+          typeof settings.range10to49 !== 'number' ||
+          typeof settings.range50to99 !== 'number' ||
           typeof settings.range100plus !== 'number') {
         throw new Error(`Invalid price settings for ${size}`);
       }
@@ -137,12 +143,14 @@ export function formatPriceConfig(config: GlobalPriceConfig): string {
 export const DEFAULT_PRICE_CONFIG: GlobalPriceConfig = {
   '5ml': {
     range1to9: 139000,
-    range10to99: 109000,
+    range10to49: 109000,
+    range50to99: 104000,
     range100plus: 99000
   },
   '20ml': {
     range1to9: 450000,
-    range10to99: 360000,
+    range10to49: 360000,
+    range50to99: 345000,
     range100plus: 330000
   }
 };

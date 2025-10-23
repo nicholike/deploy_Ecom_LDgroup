@@ -23,7 +23,7 @@ echo ""
 
 # Check if response contains new format
 if echo "$response" | grep -q "range1to9"; then
-    echo -e "${GREEN}✅ SUCCESS: API returns NEW format (range1to9, range10to99, range100plus)${NC}"
+    echo -e "${GREEN}✅ SUCCESS: API returns NEW format (range1to9, range10to49, range50to99, range100plus)${NC}"
 elif echo "$response" | grep -q "tier100"; then
     echo -e "${RED}❌ ERROR: API still returns OLD format (tier100, tier10, single)${NC}"
     echo -e "${YELLOW}Please restart backend to clear cache${NC}"

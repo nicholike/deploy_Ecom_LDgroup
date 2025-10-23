@@ -25,31 +25,39 @@ async function testPricing() {
   console.log(JSON.stringify(config, null, 2));
   console.log('');
 
-  // 3. Manual calculation for 125 items of 5ml
+  // 3. NEW LOGIC: Range-based calculation for 125 items of 5ml
   const quantity = 125;
-  const tier100Count = Math.floor(quantity / 100); // 1
-  const remaining100 = quantity % 100; // 25
+  let pricePerUnit: number;
+  let range: string;
 
-  const tier10Count = Math.floor(remaining100 / 10); // 2
-  const singleCount = remaining100 % 10; // 5
+  if (quantity >= 100) {
+    pricePerUnit = config['5ml'].range100plus;
+    range = '100+';
+  } else if (quantity >= 50) {
+    pricePerUnit = config['5ml'].range50to99;
+    range = '50-99';
+  } else if (quantity >= 10) {
+    pricePerUnit = config['5ml'].range10to49;
+    range = '10-49';
+  } else {
+    pricePerUnit = config['5ml'].range1to9;
+    range = '1-9';
+  }
 
-  const tier100Total = tier100Count * 100 * config['5ml'].tier100;
-  const tier10Total = tier10Count * 10 * config['5ml'].tier10;
-  const singleTotal = singleCount * config['5ml'].single;
+  const total = quantity * pricePerUnit;
 
-  const total = tier100Total + tier10Total + singleTotal;
-
-  console.log('📊 Manual calculation for 125 items (5ml):');
-  console.log(`  - Tier 100: ${tier100Count} × 100 × ${config['5ml'].tier100.toLocaleString()} = ${tier100Total.toLocaleString()}đ`);
-  console.log(`  - Tier 10: ${tier10Count} × 10 × ${config['5ml'].tier10.toLocaleString()} = ${tier10Total.toLocaleString()}đ`);
-  console.log(`  - Single: ${singleCount} × ${config['5ml'].single.toLocaleString()} = ${singleTotal.toLocaleString()}đ`);
-  console.log(`  - TOTAL: ${total.toLocaleString()}đ`);
+  console.log('📊 Range-based calculation for 125 items (5ml):');
+  console.log(`  - Quantity: ${quantity} bottles`);
+  console.log(`  - Applied range: ${range}`);
+  console.log(`  - Price per unit: ${pricePerUnit.toLocaleString()}đ`);
+  console.log(`  - TOTAL: ${quantity} × ${pricePerUnit.toLocaleString()}đ = ${total.toLocaleString()}đ`);
   console.log('');
 
-  if (total === 12775000) {
-    console.log('✅ Calculation is CORRECT! (12,775,000đ)');
+  const expectedTotal = 125 * 99000; // 125 bottles at range100plus price
+  if (total === expectedTotal) {
+    console.log(`✅ Calculation is CORRECT! (${expectedTotal.toLocaleString()}đ)`);
   } else {
-    console.log(`❌ Calculation is WRONG! Expected 12,775,000đ but got ${total.toLocaleString()}đ`);
+    console.log(`❌ Calculation is WRONG! Expected ${expectedTotal.toLocaleString()}đ but got ${total.toLocaleString()}đ`);
   }
 
   await prisma.$disconnect();

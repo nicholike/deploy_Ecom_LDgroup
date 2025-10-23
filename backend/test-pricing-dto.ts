@@ -6,24 +6,25 @@ import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
 
 // Mock the DTO class inline
-class PriceTierDto {
-  tier100: number;
-  tier10: number;
-  single: number;
+class PriceRangeDto {
+  range1to9: number;
+  range10to49: number;
+  range50to99: number;
+  range100plus: number;
 }
 
 class UpdateGlobalPricingDto {
-  '5ml': PriceTierDto;
-  '20ml': PriceTierDto;
+  '5ml': PriceRangeDto;
+  '20ml': PriceRangeDto;
 }
 
 async function testDto() {
-  console.log('🧪 Testing DTO with string literal keys...\n');
+  console.log('🧪 Testing DTO with 4-range pricing...\n');
 
   // Test case 1: Valid data
   const validData = {
-    '5ml': { tier100: 99000, tier10: 109000, single: 139000 },
-    '20ml': { tier100: 330000, tier10: 360000, single: 450000 },
+    '5ml': { range1to9: 139000, range10to49: 109000, range50to99: 104000, range100plus: 99000 },
+    '20ml': { range1to9: 450000, range10to49: 360000, range50to99: 345000, range100plus: 330000 },
   };
 
   console.log('📥 Input data:');
@@ -52,16 +53,23 @@ async function testDto() {
 
   // Test case 2: Test that we can access the data correctly
   console.log('\n🎯 Final check:');
-  if (dto['5ml'] && dto['5ml'].tier100 === 99000) {
-    console.log('✅ Can access 5ml.tier100 correctly:', dto['5ml'].tier100);
+  if (dto['5ml'] && dto['5ml'].range100plus === 99000) {
+    console.log('✅ Can access 5ml.range100plus correctly:', dto['5ml'].range100plus);
   } else {
-    console.log('❌ Cannot access 5ml.tier100');
+    console.log('❌ Cannot access 5ml.range100plus');
   }
 
-  if (dto['20ml'] && dto['20ml'].tier100 === 330000) {
-    console.log('✅ Can access 20ml.tier100 correctly:', dto['20ml'].tier100);
+  if (dto['20ml'] && dto['20ml'].range100plus === 330000) {
+    console.log('✅ Can access 20ml.range100plus correctly:', dto['20ml'].range100plus);
   } else {
-    console.log('❌ Cannot access 20ml.tier100');
+    console.log('❌ Cannot access 20ml.range100plus');
+  }
+
+  // Additional checks for all ranges
+  if (dto['5ml'].range1to9 === 139000 && dto['5ml'].range10to49 === 109000 && dto['5ml'].range50to99 === 104000) {
+    console.log('✅ All 5ml ranges accessible correctly');
+  } else {
+    console.log('❌ Some 5ml ranges not accessible');
   }
 }
 

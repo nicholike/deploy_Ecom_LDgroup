@@ -13,7 +13,7 @@ import {
  *
  * Quản lý logic tính giá global cho sản phẩm
  * - Lấy cấu hình giá từ SystemSetting
- * - Tính giá theo khoảng số lượng (1-9, 10-99, 100+)
+ * - Tính giá theo khoảng số lượng (1-9, 10-49, 50-99, 100+)
  * - Tính theo TỔNG số lượng của tất cả sản phẩm cùng dung tích
  * - Cache config để tránh query DB liên tục
  */

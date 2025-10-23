@@ -9,6 +9,7 @@ export interface AuthUser {
   firstName?: string;
   lastName?: string;
   fullName?: string;
+  phone?: string;
 }
 
 export interface LoginResponse {

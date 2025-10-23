@@ -35,8 +35,8 @@ UPDATE_RESPONSE=$(curl -s -X PUT "$API_URL/admin/settings/pricing/global" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "5ml": {"tier100": 99000, "tier10": 109000, "single": 139000},
-    "20ml": {"tier100": 330000, "tier10": 360000, "single": 450000}
+    "5ml": {"range1to9": 139000, "range10to49": 109000, "range50to99": 104000, "range100plus": 99000},
+    "20ml": {"range1to9": 450000, "range10to49": 360000, "range50to99": 345000, "range100plus": 330000}
   }')
 
 echo "Update response: $UPDATE_RESPONSE"
@@ -58,7 +58,7 @@ VERIFY_RESPONSE=$(curl -s -X GET "$API_URL/admin/settings/pricing/global" \
 
 echo "Verified pricing: $VERIFY_RESPONSE"
 
-if echo "$VERIFY_RESPONSE" | grep -q '"tier100":99000'; then
+if echo "$VERIFY_RESPONSE" | grep -q '"range100plus":99000'; then
   echo ""
   echo "✅ Pricing correctly saved and retrieved!"
 else

@@ -371,8 +371,8 @@ const PricingTab: React.FC<{ showToast: any }> = ({ showToast }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pricing, setPricing] = useState<{
-    '5ml': { range1to9: number; range10to99: number; range100plus: number };
-    '20ml': { range1to9: number; range10to99: number; range100plus: number };
+    '5ml': { range1to9: number; range10to49: number; range50to99: number; range100plus: number };
+    '20ml': { range1to9: number; range10to49: number; range50to99: number; range100plus: number };
   } | null>(null);
 
   useEffect(() => {
@@ -389,8 +389,8 @@ const PricingTab: React.FC<{ showToast: any }> = ({ showToast }) => {
       console.error('Failed to load pricing:', error);
       // Set default pricing if load fails
       setPricing({
-        '5ml': { range1to9: 139000, range10to99: 109000, range100plus: 99000 },
-        '20ml': { range1to9: 450000, range10to99: 360000, range100plus: 330000 },
+        '5ml': { range1to9: 139000, range10to49: 109000, range50to99: 104000, range100plus: 99000 },
+        '20ml': { range1to9: 450000, range10to49: 360000, range50to99: 345000, range100plus: 330000 },
       });
       showToast({
         tone: 'warning',
@@ -432,7 +432,7 @@ const PricingTab: React.FC<{ showToast: any }> = ({ showToast }) => {
 
   const updatePrice = (
     size: '5ml' | '20ml',
-    range: 'range1to9' | 'range10to99' | 'range100plus',
+    range: 'range1to9' | 'range10to49' | 'range50to99' | 'range100plus',
     value: string
   ) => {
     if (!pricing) return;
@@ -502,15 +502,30 @@ const PricingTab: React.FC<{ showToast: any }> = ({ showToast }) => {
 
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
               <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
-                Giá khoảng 10-99 chai (mỗi chai)
+                Giá khoảng 10-49 chai (mỗi chai)
               </label>
               <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
-                Áp dụng khi tổng số lượng 5ml trong giỏ hàng từ 10-99 chai
+                Áp dụng khi tổng số lượng 5ml trong giỏ hàng từ 10-49 chai
               </p>
               <input
                 type="number"
-                value={pricing['5ml'].range10to99}
-                onChange={(e) => updatePrice('5ml', 'range10to99', e.target.value)}
+                value={pricing['5ml'].range10to49}
+                onChange={(e) => updatePrice('5ml', 'range10to49', e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+              <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
+                Giá khoảng 50-99 chai (mỗi chai)
+              </label>
+              <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
+                Áp dụng khi tổng số lượng 5ml trong giỏ hàng từ 50-99 chai
+              </p>
+              <input
+                type="number"
+                value={pricing['5ml'].range50to99}
+                onChange={(e) => updatePrice('5ml', 'range50to99', e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
             </div>
@@ -520,7 +535,7 @@ const PricingTab: React.FC<{ showToast: any }> = ({ showToast }) => {
                 Giá khoảng 100+ chai (mỗi chai)
               </label>
               <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
-                Áp dụng khi tổng số lượng 5ml trong giỏ hàng từ 100 chai trở lên
+                Áp dụng khi tổng số lượng 5ml trong giỏ hàng trên 100 chai
               </p>
               <input
                 type="number"
@@ -555,15 +570,30 @@ const PricingTab: React.FC<{ showToast: any }> = ({ showToast }) => {
 
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
               <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
-                Giá khoảng 10-99 chai (mỗi chai)
+                Giá khoảng 10-49 chai (mỗi chai)
               </label>
               <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
-                Áp dụng khi tổng số lượng 20ml trong giỏ hàng từ 10-99 chai
+                Áp dụng khi tổng số lượng 20ml trong giỏ hàng từ 10-49 chai
               </p>
               <input
                 type="number"
-                value={pricing['20ml'].range10to99}
-                onChange={(e) => updatePrice('20ml', 'range10to99', e.target.value)}
+                value={pricing['20ml'].range10to49}
+                onChange={(e) => updatePrice('20ml', 'range10to49', e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+              <label className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">
+                Giá khoảng 50-99 chai (mỗi chai)
+              </label>
+              <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
+                Áp dụng khi tổng số lượng 20ml trong giỏ hàng từ 50-99 chai
+              </p>
+              <input
+                type="number"
+                value={pricing['20ml'].range50to99}
+                onChange={(e) => updatePrice('20ml', 'range50to99', e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
             </div>
@@ -573,7 +603,7 @@ const PricingTab: React.FC<{ showToast: any }> = ({ showToast }) => {
                 Giá khoảng 100+ chai (mỗi chai)
               </label>
               <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">
-                Áp dụng khi tổng số lượng 20ml trong giỏ hàng từ 100 chai trở lên
+                Áp dụng khi tổng số lượng 20ml trong giỏ hàng trên 100 chai
               </p>
               <input
                 type="number"
@@ -601,8 +631,8 @@ const PricingTab: React.FC<{ showToast: any }> = ({ showToast }) => {
       <div className="mt-6 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
         <p className="text-sm text-blue-800 dark:text-blue-300">
           💡 <strong>Ví dụ:</strong> Giỏ hàng có 3 sản phẩm 5ml (A: 5 chai, B: 7 chai, C: 3 chai) = <strong>Tổng 15 chai</strong>
-          <br />→ 15 chai thuộc khoảng <strong>10-99</strong> → Giá áp dụng: <strong>{pricing['5ml'].range10to99.toLocaleString()}đ/chai</strong>
-          <br />→ Tổng tiền: 15 × {pricing['5ml'].range10to99.toLocaleString()}đ = <strong>{(15 * pricing['5ml'].range10to99).toLocaleString()}đ</strong>
+          <br />→ 15 chai thuộc khoảng <strong>10-49</strong> → Giá áp dụng: <strong>{pricing['5ml'].range10to49.toLocaleString()}đ/chai</strong>
+          <br />→ Tổng tiền: 15 × {pricing['5ml'].range10to49.toLocaleString()}đ = <strong>{(15 * pricing['5ml'].range10to49).toLocaleString()}đ</strong>
         </p>
       </div>
     </div>

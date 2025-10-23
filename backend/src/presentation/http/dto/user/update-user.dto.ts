@@ -15,7 +15,7 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ example: '+84901234567' })
   @IsOptional()
   @IsString()
-  @Matches(/^\+?[1-9]\d{1,14}$/, { message: 'Invalid phone number format' })
+  @Matches(/^\+?\d{9,15}$/, { message: 'Invalid phone number format' })
   phone?: string;
 
   @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })

@@ -17,6 +17,7 @@ export default function SignUpForm() {
     lastName: "",
     username: "",
     email: "",
+    phone: "",
     password: "",
     referralCode: ""
   });
@@ -53,6 +54,12 @@ export default function SignUpForm() {
       return;
     }
 
+    if (formData.phone && !/^[0-9]{10,11}$/.test(formData.phone)) {
+      setError("Số điện thoại không hợp lệ! Phải có 10-11 chữ số.");
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!formData.password || formData.password.length === 0) {
       setError("Vui lòng nhập Mật khẩu!");
       setIsSubmitting(false);
@@ -85,6 +92,7 @@ export default function SignUpForm() {
         referralCode: formData.referralCode.trim(),
         firstName: formData.firstName || undefined,
         lastName: formData.lastName || undefined,
+        phone: formData.phone || undefined,
       });
 
       setSuccess(response.message || 'Đăng ký thành công! Tài khoản của bạn đang chờ phê duyệt từ quản trị viên.');
@@ -202,6 +210,21 @@ export default function SignUpForm() {
             />
             <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
               Email *
+            </label>
+          </div>
+
+          {/* Phone */}
+          <div className="relative border-b-2 border-white/30 my-3">
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={handleInputChange("phone")}
+              autoComplete="tel"
+              placeholder=" "
+              className="w-full h-10 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-white px-0 peer"
+            />
+            <label className="absolute left-0 top-1/2 -translate-y-1/2 text-white text-base pointer-events-none transition-all duration-300 peer-focus:text-[0.9rem] peer-focus:top-2.5 peer-focus:-translate-y-[150%] peer-focus:text-white peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-white peer-[:not(:placeholder-shown)]:text-[0.9rem] peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:-translate-y-[150%] peer-[:not(:placeholder-shown)]:text-white">
+              Số điện thoại
             </label>
           </div>
 

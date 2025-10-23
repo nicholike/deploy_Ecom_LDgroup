@@ -15,12 +15,14 @@ type SizeKey = "5ml" | "20ml";
 type GlobalPricingConfig = {
   '5ml': {
     range1to9: number;
-    range10to99: number;
+    range10to49: number;
+    range50to99: number;
     range100plus: number;
   };
   '20ml': {
     range1to9: number;
-    range10to99: number;
+    range10to49: number;
+    range50to99: number;
     range100plus: number;
   };
 };
@@ -294,7 +296,8 @@ type PriceTooltipProps = {
   currentQuantity: number;
   config: {
     range1to9: number;
-    range10to99: number;
+    range10to49: number;
+    range50to99: number;
     range100plus: number;
   } | null;
 };
@@ -328,8 +331,10 @@ const PriceTooltip: React.FC<PriceTooltipProps> = ({ size, currentQuantity, conf
   const getCurrentTier = () => {
     if (currentQuantity >= 100) {
       return { range: '100+', price: config.range100plus };
+    } else if (currentQuantity >= 50) {
+      return { range: '50-99', price: config.range50to99 };
     } else if (currentQuantity >= 10) {
-      return { range: '10-99', price: config.range10to99 };
+      return { range: '10-49', price: config.range10to49 };
     } else {
       return { range: '1-9', price: config.range1to9 };
     }
@@ -375,8 +380,12 @@ const PriceTooltip: React.FC<PriceTooltipProps> = ({ size, currentQuantity, conf
               <span className="font-semibold text-[#9b6a2a] text-[9px] md:text-xs">{formatCurrency(config.range1to9)}/chai</span>
             </div>
             <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-200">
-              <span className="text-gray-700 text-[9px] md:text-xs">10-99 chai:</span>
-              <span className="font-semibold text-[#9b6a2a] text-[9px] md:text-xs">{formatCurrency(config.range10to99)}/chai</span>
+              <span className="text-gray-700 text-[9px] md:text-xs">10-49 chai:</span>
+              <span className="font-semibold text-[#9b6a2a] text-[9px] md:text-xs">{formatCurrency(config.range10to49)}/chai</span>
+            </div>
+            <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-200">
+              <span className="text-gray-700 text-[9px] md:text-xs">50-99 chai:</span>
+              <span className="font-semibold text-[#9b6a2a] text-[9px] md:text-xs">{formatCurrency(config.range50to99)}/chai</span>
             </div>
             <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-200">
               <span className="text-gray-700 text-[9px] md:text-xs">100+ chai:</span>
@@ -570,7 +579,8 @@ const TotalBreakdownTooltip: React.FC<TotalBreakdownTooltipProps> = ({
     if (!pricingConfig) return { range: '1-9', price: 139000 };
     const config = pricingConfig['5ml'];
     if (qty5ml >= 100) return { range: '100+', price: config.range100plus };
-    if (qty5ml >= 10) return { range: '10-99', price: config.range10to99 };
+    if (qty5ml >= 50) return { range: '50-99', price: config.range50to99 };
+    if (qty5ml >= 10) return { range: '10-49', price: config.range10to49 };
     return { range: '1-9', price: config.range1to9 };
   };
 
@@ -578,7 +588,8 @@ const TotalBreakdownTooltip: React.FC<TotalBreakdownTooltipProps> = ({
     if (!pricingConfig) return { range: '1-9', price: 450000 };
     const config = pricingConfig['20ml'];
     if (qty20ml >= 100) return { range: '100+', price: config.range100plus };
-    if (qty20ml >= 10) return { range: '10-99', price: config.range10to99 };
+    if (qty20ml >= 50) return { range: '50-99', price: config.range50to99 };
+    if (qty20ml >= 10) return { range: '10-49', price: config.range10to49 };
     return { range: '1-9', price: config.range1to9 };
   };
 
@@ -986,12 +997,14 @@ const CartCheckout: React.FC = () => {
       setPricingConfig({
         '5ml': {
           range1to9: 139000,
-          range10to99: 109000,
+          range10to49: 109000,
+          range50to99: 104000,
           range100plus: 99000
         },
         '20ml': {
           range1to9: 450000,
-          range10to99: 360000,
+          range10to49: 360000,
+          range50to99: 345000,
           range100plus: 330000
         }
       });

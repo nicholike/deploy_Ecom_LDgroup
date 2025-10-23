@@ -27,12 +27,14 @@ async function migratePricingConfig() {
         const newConfig = {
           '5ml': {
             range1to9: oldConfig['5ml'].single || 139000,
-            range10to99: oldConfig['5ml'].tier10 || 109000,
+            range10to49: oldConfig['5ml'].tier10 || 109000,
+            range50to99: oldConfig['5ml'].tier50 || 104000,
             range100plus: oldConfig['5ml'].tier100 || 99000
           },
           '20ml': {
             range1to9: oldConfig['20ml'].single || 450000,
-            range10to99: oldConfig['20ml'].tier10 || 360000,
+            range10to49: oldConfig['20ml'].tier10 || 360000,
+            range50to99: oldConfig['20ml'].tier50 || 345000,
             range100plus: oldConfig['20ml'].tier100 || 330000
           }
         };
@@ -57,12 +59,14 @@ async function migratePricingConfig() {
       const defaultConfig = {
         '5ml': {
           range1to9: 139000,
-          range10to99: 109000,
+          range10to49: 109000,
+          range50to99: 104000,
           range100plus: 99000
         },
         '20ml': {
           range1to9: 450000,
-          range10to99: 360000,
+          range10to49: 360000,
+          range50to99: 345000,
           range100plus: 330000
         }
       };

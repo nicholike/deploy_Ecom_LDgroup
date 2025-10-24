@@ -38,6 +38,20 @@ type CartItemDisplay = {
   specialQuantity?: number;
 };
 
+type FreeGiftProduct = {
+  productId: string;
+  productName: string;
+  variantId: string;
+  imageUrl?: string;
+};
+
+type SelectedFreeGift = {
+  productId: string;
+  productName: string;
+  variantId: string;
+  quantity: number;
+};
+
 const sizes: SizeKey[] = ["5ml", "20ml"];
 
 type VariantInfo = {
@@ -940,6 +954,13 @@ const CartCheckout: React.FC = () => {
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [pricingConfig, setPricingConfig] = useState<GlobalPricingConfig | null>(null);
 
+  // Free gifts state
+  const [freeGiftProducts, setFreeGiftProducts] = useState<FreeGiftProduct[]>([]);
+  const [selectedFreeGifts, setSelectedFreeGifts] = useState<SelectedFreeGift[]>([]);
+  const [freeGiftSearch, setFreeGiftSearch] = useState("");
+  const [showFreeGiftModal, setShowFreeGiftModal] = useState(false);
+  const [previousMaxFreeGifts, setPreviousMaxFreeGifts] = useState(0);
+
   // Confirmation modal state
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<{
@@ -968,24 +989,6 @@ const CartCheckout: React.FC = () => {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const handleScroll = () => setIsHeaderShrunk(window.scrollY > 50);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    loadCart();
-    loadPricingConfig();
-
-    // Cleanup: Clear all pending API syncs on unmount
-    return () => {
-      apiSyncTimeouts.current.forEach((timeout) => clearTimeout(timeout));
-      apiSyncTimeouts.current.clear();
-    };
-  }, []);
-
   // Load pricing config
   const loadPricingConfig = async () => {
     try {
@@ -1010,6 +1013,69 @@ const CartCheckout: React.FC = () => {
       });
     }
   };
+
+  // Load free gift products (products with 20ml variant, excluding special products)
+  const loadFreeGiftProducts = useCallback(async () => {
+    try {
+      // Get all products with high limit to fetch all
+      const response = await ProductService.getProducts({ limit: 1000, status: 'PUBLISHED' });
+
+      if (response?.data) {
+        const giftProducts: FreeGiftProduct[] = [];
+
+        response.data.forEach((product) => {
+          // Skip special products (Kit)
+          if (product.isSpecial) return;
+
+          // Find 20ml variant
+          const variant20ml = product.variants?.find(
+            (v) => v.size === '20ml' && v.active
+          );
+
+          if (variant20ml) {
+            giftProducts.push({
+              productId: product.id,
+              productName: product.name,
+              variantId: variant20ml.id,
+              imageUrl: product.images?.[0] || undefined,
+            });
+          }
+        });
+
+        // Sort products by name (natural sort for M.1, M.2, ..., M.11, W.1, etc.)
+        giftProducts.sort((a, b) => {
+          return a.productName.localeCompare(b.productName, 'en', {
+            numeric: true,
+            sensitivity: 'base'
+          });
+        });
+
+        setFreeGiftProducts(giftProducts);
+      }
+    } catch (error) {
+      console.error('Failed to load free gift products:', error);
+      // Don't block user if this fails
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => setIsHeaderShrunk(window.scrollY > 50);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    loadCart();
+    loadPricingConfig();
+    loadFreeGiftProducts();
+
+    // Cleanup: Clear all pending API syncs on unmount
+    return () => {
+      apiSyncTimeouts.current.forEach((timeout) => clearTimeout(timeout));
+      apiSyncTimeouts.current.clear();
+    };
+  }, [loadFreeGiftProducts]);
 
   // Auto-sync cart item count when cart changes
   useEffect(() => {
@@ -1359,6 +1425,43 @@ const CartCheckout: React.FC = () => {
     );
   }, [quota, cart]);
 
+  // Calculate max free gifts based on total 20ml quantity (1 free gift per 10 bottles)
+  const maxFreeGifts = useMemo(() => {
+    return Math.floor(totalQuantity20ml / 10);
+  }, [totalQuantity20ml]);
+
+  // Calculate total selected free gifts
+  const totalSelectedFreeGifts = useMemo(() => {
+    return selectedFreeGifts.reduce((sum, gift) => sum + gift.quantity, 0);
+  }, [selectedFreeGifts]);
+
+  // Filter free gift products by search term
+  const filteredFreeGiftProducts = useMemo(() => {
+    if (!freeGiftSearch.trim()) {
+      return freeGiftProducts;
+    }
+    const searchLower = normalizeText(freeGiftSearch);
+    return freeGiftProducts.filter((product) =>
+      normalizeText(product.productName).includes(searchLower)
+    );
+  }, [freeGiftProducts, freeGiftSearch]);
+
+  // Watch for changes in maxFreeGifts to handle reductions
+  useEffect(() => {
+    // Skip on initial mount
+    if (previousMaxFreeGifts === 0 && maxFreeGifts > 0) {
+      setPreviousMaxFreeGifts(maxFreeGifts);
+      return;
+    }
+
+    // If max free gifts decreased and we have excess selected gifts
+    if (maxFreeGifts < previousMaxFreeGifts && totalSelectedFreeGifts > maxFreeGifts) {
+      setShowFreeGiftModal(true);
+    }
+
+    setPreviousMaxFreeGifts(maxFreeGifts);
+  }, [maxFreeGifts, totalSelectedFreeGifts, previousMaxFreeGifts]);
+
   useEffect(() => {
     if (!shippingForm.city) {
       return;
@@ -1446,6 +1549,60 @@ const CartCheckout: React.FC = () => {
       ...prev,
       ward: option?.label ?? "",
     }));
+  };
+
+  // Free gift handlers
+  const handleFreeGiftQuantityChange = (productId: string, variantId: string, productName: string, newQuantity: number) => {
+    setSelectedFreeGifts((prev) => {
+      // Calculate total selected excluding current product
+      const otherGiftsTotal = prev
+        .filter((gift) => gift.productId !== productId)
+        .reduce((sum, gift) => sum + gift.quantity, 0);
+
+      // Calculate max quantity for this product
+      const maxAllowed = maxFreeGifts - otherGiftsTotal;
+      const finalQuantity = Math.min(Math.max(0, newQuantity), maxAllowed);
+
+      if (finalQuantity === 0) {
+        // Remove if quantity is 0
+        return prev.filter((gift) => gift.productId !== productId);
+      }
+
+      const existingIndex = prev.findIndex((gift) => gift.productId === productId);
+      if (existingIndex >= 0) {
+        // Update existing
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], quantity: finalQuantity };
+        return updated;
+      } else {
+        // Add new
+        return [...prev, { productId, productName, variantId, quantity: finalQuantity }];
+      }
+    });
+  };
+
+  const handleConfirmReducedFreeGifts = () => {
+    // Remove excess gifts
+    let totalRemaining = maxFreeGifts;
+    const updatedGifts: SelectedFreeGift[] = [];
+
+    for (const gift of selectedFreeGifts) {
+      if (totalRemaining <= 0) break;
+
+      const quantityToKeep = Math.min(gift.quantity, totalRemaining);
+      if (quantityToKeep > 0) {
+        updatedGifts.push({ ...gift, quantity: quantityToKeep });
+        totalRemaining -= quantityToKeep;
+      }
+    }
+
+    setSelectedFreeGifts(updatedGifts);
+    setShowFreeGiftModal(false);
+  };
+
+  const handleCancelReducedFreeGifts = () => {
+    setShowFreeGiftModal(false);
+    // User canceled, don't change anything
   };
 
   const debouncedApiSync = useCallback((itemId: string, apiCall: () => Promise<void>) => {
@@ -1857,6 +2014,11 @@ const CartCheckout: React.FC = () => {
         shippingMethod: "STANDARD",
         paymentMethod: "BANK_TRANSFER",
         customerNote: "",
+        freeGifts: selectedFreeGifts.map((gift) => ({
+          productId: gift.productId,
+          variantId: gift.variantId,
+          quantity: gift.quantity,
+        })),
       });
 
       // ✅ NEW: Navigate to payment page with PENDING order number
@@ -2183,6 +2345,143 @@ const CartCheckout: React.FC = () => {
               </div>
               <hr className="border-black/70" />
 
+              {/* Free Gifts Section - Only show when user has 20ml bottles */}
+              {maxFreeGifts > 0 && (
+                <>
+                  <div className="pt-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-extrabold text-[#9b6a2a]">Ưu đãi kèm theo</h3>
+                      <span className="text-[11px] md:text-[13px] font-semibold text-[#9b6a2a] bg-[#fdf8f2] px-3 py-1 rounded-full">
+                        Được chọn: {totalSelectedFreeGifts}/{maxFreeGifts} chai
+                      </span>
+                    </div>
+
+                    <div className="text-[10px] md:text-[12px] text-gray-600 bg-[#fdf8f2] p-2 rounded border border-[#9b6a2a]/20">
+                      <span className="font-semibold text-[#9b6a2a]">🎁 Mua {totalQuantity20ml} chai 20ml → Được tặng {maxFreeGifts} chai bất kỳ (20ml)</span>
+                    </div>
+
+                    {/* Search box */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={freeGiftSearch}
+                        onChange={(e) => setFreeGiftSearch(e.target.value)}
+                        placeholder="Tìm kiếm sản phẩm..."
+                        className="w-full rounded border border-gray-300 px-3 py-2 pr-10 text-[11px] md:text-[13px] focus:outline-none focus:ring-2 focus:ring-[#9b6a2a]/40"
+                      />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </div>
+
+                    {/* Scrollable product list */}
+                    <div className="rounded max-h-80 overflow-y-auto">
+                      {filteredFreeGiftProducts.length === 0 ? (
+                        <div className="p-4 text-center text-[11px] md:text-[13px] text-gray-500">
+                          Không tìm thấy sản phẩm
+                        </div>
+                      ) : (
+                        <div>
+                          {filteredFreeGiftProducts.map((product, index) => {
+                            const selectedGift = selectedFreeGifts.find(
+                              (g) => g.productId === product.productId
+                            );
+                            const currentQuantity = selectedGift?.quantity || 0;
+
+                            // Calculate max allowed for this product
+                            const otherGiftsTotal = selectedFreeGifts
+                              .filter((g) => g.productId !== product.productId)
+                              .reduce((sum, g) => sum + g.quantity, 0);
+                            const maxAllowedForProduct = maxFreeGifts - otherGiftsTotal;
+
+                            return (
+                              <div
+                                key={product.productId}
+                                className={`p-3 transition-colors ${
+                                  index % 2 === 0 ? 'bg-white hover:bg-[#fdf3e3]' : 'bg-[#fdf8f2] hover:bg-[#fdf3e3]'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-[11px] md:text-[13px] font-medium text-gray-900 truncate">
+                                      {product.productName}
+                                    </div>
+                                    <div className="text-[10px] md:text-[11px] text-gray-500">
+                                      20ml • Miễn phí
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleFreeGiftQuantityChange(
+                                          product.productId,
+                                          product.variantId,
+                                          product.productName,
+                                          currentQuantity - 1
+                                        )
+                                      }
+                                      disabled={currentQuantity === 0}
+                                      className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center text-[#9b6a2a] hover:bg-[#fdf8f2] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      −
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max={maxAllowedForProduct}
+                                      value={currentQuantity === 0 ? '' : currentQuantity}
+                                      onChange={(e) => {
+                                        const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                                        handleFreeGiftQuantityChange(
+                                          product.productId,
+                                          product.variantId,
+                                          product.productName,
+                                          val
+                                        );
+                                      }}
+                                      placeholder="0"
+                                      className="w-14 text-center rounded border border-gray-300 px-2 py-1 text-[11px] md:text-[13px] focus:outline-none focus:ring-2 focus:ring-[#9b6a2a]/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleFreeGiftQuantityChange(
+                                          product.productId,
+                                          product.variantId,
+                                          product.productName,
+                                          currentQuantity + 1
+                                        )
+                                      }
+                                      disabled={currentQuantity >= maxAllowedForProduct || maxAllowedForProduct <= 0}
+                                      className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center text-[#9b6a2a] hover:bg-[#fdf8f2] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <hr className="border-black/70" />
+                </>
+              )}
+
               <div className="pt-5">
                 <h3 className="font-extrabold">Thông tin nhận hàng</h3>
               </div>
@@ -2491,6 +2790,55 @@ const CartCheckout: React.FC = () => {
                   className="px-4 py-2.5 sm:py-3 text-[12px] md:text-[14px] font-bold text-white bg-[#8B5E1E] rounded-md hover:bg-[#6f4715] transition uppercase"
                 >
                   Xóa
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Free Gift Reduction Modal */}
+        {showFreeGiftModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl border-2 border-[#8B5E1E] shadow-lg relative p-5 sm:p-8 max-w-md w-[90%] mx-auto">
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={handleCancelReducedFreeGifts}
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 hover:opacity-70 transition"
+                aria-label="Đóng"
+              >
+                <img src="/circle-xmark 1.svg" alt="Đóng" className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+
+              {/* Header */}
+              <h3 className="font-bold text-[15px] sm:text-[18px] leading-tight mb-5 sm:mb-8 text-black uppercase">
+                Thông báo giảm quà tặng
+              </h3>
+
+              {/* Content */}
+              <p className="text-[11px] md:text-[14px] text-black mb-3">
+                Số lượng chai 20ml đã giảm từ <span className="font-bold text-[#8B5E1E]">{previousMaxFreeGifts * 10}</span> xuống <span className="font-bold text-[#8B5E1E]">{maxFreeGifts * 10}</span> chai.
+              </p>
+              <p className="text-[11px] md:text-[14px] text-black mb-3">
+                Số chai tặng kèm giảm từ <span className="font-bold text-[#8B5E1E]">{previousMaxFreeGifts}</span> xuống <span className="font-bold text-[#8B5E1E]">{maxFreeGifts}</span> chai.
+              </p>
+              <p className="text-[11px] md:text-[14px] text-black mb-6 sm:mb-8">
+                Bạn đã chọn <span className="font-bold text-[#8B5E1E]">{totalSelectedFreeGifts}</span> chai. Vượt quá <span className="font-bold text-[#8B5E1E]">{totalSelectedFreeGifts - maxFreeGifts}</span> chai sẽ bị xóa. Bạn có đồng ý?
+              </p>
+
+              {/* Buttons */}
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={handleCancelReducedFreeGifts}
+                  className="px-4 py-2.5 sm:py-3 text-[12px] md:text-[14px] font-bold border-2 border-[#8B5E1E] text-[#8B5E1E] rounded-md hover:bg-[#8B5E1E] hover:text-white transition uppercase"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleConfirmReducedFreeGifts}
+                  className="px-4 py-2.5 sm:py-3 text-[12px] md:text-[14px] font-bold text-white bg-[#8B5E1E] rounded-md hover:bg-[#6f4715] transition uppercase"
+                >
+                  Đồng ý
                 </button>
               </div>
             </div>

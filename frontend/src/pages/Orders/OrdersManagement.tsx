@@ -783,9 +783,16 @@ const OrderDetailModal: React.FC<{ order: Order; onClose: () => void }> = ({ ord
           {/* Mobile: Card view */}
           <div className="space-y-3 sm:hidden">
             {order.items.map((item) => (
-              <div key={item.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-                <div className="font-semibold text-[11px] text-gray-900 dark:text-white mb-2">
+              <div key={item.id} className={`border border-gray-200 dark:border-gray-700 rounded-lg p-3 ${
+                item.isFreeGift ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-white dark:bg-gray-900'
+              }`}>
+                <div className="font-semibold text-[11px] text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                   {item.product.name}
+                  {item.isFreeGift && (
+                    <span className="text-[10px] font-bold bg-emerald-500 text-white px-2 py-0.5 rounded-full">
+                      🎁 Tặng kèm
+                    </span>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div>
@@ -798,7 +805,13 @@ const OrderDetailModal: React.FC<{ order: Order; onClose: () => void }> = ({ ord
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Đơn giá:</span>
-                    <p className="font-medium text-gray-900 dark:text-white">{formatCurrency(Number(item.price ?? 0))}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {item.isFreeGift ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Miễn phí</span>
+                      ) : (
+                        formatCurrency(Number(item.price ?? 0))
+                      )}
+                    </p>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Thành tiền:</span>
@@ -825,15 +838,34 @@ const OrderDetailModal: React.FC<{ order: Order; onClose: () => void }> = ({ ord
                 {order.items.map((item, index) => (
                   <tr
                     key={item.id}
-                    className={`${index % 2 === 1 ? "bg-[#fdf8f2] dark:bg-gray-900/50" : ""} border-b border-gray-100 dark:border-gray-700`}
+                    className={`border-b border-gray-100 dark:border-gray-700 ${
+                      item.isFreeGift
+                        ? "bg-emerald-50 dark:bg-emerald-900/20"
+                        : index % 2 === 1
+                          ? "bg-[#fdf8f2] dark:bg-gray-900/50"
+                          : ""
+                    }`}
                   >
-                    <td className="px-3 py-2 text-xs text-gray-900 dark:text-white">{item.product.name}</td>
+                    <td className="px-3 py-2 text-xs text-gray-900 dark:text-white">
+                      <div className="flex items-center gap-2">
+                        {item.product.name}
+                        {item.isFreeGift && (
+                          <span className="text-[10px] font-bold bg-emerald-500 text-white px-2 py-0.5 rounded-full whitespace-nowrap">
+                            🎁 Tặng kèm
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2 text-center text-xs text-gray-700 dark:text-gray-300">
                       {item.productVariant?.size || "—"}
                     </td>
                     <td className="px-3 py-2 text-center text-xs text-gray-700 dark:text-gray-300">×{item.quantity}</td>
                     <td className="px-3 py-2 text-right text-xs text-gray-700 dark:text-gray-300">
-                      {formatCurrency(Number(item.price ?? 0))}
+                      {item.isFreeGift ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Miễn phí</span>
+                      ) : (
+                        formatCurrency(Number(item.price ?? 0))
+                      )}
                     </td>
                     <td className="px-3 py-2 text-right font-semibold text-xs text-[#8B5E1E]">
                       {formatCurrency(Number(item.subtotal ?? 0))}

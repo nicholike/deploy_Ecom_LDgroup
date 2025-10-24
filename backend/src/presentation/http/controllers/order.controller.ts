@@ -25,7 +25,7 @@ import { PriceTierRepository } from '@infrastructure/database/repositories/price
 import { ProductRepository } from '@infrastructure/database/repositories/product.repository';
 import { PendingOrderService } from '@infrastructure/services/pending-order/pending-order.service';
 import { OrderStatus, PaymentStatus, WalletTransactionType } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsEnum, IsOptional, IsString, ValidateNested, IsArray, IsNumber, IsPositive } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class ShippingAddressDto {
@@ -54,6 +54,18 @@ class ShippingAddressDto {
   ward?: string;
 }
 
+class FreeGiftDto {
+  @IsString()
+  productId: string;
+
+  @IsString()
+  variantId: string;
+
+  @IsNumber()
+  @IsPositive()
+  quantity: number;
+}
+
 class CreateOrderDto {
   @ValidateNested()
   @IsOptional()
@@ -71,6 +83,12 @@ class CreateOrderDto {
   @IsString()
   @IsOptional()
   customerNote?: string;
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => FreeGiftDto)
+  freeGifts?: FreeGiftDto[];
 }
 
 class UpdateOrderStatusDto {
@@ -218,6 +236,7 @@ export class OrderController {
       shippingMethod: dto.shippingMethod,
       paymentMethod: dto.paymentMethod,
       customerNote: dto.customerNote,
+      freeGifts: dto.freeGifts,
     });
 
     return {

@@ -222,6 +222,7 @@ export class PaymentService {
         productVariantId: item.productVariantId,
         quantity: item.quantity,
         price: item.price,
+        isFreeGift: item.isFreeGift || false, // Preserve free gift flag
       }));
 
       const order = await this.orderRepository.create({

@@ -50,6 +50,11 @@ export class PendingOrderService {
     shippingMethod?: string;
     paymentMethod?: string;
     customerNote?: string;
+    freeGifts?: Array<{
+      productId: string;
+      variantId: string;
+      quantity: number;
+    }>;
   }) {
     this.logger.log(`Creating pending order for user ${data.userId}`);
 
@@ -203,9 +208,48 @@ export class PendingOrderService {
       }
     }
 
-    const subtotal = specialProductsTotal + normalProductsTotal;
+    // Process free gifts (price = 0, no quota count)
+    if (data.freeGifts && data.freeGifts.length > 0) {
+      this.logger.log(`Processing ${data.freeGifts.length} free gift items`);
 
-    this.logger.log(`[Pricing Summary] Special: ${specialProductsTotal}, Normal: ${normalProductsTotal}, Total: ${subtotal}`);
+      for (const freeGift of data.freeGifts) {
+        const product = await this.prisma.product.findUnique({
+          where: { id: freeGift.productId },
+        });
+
+        if (!product) {
+          this.logger.warn(`Free gift product ${freeGift.productId} not found, skipping`);
+          continue;
+        }
+
+        const variant = await this.prisma.productVariant.findUnique({
+          where: { id: freeGift.variantId },
+        });
+
+        if (!variant) {
+          this.logger.warn(`Free gift variant ${freeGift.variantId} not found, skipping`);
+          continue;
+        }
+
+        this.logger.log(`[Free Gift] ${product.name} (${variant.size}): qty=${freeGift.quantity}, price=0`);
+
+        itemsWithPricing.push({
+          productId: freeGift.productId,
+          productVariantId: freeGift.variantId,
+          productName: product.name,
+          variantSize: variant.size,
+          sku: variant.sku,
+          quantity: freeGift.quantity,
+          price: 0, // Free gift - price is 0
+          subtotal: 0, // Free gift - subtotal is 0
+          isFreeGift: true, // Mark as free gift
+        });
+      }
+    }
+
+    const subtotal = specialProductsTotal + normalProductsTotal; // Free gifts don't count toward subtotal
+
+    this.logger.log(`[Pricing Summary] Special: ${specialProductsTotal}, Normal: ${normalProductsTotal}, Free Gifts: ${data.freeGifts?.length || 0}, Total: ${subtotal}`);
 
     // 3. Calculate shipping fee (you can add logic based on address, weight, etc.)
     const shippingFee = 0; // Free shipping for now

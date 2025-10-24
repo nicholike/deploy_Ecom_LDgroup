@@ -55,6 +55,7 @@ export class OrderRepository {
         quantity: item.quantity,
         price: priceDecimal,
         subtotal: subtotalDecimal,
+        isFreeGift: (item as any).isFreeGift || false, // Free gift flag
       };
     });
 

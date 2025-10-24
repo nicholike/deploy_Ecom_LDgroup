@@ -509,9 +509,10 @@ model OrderItem {
   variantSize String? @map("variant_size") // "5ml", "20ml", "50ml"
 
   // Details
-  quantity Int
-  price    Decimal @db.Decimal(18, 2) // Price at time of purchase
-  subtotal Decimal @db.Decimal(18, 2) // quantity * price
+  quantity   Int
+  price      Decimal @db.Decimal(18, 2) // Price at time of purchase
+  subtotal   Decimal @db.Decimal(18, 2) // quantity * price
+  isFreeGift Boolean @default(false) @map("is_free_gift") // Free gift promotion (price = 0, no quota)
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")

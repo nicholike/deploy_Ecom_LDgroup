@@ -26,6 +26,7 @@ export interface Order {
     quantity: number;
     price: number;
     subtotal: number;
+    isFreeGift?: boolean;
     product: {
       id: string;
       name: string;
@@ -146,6 +147,11 @@ export class OrderService {
     shippingMethod?: string;
     paymentMethod?: string;
     customerNote?: string;
+    freeGifts?: Array<{
+      productId: string;
+      variantId: string;
+      quantity: number;
+    }>;
   }): Promise<Order> {
     return this.fetchWithAuth(`${API_BASE_URL}/orders`, {
       method: 'POST',

@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageMeta from "../components/common/PageMeta";
 import { useAuth } from "../context/AuthContext";
@@ -11,6 +11,7 @@ import { quotaService, type QuotaResponse } from "../services/quota.service";
 import { Modal } from "../components/ui/modal";
 import { authService, type AuthUser } from "../services/authService";
 import { apiClient } from "../services/apiClient";
+import { Header } from "../components/layouts/Header";
 
 const WALLET_COLOR = "#8B5E1E";
 const MIN_WITHDRAW_AMOUNT = 500_000;
@@ -88,21 +89,14 @@ const Account: React.FC = () => {
   const { logout, accessToken } = useAuth();
   const navigate = useNavigate();
 
-  const [isHeaderShrunk, setIsHeaderShrunk] = useState(false);
-
   const [orders, setOrders] = useState<OrderType[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
-
-  const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalRequest[]>([]);
-  const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
 
   const [walletBalance, setWalletBalance] = useState(0);
   const [loadingWallet, setLoadingWallet] = useState(true);
 
   const [downlineOrders, setDownlineOrders] = useState<DownlineOrder[]>([]);
   const [downlineFilter, setDownlineFilter] = useState("ALL");
-  const [downlinePage, setDownlinePage] = useState(1);
-  const [totalDownlinePages, setTotalDownlinePages] = useState(1);
   const [loadingDownline, setLoadingDownline] = useState(true);
 
   const [cartItemCount, setCartItemCount] = useState(0);
@@ -121,16 +115,9 @@ const Account: React.FC = () => {
 
   const [selectedOrder, setSelectedOrder] = useState<OrderType | null>(null);
   const [selectedDownlineOrder, setSelectedDownlineOrder] = useState<DownlineOrder | null>(null);
-  const [selectedWithdrawalDetail, setSelectedWithdrawalDetail] = useState<WithdrawalRequest | null>(null);
 
-  const DOWNLINE_ITEMS_PER_PAGE = 20;
+  const DOWNLINE_ITEMS_PER_PAGE = 100;
 
-  useEffect(() => {
-    const handleScroll = () => setIsHeaderShrunk(window.scrollY > 50);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   const loadOrders = async () => {
     try {
@@ -201,18 +188,6 @@ const Account: React.FC = () => {
     }
   };
 
-  const loadWithdrawals = useCallback(async () => {
-    if (!accessToken) return;
-    try {
-      setLoadingWithdrawals(true);
-      const result = await walletService.getWithdrawalHistory({ page: 1, limit: 5 }, accessToken);
-      setWithdrawalHistory(result.data);
-    } catch (error) {
-      console.error("Failed to load withdrawal history:", error);
-    } finally {
-      setLoadingWithdrawals(false);
-    }
-  }, [accessToken]);
 
   const loadWalletBalance = useCallback(async () => {
     if (!accessToken) return;
@@ -232,7 +207,7 @@ const loadDownlineOrders = useCallback(async () => {
   try {
     setLoadingDownline(true);
       const result = await commissionService.getCommissions(
-        { page: downlinePage, limit: DOWNLINE_ITEMS_PER_PAGE },
+        { page: 1, limit: DOWNLINE_ITEMS_PER_PAGE },
         accessToken,
       );
 
@@ -248,13 +223,12 @@ const loadDownlineOrders = useCallback(async () => {
       }));
 
       setDownlineOrders(transformed);
-      setTotalDownlinePages(result.pagination?.totalPages ?? 1);
     } catch (error) {
       console.error("Failed to load downline orders:", error);
     } finally {
       setLoadingDownline(false);
     }
-  }, [accessToken, downlinePage]);
+  }, [accessToken]);
 
   useEffect(() => {
     loadOrders();
@@ -264,10 +238,9 @@ const loadDownlineOrders = useCallback(async () => {
 
   useEffect(() => {
     if (!accessToken) return;
-    loadWithdrawals();
     loadWalletBalance();
     loadUserProfile();
-  }, [accessToken, loadWithdrawals, loadWalletBalance]);
+  }, [accessToken, loadWalletBalance]);
 
   useEffect(() => {
     loadDownlineOrders();
@@ -369,7 +342,7 @@ const loadDownlineOrders = useCallback(async () => {
       alert("Yêu cầu rút tiền đã được gửi thành công");
       setWithdrawForm(DEFAULT_WITHDRAW_FORM);
       setIsWithdrawOpen(false);
-      await Promise.all([loadWalletBalance(), loadWithdrawals()]);
+      await loadWalletBalance();
     } catch (error: any) {
       alert(error?.message || "Không thể gửi yêu cầu rút tiền. Vui lòng thử lại sau.");
     } finally {
@@ -403,7 +376,7 @@ const loadDownlineOrders = useCallback(async () => {
       <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
 
       <div className="min-h-screen bg-white pb-12 text-black">
-        <Header isShrunk={isHeaderShrunk} cartItemCount={cartItemCount} />
+        <Header cartItemCount={cartItemCount} />
 
         <Breadcrumb />
 
@@ -420,21 +393,35 @@ const loadDownlineOrders = useCallback(async () => {
               <div className="flex gap-4">
                 <button
                   type="button"
-                  className="flex w-full items-center justify-center gap-2 rounded-md border px-6 py-2 text-[12px] font-extrabold text-black sm:w-auto md:py-3 md:text-[14px]"
-                  style={{ borderColor: WALLET_COLOR }}
+                  className="flex w-full items-center justify-start gap-3 rounded-md px-6 py-4 text-[14px] font-extrabold text-white sm:w-auto md:py-6 md:text-[16px] min-w-0 shadow-lg"
+                  style={{
+                    background: 'linear-gradient(90deg, rgba(84,32,13,1) 0%, rgba(133,66,34,1) 50%, rgba(220,163,114,1) 100%)',
+                  }}
                 >
-                  <img src="/wallet 1.svg" alt="Số dư ví hoa hồng" className="h-6 w-6 object-contain" />
-                  {loadingWallet ? "Đang tải..." : formatCurrency(walletBalance)}
+                  <img src="/wallet 1.svg" alt="Số dư ví hoa hồng" className="h-8 w-8 object-contain flex-shrink-0" />
+                  <span className="truncate">
+                    {loadingWallet ? "Đang tải..." : formatCurrency(walletBalance)}
+                  </span>
                 </button>
 
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-center rounded-md px-6 py-2 text-[12px] font-extrabold uppercase tracking-wide text-white transition hover:opacity-90 sm:w-auto md:min-w-[150px] md:py-3 md:text-[14px]"
-                  style={{ backgroundColor: WALLET_COLOR }}
-                  onClick={() => setIsWithdrawOpen(true)}
-                >
-                  Rút tiền
-                </button>
+                <div className="flex flex-col gap-2 w-full sm:w-auto md:min-w-[150px]">
+                  <button
+                    type="button"
+                    className="flex items-center justify-center rounded-md px-6 py-2 text-[12px] font-extrabold uppercase tracking-wide text-white transition hover:opacity-90 md:py-3 md:text-[14px]"
+                    style={{ backgroundColor: WALLET_COLOR }}
+                    onClick={() => setIsWithdrawOpen(true)}
+                  >
+                    Rút tiền
+                  </button>
+                  <button
+                    type="button"
+                    className="flex items-center justify-center rounded-md border px-6 py-2 text-[12px] font-extrabold uppercase tracking-wide transition hover:bg-gray-50 md:py-3 md:text-[14px]"
+                    style={{ borderColor: WALLET_COLOR, color: WALLET_COLOR }}
+                    onClick={() => navigate('/account/withdrawal-history')}
+                  >
+                    Lịch sử
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -484,12 +471,6 @@ const loadDownlineOrders = useCallback(async () => {
               </section>
             )}
 
-            <WithdrawHistorySection
-              loading={loadingWithdrawals}
-              history={withdrawalHistory}
-              onOpenDetail={setSelectedWithdrawalDetail}
-            />
-
             <OrdersSection
               loading={loadingOrders}
               orders={orders}
@@ -500,13 +481,7 @@ const loadDownlineOrders = useCallback(async () => {
               loading={loadingDownline}
               orders={availableDownline}
               filter={downlineFilter}
-              page={downlinePage}
-              totalPages={totalDownlinePages}
-              onFilterChange={(next) => {
-                setDownlineFilter(next);
-                setDownlinePage(1);
-              }}
-              onPageChange={setDownlinePage}
+              onFilterChange={setDownlineFilter}
               onOpenDetail={setSelectedDownlineOrder}
             />
 
@@ -541,10 +516,6 @@ const loadDownlineOrders = useCallback(async () => {
       {selectedDownlineOrder && (
         <DownlineDetailModal order={selectedDownlineOrder} onClose={() => setSelectedDownlineOrder(null)} />
       )}
-
-      {selectedWithdrawalDetail && (
-        <WithdrawalDetailModal withdrawal={selectedWithdrawalDetail} onClose={() => setSelectedWithdrawalDetail(null)} />
-      )}
     </>
   );
 };
@@ -553,55 +524,9 @@ export default Account;
 
 // -- UI helper components ----------------------------------------------------
 
-interface HeaderProps {
-  isShrunk: boolean;
-  cartItemCount: number;
-}
-
-const Header: React.FC<HeaderProps> = ({ isShrunk, cartItemCount }) => (
-  <header
-    className={`sticky top-0 z-20 flex w-full justify-center bg-white/95 backdrop-blur-sm transition-all duration-300 ${
-      isShrunk ? "shadow-sm" : ""
-    }`}
-  >
-    <div
-      className={`flex w-[95%] items-center justify-between transition-all duration-300 md:w-[65%] ${
-        isShrunk ? "origin-top scale-90 py-1 md:py-1" : "origin-top scale-100 py-2 md:py-2.5"
-      }`}
-    >
-      <Link to="/" className="block">
-        <img
-          src="/LOGO_LD%20PERFUME%20OIL%20LUXURY%20(4)_NA%CC%82U%201.svg"
-          alt="LD Perfume Oil Luxury logo"
-          className={`h-auto object-contain transition-all duration-300 ${
-            isShrunk ? "w-24 md:w-40" : "w-32 md:w-48"
-          }`}
-        />
-      </Link>
-      <div className="flex items-center space-x-3 text-black md:space-x-4">
-        <Link to="/cart" aria-label="Xem giỏ hàng" className="relative block">
-          <img src="/shopping-cart 1.svg" alt="Giỏ hàng" className="h-5 w-5 object-contain" />
-          {cartItemCount > 0 && (
-            <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-              {cartItemCount}
-            </span>
-          )}
-        </Link>
-        <Link
-          to="/account"
-          className="flex items-center space-x-2 text-[11px] font-semibold transition hover:text-[#5f3d10] md:text-[12px]"
-        >
-          <img src="/user 1.svg" alt="Trang tài khoản" className="h-5 w-5 object-contain" />
-          <span className="hidden md:inline">Tài khoản</span>
-        </Link>
-      </div>
-    </div>
-  </header>
-);
-
 const Breadcrumb: React.FC = () => (
   <div className="mt-2 flex justify-center mx-4 md:mx-0">
-    <nav className="w-full md:w-[65%] text-[11px] md:text-[12px] flex items-center gap-1 text-[#9b6a2a]">
+    <nav className="w-full md:w-[65%] text-[13px] md:text-[14px] flex items-center gap-1 text-[#9b6a2a] font-medium">
       <Link to="/" className="hover:underline">
         Trang chủ
       </Link>
@@ -623,73 +548,6 @@ const QuotaButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
       i
     </span>
   </button>
-);
-
-const WithdrawHistorySection: React.FC<{
-  loading: boolean;
-  history: WithdrawalRequest[];
-  onOpenDetail: (withdrawal: WithdrawalRequest) => void;
-}> = ({ loading, history, onOpenDetail }) => (
-  <section className="space-y-3">
-    <div className="flex items-center justify-between">
-      <h2 className="text-[14px] font-bold uppercase md:text-[16px]">Lịch sử yêu cầu rút tiền</h2>
-    </div>
-
-    {loading ? (
-      <div className="py-8 text-center text-gray-600">Đang tải...</div>
-    ) : history.length === 0 ? (
-      <div className="py-8 text-center text-gray-600">Bạn chưa có yêu cầu rút tiền nào</div>
-    ) : (
-      <div className="overflow-x-auto max-h-[500px] overflow-y-auto border border-gray-200 rounded-md">
-        <table className="w-full border-collapse text-left">
-          <thead className="sticky top-0 z-10">
-            <tr className="text-white" style={{ backgroundColor: WALLET_COLOR }}>
-              <th className="px-2 py-2 font-normal md:px-4 w-[22%] md:w-[35%]">Số tiền</th>
-              <th className="px-2 py-2 text-center font-normal md:px-4 w-[22%] md:w-[25%]">Ngày tạo</th>
-              <th className="px-2 py-2 text-center font-normal md:px-4 w-[42%] md:w-[25%]">Trạng thái</th>
-              <th className="px-0.5 py-2 text-center font-normal md:px-4 w-[14%] md:w-[15%]">
-                <span className="hidden md:inline">Xem chi tiết</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {history.map((withdrawal) => (
-              <tr key={withdrawal.id} className="even:bg-[#fdf8f2]">
-                <td className="px-2 py-2 font-semibold text-[11px] md:text-sm md:px-4 md:py-3 w-[22%] md:w-[35%]" style={{ color: WALLET_COLOR }}>
-                  {formatCurrency(withdrawal.amount)}
-                </td>
-                <td className="px-2 py-2 text-center text-[11px] md:text-sm md:px-4 md:py-3 w-[22%] md:w-[25%]">{formatDateTime(withdrawal.requestedAt)}</td>
-                <td className="px-2 py-2 text-center md:px-4 md:py-3 w-[42%] md:w-[25%]">
-                  <span className={`inline-flex justify-center items-center rounded px-2 py-1 text-[11px] md:text-xs font-medium capitalize w-[110px] md:w-[130px] ${renderWithdrawalStatusBadge(withdrawal.status)}`}>
-                    {renderWithdrawalStatusText(withdrawal.status)}
-                  </span>
-                </td>
-                <td className="px-0.5 py-2 text-center md:px-4 md:py-3 w-[14%] md:w-[15%]">
-                  {/* Mobile: Icon mắt */}
-                  <button
-                    type="button"
-                    onClick={() => onOpenDetail(withdrawal)}
-                    className="inline-flex md:hidden items-center justify-center transition hover:opacity-70"
-                    aria-label="Xem chi tiết"
-                  >
-                    <img src="/eye.svg" alt="Xem chi tiết" className="h-4 w-4" />
-                  </button>
-                  {/* Desktop: Button text */}
-                  <button
-                    type="button"
-                    onClick={() => onOpenDetail(withdrawal)}
-                    className="hidden md:inline-flex items-center gap-1 rounded border border-[#8B5E1E] px-3 py-1 text-xs font-semibold text-[#8B5E1E] transition hover:bg-[#8B5E1E] hover:text-white"
-                  >
-                    Xem chi tiết
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </section>
 );
 
 const OrdersSection: React.FC<{
@@ -731,7 +589,7 @@ const OrdersSection: React.FC<{
             {orders.map((order) => (
               <tr key={order.id} className="even:bg-[#fdf8f2]">
                 <td className="px-2 py-2 md:px-4 md:py-3 w-[20%] md:w-[35%]">
-                  <div className="text-[11px] md:text-sm font-medium text-gray-900">{order.orderNumber}</div>
+                  <div className="text-[11px] md:text-sm font-medium text-gray-900 truncate max-w-[80px] md:max-w-full">{order.orderNumber}</div>
                 </td>
                 <td className="px-2 py-2 text-center text-[11px] md:text-sm text-gray-700 md:px-4 md:py-3 w-[20%] md:w-[25%]">
                   {formatCurrency(Number(order.totalAmount ?? 0))}
@@ -742,7 +600,7 @@ const OrdersSection: React.FC<{
                   </span>
                 </td>
                 <td className="px-0.5 py-2 text-center md:px-4 md:py-3 w-[14%] md:w-[15%]">
-                  {/* Mobile: Icon mắt */}
+                  {/* Mobile: Icon only */}
                   <button
                     type="button"
                     onClick={() => onViewDetail(order)}
@@ -773,12 +631,9 @@ const DownlineSection: React.FC<{
   loading: boolean;
   orders: DownlineOrder[];
   filter: string;
-  page: number;
-  totalPages: number;
   onFilterChange: (value: string) => void;
-  onPageChange: (page: number) => void;
   onOpenDetail: (order: DownlineOrder) => void;
-}> = ({ loading, orders, filter, page, totalPages, onFilterChange, onPageChange, onOpenDetail }) => (
+}> = ({ loading, orders, filter, onFilterChange, onOpenDetail }) => (
   <section className="space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-[14px] font-bold uppercase md:text-[16px]">Đơn hàng tuyến dưới</h2>
@@ -819,7 +674,7 @@ const DownlineSection: React.FC<{
               return (
               <tr key={order.id} className="even:bg-[#fdf8f2]">
                   <td className="px-2 py-2 md:px-4 md:py-3 w-[22%] md:w-[35%]">
-                    <div className={`text-[11px] md:text-sm font-medium ${isCancelled ? "text-red-600" : "text-gray-900"}`}>
+                    <div className={`text-[11px] md:text-sm font-medium truncate max-w-[80px] md:max-w-full ${isCancelled ? "text-red-600" : "text-gray-900"}`}>
                       {order.orderNumber || order.id}
                     </div>
                 </td>
@@ -834,7 +689,7 @@ const DownlineSection: React.FC<{
                     </span>
                   </td>
                   <td className="px-0.5 py-2 text-center md:px-4 md:py-3 w-[14%] md:w-[15%]">
-                    {/* Mobile: Icon mắt */}
+                    {/* Mobile: Icon only */}
                   <button
                     type="button"
                     onClick={() => onOpenDetail(order)}
@@ -857,43 +712,6 @@ const DownlineSection: React.FC<{
             })}
           </tbody>
         </table>
-      </div>
-    )}
-
-    {totalPages > 1 && (
-      <div className="flex justify-center">
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => onPageChange(Math.max(page - 1, 1))}
-            disabled={page === 1}
-            className="rounded-md border border-[#8B5E1E] px-3 py-1 text-[11px] text-[#8B5E1E] transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-[#8B5E1E] hover:text-white md:text-sm"
-          >
-            Trước
-          </button>
-          {Array.from({ length: totalPages }, (_, index) => index + 1).map((number) => (
-            <button
-              key={number}
-              type="button"
-              onClick={() => onPageChange(number)}
-              className={`h-9 w-9 rounded-md border text-[11px] md:text-sm transition ${
-                number === page
-                  ? "border-[#8B5E1E] bg-[#8B5E1E] text-white"
-                  : "border-[#8B5E1E] text-[#8B5E1E] hover:bg-[#8B5E1E] hover:text-white"
-              }`}
-            >
-              {number}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => onPageChange(Math.min(page + 1, totalPages))}
-            disabled={page === totalPages}
-            className="rounded-md border border-[#8B5E1E] px-3 py-1 text-[11px] text-[#8B5E1E] transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-[#8B5E1E] hover:text-white md:text-sm"
-          >
-            Tiếp
-          </button>
-        </div>
       </div>
     )}
   </section>

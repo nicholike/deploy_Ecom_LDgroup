@@ -1,92 +1,60 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  cartItemCount?: number;
+}
+
+export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
   return (
     <>
-      {/* Offcanvas Menu */}
-      <div className="offcanvas-menu-overlay"></div>
-      <div className="offcanvas-menu-wrapper">
-        <div className="offcanvas__close">+</div>
-        <ul className="offcanvas__widget">
-          <li><span className="icon_search search-switch"></span></li>
-          <li>
-            <Link to="#"><span className="icon_heart_alt"></span>
-              <div className="tip">2</div>
-            </Link>
-          </li>
-          <li>
-            <Link to="#"><span className="icon_bag_alt"></span>
-              <div className="tip">2</div>
-            </Link>
-          </li>
-        </ul>
-        <div className="offcanvas__logo">
-          <Link to="/"><img src="/img/logo.png" alt="Logo" /></Link>
-        </div>
-        <div id="mobile-menu-wrap"></div>
-        <div className="offcanvas__auth">
-          <Link to="/login">Login</Link>
-          <Link to="/register">Register</Link>
-        </div>
-      </div>
-
-      {/* Header Section */}
-      <header className="header">
-        <div className="container-fluid">
-          <div className="row">
-            <div className="col-xl-3 col-lg-2">
-              <div className="header__logo">
-                <Link to="/"><img src="/img/logo.png" alt="Logo" /></Link>
+      <header
+        className="sticky top-0 z-20 w-full bg-white/95 backdrop-blur-sm flex justify-center shadow-sm"
+      >
+        <div
+          className="w-[95%] md:w-[65%] flex items-center justify-between py-2 md:py-2.5"
+        >
+          <a href="/">
+            <img
+              src="/LOGO_LD%20PERFUME%20OIL%20LUXURY%20(4)_NA%CC%82U%201.svg"
+              alt="LD Perfume Oil Luxury logo"
+              className="h-auto object-contain cursor-pointer w-28 md:w-36"
+            />
+          </a>
+          <div className="flex items-center space-x-2 md:space-x-4 text-black">
+            <a
+              href="/cart"
+              className="flex items-center space-x-2 relative cursor-pointer text-[11px] md:text-[12px] text-black font-semibold hover:text-[#5f3d10] transition -ml-1"
+            >
+              <div className="relative flex items-center">
+                <img
+                  src="/shopping-cart 1.svg"
+                  alt="Giỏ hàng"
+                  className="h-5 w-5 object-contain"
+                />
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {cartItemCount}
+                  </span>
+                )}
               </div>
-            </div>
-            <div className="col-xl-6 col-lg-7">
-              <nav className="header__menu">
-                <ul>
-                  <li className="active"><Link to="/">Home</Link></li>
-                  <li><Link to="/shop?category=women">Women's</Link></li>
-                  <li><Link to="/shop?category=men">Men's</Link></li>
-                  <li><Link to="/shop">Shop</Link></li>
-                  <li><Link to="#">Pages</Link>
-                    <ul className="dropdown">
-                      <li><Link to="/product/1">Product Details</Link></li>
-                      <li><Link to="/cart">Shop Cart</Link></li>
-                      <li><Link to="/checkout">Checkout</Link></li>
-                      <li><Link to="/blog/1">Blog Details</Link></li>
-                    </ul>
-                  </li>
-                  <li><Link to="/blog">Blog</Link></li>
-                  <li><Link to="/contact">Contact</Link></li>
-                </ul>
-              </nav>
-            </div>
-            <div className="col-lg-3">
-              <div className="header__right">
-                <div className="header__right__auth">
-                  <Link href="/login">Login</Link>
-                  <Link href="/register">Register</Link>
-                </div>
-                <ul className="header__right__widget">
-                  <li><span className="icon_search search-switch"></span></li>
-                  <li>
-                    <Link to="#"><span className="icon_heart_alt"></span>
-                      <div className="tip">2</div>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/cart"><span className="icon_bag_alt"></span>
-                      <div className="tip">2</div>
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div className="canvas__open">
-            <i className="fa fa-bars"></i>
+              <span className="leading-none">Giỏ hàng</span>
+            </a>
+            <a
+              href="/account"
+              className="flex items-center space-x-1 cursor-pointer text-[11px] md:text-[12px] text-black font-semibold hover:text-[#5f3d10] transition"
+            >
+              <img
+                src="/user 1.svg"
+                alt="Tài khoản"
+                className="h-5 w-5 object-contain"
+              />
+              <span className="leading-none">Tài khoản</span>
+            </a>
           </div>
         </div>
       </header>
+
+      <div className="w-full border-b border-[rgba(0,0,0,0.12)]" />
     </>
   );
 };

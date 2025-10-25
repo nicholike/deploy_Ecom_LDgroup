@@ -48,6 +48,19 @@ export default function SignUpForm() {
       return;
     }
 
+    if (formData.username.trim().length > 50) {
+      setError("Username không được vượt quá 50 ký tự!");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const usernamePattern = /^[a-zA-Z0-9]([a-zA-Z0-9_-]{1,48}[a-zA-Z0-9])?$/;
+    if (!usernamePattern.test(formData.username.trim())) {
+      setError("Username chỉ được chứa chữ cái, số, dấu gạch dưới (_) và dấu gạch ngang (-). Không được bắt đầu hoặc kết thúc bằng dấu gạch!");
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!formData.email || formData.email.trim().length === 0) {
       setError("Vui lòng nhập Email!");
       setIsSubmitting(false);

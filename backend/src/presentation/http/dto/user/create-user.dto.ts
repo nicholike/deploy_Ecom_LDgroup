@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsEnum, IsOptional, IsUUID, Matches } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsEnum, IsOptional, IsUUID, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '@shared/constants/user-roles.constant';
 
@@ -10,6 +10,10 @@ export class CreateUserDto {
   @ApiProperty({ example: 'username123', minLength: 3 })
   @IsString()
   @MinLength(3, { message: 'Username must be at least 3 characters' })
+  @MaxLength(50, { message: 'Username cannot exceed 50 characters' })
+  @Matches(/^[a-zA-Z0-9]([a-zA-Z0-9_-]{1,48}[a-zA-Z0-9])?$/, {
+    message: 'Username can only contain letters, numbers, underscores (_) and hyphens (-). Cannot start or end with dash/underscore',
+  })
   username: string;
 
   @ApiProperty({ example: 'Password@123', minLength: 8 })

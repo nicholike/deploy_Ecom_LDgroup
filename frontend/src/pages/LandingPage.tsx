@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProductService } from "../services/product.service";
 import type { ProductResponse } from "../types/product.types";
 import { CategoryService, type Category } from "../services/category.service";
 import { CartService } from "../services/cart.service";
 import { useToast } from "../context/ToastContext";
+import { Header } from "../components/layouts/Header";
 
 type SizeKey = "5ml" | "20ml";
 
@@ -115,7 +116,6 @@ const QuantityInput: React.FC<QuantityInputProps> = ({ value, onChange, disabled
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const itemsPerPage = 30;
   const { showToast } = useToast();
 
   const [products, setProducts] = useState<ProductResponse[]>([]);
@@ -123,16 +123,37 @@ const LandingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [cartItemCount, setCartItemCount] = useState(0);
 
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("Tất cả");
-  const [isHeaderShrunk, setIsHeaderShrunk] = useState(false);
 
   // Track selected quantities for each product
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, Record<SizeKey, number>>>({});
   
   // Track quantities for special products (without variants)
   const [specialQuantities, setSpecialQuantities] = useState<Record<string, number>>({});
+
+  // Count number of products that have been selected (not total quantity, but number of different products)
+  const selectedProductCount = useMemo(() => {
+    let count = 0;
+
+    // Count special products
+    Object.keys(specialQuantities).forEach(productId => {
+      if (specialQuantities[productId] > 0) {
+        count++;
+      }
+    });
+
+    // Count normal products (with variants)
+    Object.keys(selectedQuantities).forEach(productId => {
+      const quantities = selectedQuantities[productId];
+      // Check if at least one size has quantity > 0
+      if (quantities["5ml"] > 0 || quantities["20ml"] > 0) {
+        count++;
+      }
+    });
+
+    return count;
+  }, [selectedQuantities, specialQuantities]);
 
   useEffect(() => {
     loadData();
@@ -233,10 +254,6 @@ const LandingPage: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
-
   const categoryOptions = ["Tất cả", ...categories.map(c => c.name)];
 
   const handleQuantityChange = (productId: string, size: SizeKey, quantity: number) => {
@@ -265,7 +282,7 @@ const LandingPage: React.FC = () => {
       // Special product - add directly without variants
       if (product.isSpecial) {
         const quantity = product.specialQuantity || 0;
-        
+
         if (quantity <= 0) {
           showToast({
             tone: "info",
@@ -356,6 +373,103 @@ const LandingPage: React.FC = () => {
     }
   };
 
+  // Handle adding all selected products to cart and navigate to cart page
+  const handleAddAllToCart = async () => {
+    const token = localStorage.getItem('accessToken') ||
+                  (localStorage.getItem('ldgroup_admin_auth') &&
+                   JSON.parse(localStorage.getItem('ldgroup_admin_auth')!).accessToken);
+
+    if (!token) {
+      if (confirm('Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng. Đăng nhập ngay?')) {
+        navigate('/login');
+      }
+      return;
+    }
+
+    try {
+      let addedCount = 0;
+      const errors: string[] = [];
+
+      // Loop through all products and add those with selected quantities
+      for (const product of displayProducts) {
+        if (product.isSpecial) {
+          const quantity = specialQuantities[product.id] || 0;
+
+          if (quantity > 0) {
+            try {
+              await CartService.addToCart({
+                productId: product.id,
+                quantity: quantity
+              });
+              addedCount++;
+            } catch (error: any) {
+              errors.push(`${product.name}: ${error.message || 'Lỗi'}`);
+            }
+          }
+        } else {
+          const quantities = selectedQuantities[product.id] || { "5ml": 0, "20ml": 0 };
+
+          for (const size of sizes) {
+            const qty = quantities[size];
+            const variant = product.variants[size];
+
+            if (qty > 0 && variant && variant.variantId && variant.active) {
+              try {
+                await CartService.addToCart({
+                  productId: product.id,
+                  productVariantId: variant.variantId,
+                  quantity: qty
+                });
+                addedCount++;
+              } catch (error: any) {
+                errors.push(`${product.name} (${size}): ${error.message || 'Lỗi'}`);
+              }
+            }
+          }
+        }
+      }
+
+      if (addedCount === 0) {
+        showToast({
+          tone: "info",
+          title: "Chưa chọn sản phẩm",
+          description: "Vui lòng chọn số lượng cho ít nhất một sản phẩm trước khi thêm vào giỏ hàng.",
+        });
+        return;
+      }
+
+      // Reset all quantities
+      setSelectedQuantities({});
+      setSpecialQuantities({});
+
+      // Show success message
+      if (errors.length > 0) {
+        showToast({
+          tone: "warning",
+          title: `Đã thêm ${addedCount} sản phẩm`,
+          description: `Một số sản phẩm không thể thêm:\n${errors.join('\n')}`,
+        });
+      } else {
+        showToast({
+          tone: "success",
+          title: "Đã thêm vào giỏ hàng",
+          description: `Đã thêm ${addedCount} sản phẩm vào giỏ hàng`,
+        });
+      }
+
+      // Reload cart count and navigate to cart
+      await loadCartCount();
+      navigate('/cart');
+    } catch (error: any) {
+      console.error("Failed to add to cart:", error);
+      showToast({
+        tone: "error",
+        title: "Không thể thêm vào giỏ hàng",
+        description: error.message || "Vui lòng thử lại sau.",
+      });
+    }
+  };
+
   const renderQuantitySelect = (product: ProductDisplay, size: SizeKey) => {
     const variant = product.variants[size];
     const isAvailable = variant !== null && variant.active;
@@ -393,38 +507,6 @@ const LandingPage: React.FC = () => {
     );
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handlePrev = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleNext = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedCategory]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsHeaderShrunk(window.scrollY > 50);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
   if (loading) {
     return (
       <div className="bg-white min-h-screen flex items-center justify-center">
@@ -435,58 +517,7 @@ const LandingPage: React.FC = () => {
 
   return (
     <div className="bg-white min-h-screen pb-12 text-[12px]">
-      <header
-        className={`sticky top-0 z-20 w-full bg-white/95 backdrop-blur-sm flex justify-center transition-all duration-300 ${
-          isHeaderShrunk ? "shadow-sm" : ""
-        }`}
-      >
-        <div
-          className={`w-[95%] md:w-[65%] flex items-center justify-between transition-all duration-300 origin-top ${
-            isHeaderShrunk ? "py-1 md:py-1 scale-90" : "py-2 md:py-2.5 scale-100"
-          }`}
-        >
-          <a href="/">
-            <img
-              src="/LOGO_LD%20PERFUME%20OIL%20LUXURY%20(4)_NA%CC%82U%201.svg"
-              alt="LD Perfume Oil Luxury logo"
-              className={`h-auto object-contain transition-all duration-300 cursor-pointer ${
-                isHeaderShrunk ? "w-24 md:w-40" : "w-32 md:w-48"
-              }`}
-            />
-          </a>
-          <div className="flex items-center space-x-3 md:space-x-4 text-black">
-            <a
-              href="/cart"
-              className="block relative"
-              aria-label="Xem giỏ hàng"
-            >
-              <img
-                src="/shopping-cart 1.svg"
-                alt="Giỏ hàng"
-                className="h-5 w-5 object-contain"
-              />
-              {cartItemCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {cartItemCount}
-                </span>
-              )}
-            </a>
-            <a
-              href="/account"
-              className="flex items-center space-x-2 cursor-pointer text-[12px] text-black font-semibold hover:text-[#5f3d10] transition"
-            >
-              <img
-                src="/user 1.svg"
-                alt="Tài khoản"
-                className="h-5 w-5 object-contain"
-              />
-              <span className="hidden md:inline">Tài khoản</span>
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <div className="w-full border-b border-[rgba(0,0,0,0.12)]" />
+      <Header cartItemCount={cartItemCount} />
 
       <section className="mt-8 flex justify-center px-4">
         <div className="flex w-[95%] flex-row items-center gap-3 md:w-[65%] md:justify-end">
@@ -548,8 +579,8 @@ const LandingPage: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {currentProducts.length > 0 ? (
-              currentProducts.map((product) => (
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((product) => (
                 <tr key={product.id} className="even:bg-[#fdf8f2]">
                   <td className="px-3 py-2 text-left text-gray-900 align-middle md:px-6 md:py-3">
                     {product.name}
@@ -610,54 +641,14 @@ const LandingPage: React.FC = () => {
         </table>
       </main>
 
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-10">
-          <div className="flex items-center gap-2 flex-wrap justify-center">
-            <button
-              type="button"
-              onClick={handlePrev}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border border-[#895B1A] rounded-md text-[#895B1A] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#895B1A] hover:text-white transition text-sm"
-            >
-              Trước
-            </button>
-            {Array.from({ length: Math.min(totalPages, 10) }, (_, index) => {
-              const pageNumber = index + 1;
-              const isActive = pageNumber === currentPage;
-              return (
-                <button
-                  key={pageNumber}
-                  type="button"
-                  onClick={() => handlePageChange(pageNumber)}
-                  className={`w-9 h-9 border rounded-md transition text-sm ${
-                    isActive
-                      ? "bg-[#895B1A] text-white border-[#895B1A]"
-                      : "border-[#895B1A] text-[#895B1A] hover:bg-[#895B1A] hover:text-white"
-                  }`}
-                >
-                  {pageNumber}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 border border-[#895B1A] rounded-md text-[#895B1A] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#895B1A] hover:text-white transition text-sm"
-            >
-              Tiếp
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="flex justify-center">
-        <a
-          href="/cart"
+        <button
+          type="button"
+          onClick={handleAddAllToCart}
           className="mt-6 w-[95%] rounded-sm bg-[#8B5E1E] py-3 text-center text-[12px] font-bold text-white transition hover:bg-[#744b18] md:w-[65%]"
         >
-          XEM GIỎ HÀNG {cartItemCount > 0 && `(${cartItemCount})`}
-        </a>
+          THÊM VÀO GIỎ HÀNG {selectedProductCount > 0 && `(${selectedProductCount})`}
+        </button>
       </div>
     </div>
   );

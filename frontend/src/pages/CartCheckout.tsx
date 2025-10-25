@@ -9,6 +9,7 @@ import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import type { PriceTier } from "../types/product.types";
 import { TrashIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
+import { Header } from "../components/layouts/Header";
 
 type SizeKey = "5ml" | "20ml";
 
@@ -377,10 +378,11 @@ const PriceTooltip: React.FC<PriceTooltipProps> = ({ size, currentQuantity, conf
           e.stopPropagation();
           setShow(!show);
         }}
-        className="text-[#9b6a2a] hover:text-[#7a531f] transition-colors"
+        className="inline-flex items-center gap-1 text-[#9b6a2a] hover:text-[#7a531f] transition-colors text-[11px] md:text-[12px] font-medium"
         aria-label="Xem bảng giá"
       >
-        <InformationCircleIcon className="h-4 w-4 inline-block" />
+        <InformationCircleIcon className="h-4 w-4" />
+        <span>Chi tiết</span>
       </button>
       
       {show && (
@@ -477,10 +479,11 @@ const QuotaTooltip: React.FC<QuotaTooltipProps> = ({ quotaInfo }) => {
           e.stopPropagation();
           setShow(!show);
         }}
-        className="text-[#9b6a2a] hover:text-[#7a531f] transition-colors"
+        className="inline-flex items-center gap-1 text-[#9b6a2a] hover:text-[#7a531f] transition-colors text-[11px] md:text-[12px] font-medium"
         aria-label="Xem hạn mức mua hàng"
       >
-        <InformationCircleIcon className="h-4 w-4 inline-block" />
+        <InformationCircleIcon className="h-4 w-4" />
+        <span>Chi tiết</span>
       </button>
       
       {show && (
@@ -640,10 +643,11 @@ const TotalBreakdownTooltip: React.FC<TotalBreakdownTooltipProps> = ({
           e.stopPropagation();
           setShow(!show);
         }}
-        className="text-[#9b6a2a] hover:text-[#7a531f] transition-colors"
+        className="inline-flex items-center gap-1 text-[#9b6a2a] hover:text-[#7a531f] transition-colors text-[11px] md:text-[12px] font-medium"
         aria-label="Xem chi tiết"
       >
-        <InformationCircleIcon className="h-4 w-4 inline-block" />
+        <InformationCircleIcon className="h-4 w-4" />
+        <span>Chi tiết</span>
       </button>
       
       {show && (
@@ -942,7 +946,6 @@ const CartCheckout: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { getToken, loading: authLoading } = useAuth();
-  const [isHeaderShrunk, setIsHeaderShrunk] = useState(false);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartType | null>(null);
   const [productVariantsMap, setProductVariantsMap] = useState<Record<string, ProductVariantMap>>(
@@ -1058,12 +1061,6 @@ const CartCheckout: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const handleScroll = () => setIsHeaderShrunk(window.scrollY > 50);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   useEffect(() => {
     loadCart();
@@ -2046,57 +2043,10 @@ const CartCheckout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white pb-12 text-black">
-      <header
-        className={`sticky top-0 z-20 w-full bg-white/95 backdrop-blur-sm flex justify-center transition-all duration-300 ${
-          isHeaderShrunk ? "shadow-sm" : ""
-        }`}
-      >
-        <div
-          className={`w-full md:w-[65%] flex items-center justify-between transition-all duration-300 origin-top ${
-            isHeaderShrunk ? "py-1 md:py-1 scale-90" : "py-2 md:py-2.5 scale-100"
-          }`}
-        >
-          <a href="/" className="block">
-            <img
-              src="/LOGO_LD%20PERFUME%20OIL%20LUXURY%20(4)_NA%CC%82U%201.svg"
-              alt="LD Perfume Oil Luxury logo"
-              className={`h-auto object-contain transition-all duration-300 ${
-                isHeaderShrunk ? "w-24 md:w-40" : "w-32 md:w-48"
-              }`}
-            />
-          </a>
-          <div className="flex items-center space-x-3 md:space-x-4 text-black">
-            <a href="/cart" aria-label="Xem giỏ hàng" className="block relative">
-              <img
-                src="/shopping-cart 1.svg"
-                alt="Giỏ hàng"
-                className="h-5 w-5 object-contain"
-              />
-              {cartItemCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {cartItemCount}
-                </span>
-              )}
-            </a>
-            <a
-              href="/account"
-              className="flex items-center space-x-2 cursor-pointer text-[11px] md:text-[12px] text-black font-semibold hover:text-[#5f3d10] transition"
-            >
-              <img
-                src="/user 1.svg"
-                alt="Tài khoản"
-                className="h-5 w-5 object-contain"
-              />
-              <span className="hidden md:inline">Tài khoản</span>
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <div className="w-full border-b border-[rgba(0,0,0,0.12)]" />
+      <Header cartItemCount={cartItemCount} />
 
       <div className="mt-2 flex justify-center mx-4 md:mx-0">
-        <nav className="w-full md:w-[65%] text-[11px] md:text-[12px] flex items-center gap-1 text-[#9b6a2a]">
+        <nav className="w-full md:w-[65%] text-[13px] md:text-[14px] flex items-center gap-1 text-[#9b6a2a] font-medium">
           <a href="/" className="hover:underline">Trang chủ</a>
           <span className="text-black/50">/</span>
           <span className="text-black">Giỏ hàng</span>

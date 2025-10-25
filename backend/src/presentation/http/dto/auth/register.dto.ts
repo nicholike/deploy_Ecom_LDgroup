@@ -11,6 +11,9 @@ export class RegisterDto {
   @IsString()
   @MinLength(3, { message: 'Username phải có ít nhất 3 ký tự' })
   @MaxLength(50, { message: 'Username không được vượt quá 50 ký tự' })
+  @Matches(/^[a-zA-Z0-9]([a-zA-Z0-9_-]{1,48}[a-zA-Z0-9])?$/, {
+    message: 'Username chỉ được chứa chữ cái, số, dấu gạch dưới (_) và dấu gạch ngang (-). Không được bắt đầu hoặc kết thúc bằng dấu gạch',
+  })
   @IsNotEmpty({ message: 'Username là bắt buộc' })
   username: string;
 

@@ -28,6 +28,7 @@ import MlmTree from "./pages/Account/MlmTree";
 import LandingPage from "./pages/LandingPage";
 import CartCheckout from "./pages/CartCheckout";
 import Account from "./pages/Account";
+import WithdrawalHistory from "./pages/WithdrawalHistory";
 import Footer from "./components/footer/Footer";
 import ProductList from "./pages/Products/ProductList";
 import AddProduct from "./pages/Products/AddProduct";
@@ -70,6 +71,7 @@ const AppContent: React.FC = () => {
         <Route path="/cart" element={<CartCheckout />} />
         <Route path="/payment/:orderId" element={<Payment />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/account/withdrawal-history" element={<WithdrawalHistory />} />
 
         <Route
           path="/admin"

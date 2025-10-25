@@ -165,6 +165,24 @@ const CreateUserForm: React.FC = () => {
       return;
     }
 
+    // Validate username
+    const trimmedUsername = form.username.trim();
+    if (trimmedUsername.length < 3) {
+      setError("Username phải có ít nhất 3 ký tự!");
+      return;
+    }
+
+    if (trimmedUsername.length > 50) {
+      setError("Username không được vượt quá 50 ký tự!");
+      return;
+    }
+
+    const usernamePattern = /^[a-zA-Z0-9]([a-zA-Z0-9_-]{1,48}[a-zA-Z0-9])?$/;
+    if (!usernamePattern.test(trimmedUsername)) {
+      setError("Username chỉ được chứa chữ cái, số, dấu gạch dưới (_) và dấu gạch ngang (-). Không được bắt đầu hoặc kết thúc bằng dấu gạch!");
+      return;
+    }
+
     // Determine sponsor based on role
     let sponsorId: string | undefined;
     if (form.role === "ADMIN") {

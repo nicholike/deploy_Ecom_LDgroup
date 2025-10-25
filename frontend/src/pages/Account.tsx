@@ -393,9 +393,9 @@ const loadDownlineOrders = useCallback(async () => {
               <div className="flex gap-4">
                 <button
                   type="button"
-                  className="flex w-full items-center justify-start gap-3 rounded-md px-6 py-4 text-[14px] font-extrabold text-white sm:w-auto md:py-6 md:text-[16px] min-w-0 shadow-lg"
+                  className="flex w-full items-center justify-start gap-3 rounded-md px-6 py-4 text-[14px] font-extrabold text-white sm:w-auto md:py-6 md:text-[16px] md:min-w-[250px] shadow-lg"
                   style={{
-                    background: 'linear-gradient(90deg, rgba(84,32,13,1) 0%, rgba(133,66,34,1) 50%, rgba(220,163,114,1) 100%)',
+                    background: 'linear-gradient(90deg, rgba(139,94,30,1) 0%, rgba(161,109,36,1) 50%, rgba(233,201,156,1) 100%)',
                   }}
                 >
                   <img src="/wallet 1.svg" alt="Số dư ví hoa hồng" className="h-8 w-8 object-contain flex-shrink-0" />

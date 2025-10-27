@@ -326,6 +326,13 @@ const loadDownlineOrders = useCallback(async () => {
       const digits = value.replace(/[^\d]/g, "");
       const formatted = digits ? new Intl.NumberFormat("vi-VN").format(Number(digits)) : "";
       setWithdrawForm((prev) => ({ ...prev, rawAmount: digits, amount: formatted }));
+    } else if (field === "accountName") {
+      // Auto uppercase tên người nhận để giống tài khoản ngân hàng
+      setWithdrawForm((prev) => ({ ...prev, [field]: value.toUpperCase() }));
+    } else if (field === "accountNumber") {
+      // Chỉ cho phép nhập số 0-9
+      const numericOnly = value.replace(/[^\d]/g, "");
+      setWithdrawForm((prev) => ({ ...prev, [field]: numericOnly }));
     } else {
       setWithdrawForm((prev) => ({ ...prev, [field]: value }));
     }
@@ -931,21 +938,55 @@ const WithdrawModal: React.FC<{
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onClose: () => void;
 }> = ({ open, submitting, form, onChange, onSubmit, onClose }) => {
+  // Danh sách ngân hàng Việt Nam đầy đủ (không trùng)
   const banks = [
-    "Vietcombank",
-    "VietinBank", 
-    "BIDV",
-    "Agribank",
-    "Sacombank",
-    "Techcombank",
-    "MB Bank",
-    "ACB",
-    "VPBank",
-    "TPBank",
-    "HDBank",
-    "VIB",
-    "SHB",
-    "SeABank",
+    "Vietcombank - Ngân hàng Ngoại thương Việt Nam",
+    "VietinBank - Ngân hàng Công Thương Việt Nam",
+    "BIDV - Ngân hàng Đầu tư và Phát triển Việt Nam",
+    "Agribank - Ngân hàng Nông nghiệp và Phát triển Nông thôn",
+    "Techcombank - Ngân hàng Kỹ Thương Việt Nam",
+    "MB Bank - Ngân hàng Quân Đội",
+    "ACB - Ngân hàng Á Châu",
+    "VPBank - Ngân hàng Việt Nam Thịnh Vượng",
+    "TPBank - Ngân hàng Tiên Phong",
+    "Sacombank - Ngân hàng Sài Gòn Thương Tín",
+    "HDBank - Ngân hàng Phát triển TP HCM",
+    "VIB - Ngân hàng Quốc tế Việt Nam",
+    "SHB - Ngân hàng Sài Gòn - Hà Nội",
+    "SeABank - Ngân hàng Đông Nam Á",
+    "OCB - Ngân hàng Phương Đông",
+    "MSB - Ngân hàng Hàng Hải Việt Nam",
+    "VietCapitalBank - Ngân hàng Bản Việt",
+    "SCB - Ngân hàng Sài Gòn",
+    "Eximbank - Ngân hàng Xuất Nhập Khẩu Việt Nam",
+    "ABBank - Ngân hàng An Bình",
+    "VietABank - Ngân hàng Việt Á",
+    "NamABank - Ngân hàng Nam Á",
+    "PG Bank - Ngân hàng Xăng Dầu Petrolimex",
+    "VietBank - Ngân hàng Việt Nam Thương Tín",
+    "BacABank - Ngân hàng Bắc Á",
+    "PVcomBank - Ngân hàng Đại Chúng Việt Nam",
+    "Oceanbank - Ngân hàng Đại Dương",
+    "NCB - Ngân hàng Quốc Dân",
+    "GPBank - Ngân hàng Dầu khí Toàn cầu",
+    "DongA Bank - Ngân hàng Đông Á",
+    "BaoViet Bank - Ngân hàng Bảo Việt",
+    "LienVietPostBank - Ngân hàng Liên Việt Bưu Điện",
+    "KienLongBank - Ngân hàng Kiên Long",
+    "CBBank - Ngân hàng Xây Dựng",
+    "ShinhanBank - Ngân hàng Shinhan Việt Nam",
+    "HSBC - Ngân hàng HSBC Việt Nam",
+    "Standard Chartered - Ngân hàng Standard Chartered Việt Nam",
+    "Citibank - Ngân hàng Citibank Việt Nam",
+    "Hong Leong Bank - Ngân hàng Hong Leong Việt Nam",
+    "Public Bank - Ngân hàng Public Bank Việt Nam",
+    "CIMB - Ngân hàng CIMB Việt Nam",
+    "UOB - Ngân hàng United Overseas Bank Việt Nam",
+    "Woori Bank - Ngân hàng Woori Việt Nam",
+    "ANZ - Ngân hàng ANZ Việt Nam",
+    "IBK - Ngân hàng Công nghiệp Hàn Quốc",
+    "VRB - Ngân hàng Liên doanh Việt Nga",
+    "Indovina Bank - Ngân hàng Indovina",
   ];
 
   return (
@@ -1013,10 +1054,12 @@ const WithdrawModal: React.FC<{
             <input
               id="account"
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
               value={form.accountNumber}
               onChange={onChange("accountNumber")}
-              placeholder="1122334455"
+              placeholder="0123456789"
               required
             />
           </div>
@@ -1029,10 +1072,10 @@ const WithdrawModal: React.FC<{
           <input
               id="recipient"
             type="text"
-              className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E]"
+              className="border border-black rounded-md py-0.5 sm:py-1 px-2 sm:px-3 min-w-0 flex-1 sm:w-[220px] font-normal text-[11px] md:text-[14px] text-black focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] uppercase placeholder:normal-case"
             value={form.accountName}
             onChange={onChange("accountName")}
-              placeholder="Nguyễn Văn A"
+              placeholder="NGUYEN VAN A"
             required
           />
         </div>

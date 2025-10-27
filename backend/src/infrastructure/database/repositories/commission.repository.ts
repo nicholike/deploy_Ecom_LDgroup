@@ -96,6 +96,15 @@ export class CommissionRepository {
               status: true,
             },
           },
+          fromUser: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
         },
       }),
       this.prisma.commission.count({ where }),

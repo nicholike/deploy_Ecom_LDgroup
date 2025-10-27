@@ -211,16 +211,44 @@ const loadDownlineOrders = useCallback(async () => {
         accessToken,
       );
 
-      const transformed: DownlineOrder[] = result.data.map((commission: any) => ({
-        id: commission.id,
-        orderNumber: commission.order?.orderNumber,
-        buyerName: commission.fromUser?.username || commission.fromUser?.email,
-        total: Number(commission.order?.totalAmount ?? 0),
-        commission: Number(commission.commissionAmount ?? commission.amount ?? 0),
-        level: typeof commission.level === "number" ? commission.level : null,
-        status: commission.status ?? "APPROVED",
-        createdAt: commission.createdAt,
-      }));
+      // DEBUG: Log the raw data from API
+      console.log('=== DEBUG: Commission API Response ===');
+      console.log('Total commissions:', result.data.length);
+      if (result.data.length > 0) {
+        console.log('First commission raw data:', JSON.stringify(result.data[0], null, 2));
+      }
+
+      const transformed: DownlineOrder[] = result.data.map((commission: any) => {
+        // DEBUG: Log each commission's fromUser data
+        console.log('Processing commission:', {
+          id: commission.id,
+          fromUser: commission.fromUser,
+          fromUserId: commission.fromUserId,
+        });
+
+        // Create full name from firstName and lastName, fallback to username or email
+        let buyerName = '';
+        if (commission.fromUser?.firstName && commission.fromUser?.lastName) {
+          buyerName = `${commission.fromUser.firstName} ${commission.fromUser.lastName}`;
+        } else if (commission.fromUser?.firstName) {
+          buyerName = commission.fromUser.firstName;
+        } else if (commission.fromUser?.lastName) {
+          buyerName = commission.fromUser.lastName;
+        } else {
+          buyerName = commission.fromUser?.username || commission.fromUser?.email || 'Ẩn danh';
+        }
+
+        return {
+          id: commission.id,
+          orderNumber: commission.order?.orderNumber,
+          buyerName,
+          total: Number(commission.order?.totalAmount ?? 0),
+          commission: Number(commission.commissionAmount ?? commission.amount ?? 0),
+          level: typeof commission.level === "number" ? commission.level : null,
+          status: commission.status ?? "APPROVED",
+          createdAt: commission.calculatedAt || commission.createdAt,
+        };
+      });
 
       setDownlineOrders(transformed);
     } catch (error) {
@@ -376,7 +404,10 @@ const loadDownlineOrders = useCallback(async () => {
       <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
 
       <div className="min-h-screen bg-white pb-12 text-black">
-        <Header cartItemCount={cartItemCount} />
+        <Header
+          cartItemCount={cartItemCount}
+          userName={userProfile ? `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim() : undefined}
+        />
 
         <Breadcrumb />
 

@@ -2,9 +2,10 @@ import React from 'react';
 
 interface HeaderProps {
   cartItemCount?: number;
+  userName?: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
+export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0, userName }) => {
   return (
     <>
       <header
@@ -48,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({ cartItemCount = 0 }) => {
                 alt="Tài khoản"
                 className="h-5 w-5 object-contain"
               />
-              <span className="leading-none">Tài khoản</span>
+              <span className="leading-none">{userName || 'Tài khoản'}</span>
             </a>
           </div>
         </div>

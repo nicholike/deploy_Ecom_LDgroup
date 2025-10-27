@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { SettingsService, type SystemSetting } from '../../services/settings.service';
 import { useToast } from '../../context/ToastContext';
+import PageMeta from '../../components/common/PageMeta';
 
 type Tab = 'system' | 'email' | 'bank' | 'pricing';
 
@@ -16,9 +17,14 @@ const Settings: React.FC = () => {
   ];
 
   return (
-    <div className="p-4 sm:p-6">
-      {/* Header */}
-      <div className="mb-6">
+    <>
+      <PageMeta
+        title="Cấu hình hệ thống"
+        description="Quản lý cấu hình và thiết lập hệ thống"
+      />
+      <div className="p-4 sm:p-6">
+        {/* Header */}
+        <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Cấu hình hệ thống
         </h1>
@@ -58,6 +64,7 @@ const Settings: React.FC = () => {
         {activeTab === 'bank' && <BankTab showToast={showToast} />}
       </div>
     </div>
+    </>
   );
 };
 

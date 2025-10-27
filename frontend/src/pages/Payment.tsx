@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { paymentService, type PaymentInfo } from '../services/payment.service';
 import { CheckCircle, Copy, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import PageMeta from '../components/common/PageMeta';
 
 export default function Payment() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -238,10 +239,15 @@ export default function Payment() {
   }
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center px-4 py-10"
-      style={{ background: 'linear-gradient(180deg, #e6ebf3 0%, #f7f9fc 100%)' }}
-    >
+    <>
+      <PageMeta
+        title="Thanh toán"
+        description="Thanh toán đơn hàng - LDGroup E-commerce"
+      />
+      <div
+        className="min-h-screen flex items-center justify-center px-4 py-10"
+        style={{ background: 'linear-gradient(180deg, #e6ebf3 0%, #f7f9fc 100%)' }}
+      >
       <div 
         className="max-w-4xl w-full border border-blue-400 rounded-md p-6 bg-white bg-opacity-70"
         style={{ backdropFilter: 'saturate(180%) blur(20px)' }}
@@ -393,6 +399,7 @@ export default function Payment() {
         </p>
       </div>
     </div>
+    </>
   );
 }
 

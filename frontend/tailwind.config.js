@@ -5,7 +5,7 @@ export default {
   darkMode: "class",
   theme: {
     fontFamily: {
-      outfit: ["Outfit", "sans-serif"],
+      sans: ["FZ Poppins", "sans-serif"],
     },
     fontSize: {
       xs: ["12px", "18px"],

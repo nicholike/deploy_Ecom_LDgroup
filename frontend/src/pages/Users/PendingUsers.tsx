@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { UserManagementService } from '../../services/user-management.service';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import PageMeta from '../../components/common/PageMeta';
 
 // ========================================
 // HELPER FUNCTIONS
@@ -255,12 +256,17 @@ const PendingUsers: React.FC = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Tài khoản chờ duyệt
-        </h1>
+    <>
+      <PageMeta
+        title="Tài khoản chờ duyệt"
+        description="Quản lý tài khoản đăng ký mới chờ phê duyệt"
+      />
+      <div className="p-4 sm:p-6">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Tài khoản chờ duyệt
+          </h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           Danh sách tài khoản đăng ký mới đang chờ phê duyệt từ quản trị viên
         </p>
@@ -480,6 +486,7 @@ const PendingUsers: React.FC = () => {
         />
       )}
     </div>
+    </>
   );
 };
 

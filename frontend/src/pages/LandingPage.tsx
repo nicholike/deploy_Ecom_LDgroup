@@ -7,6 +7,7 @@ import { CartService } from "../services/cart.service";
 import { useToast } from "../context/ToastContext";
 import { Header } from "../components/layouts/Header";
 import { useUserName } from "../hooks/useUserName";
+import PageMeta from "../components/common/PageMeta";
 
 type SizeKey = "5ml" | "20ml";
 
@@ -518,8 +519,13 @@ const LandingPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-white min-h-screen pb-12 text-[12px]">
-      <Header cartItemCount={cartItemCount} userName={userName} />
+    <>
+      <PageMeta
+        title="Trang chủ"
+        description="LDGroup E-commerce - Hệ thống thương mại điện tử chuyên nghiệp"
+      />
+      <div className="bg-white min-h-screen pb-12 text-[12px]">
+        <Header cartItemCount={cartItemCount} userName={userName} />
 
       <section className="mt-8 flex justify-center px-4">
         <div className="flex w-[95%] flex-row items-center gap-3 md:w-[65%] md:justify-end">
@@ -653,6 +659,7 @@ const LandingPage: React.FC = () => {
         </button>
       </div>
     </div>
+    </>
   );
 };
 

@@ -11,6 +11,7 @@ import type { PriceTier } from "../types/product.types";
 import { TrashIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import { Header } from "../components/layouts/Header";
 import { useUserName } from "../hooks/useUserName";
+import PageMeta from "../components/common/PageMeta";
 
 type SizeKey = "5ml" | "20ml";
 
@@ -2044,8 +2045,13 @@ const CartCheckout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-12 text-black">
-      <Header cartItemCount={cartItemCount} userName={userName} />
+    <>
+      <PageMeta
+        title="Giỏ hàng"
+        description="Giỏ hàng của bạn - LDGroup E-commerce"
+      />
+      <div className="min-h-screen bg-white pb-12 text-black">
+        <Header cartItemCount={cartItemCount} userName={userName} />
 
       <div className="mt-2 flex justify-center mx-4 md:mx-0">
         <nav className="w-full md:w-[65%] text-[13px] md:text-[14px] flex items-center gap-1 text-[#9b6a2a] font-medium">
@@ -2798,6 +2804,7 @@ const CartCheckout: React.FC = () => {
         )}
       </main>
     </div>
+    </>
   );
 };
 

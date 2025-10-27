@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap");
-
 /* Removed - width is now defined inline for proper alignment with select boxes */
 
 @media (min-width: 768px) {
@@ -174,13 +172,8 @@
 
 @layer base {
   body {
-    @apply relative text-[12px] font-normal z-1 bg-gray-50 font-outfit;
-  }
-  body.font-fz-poppins {
-    font-family: "FZ Poppins", sans-serif !important;
-  }
-  body.font-outfit-default {
-    font-family: "Outfit", sans-serif !important;
+    @apply relative text-[12px] font-normal z-1 bg-gray-50;
+    font-family: "FZ Poppins", sans-serif;
   }
   h1 {
     @apply text-[18px] font-semibold;

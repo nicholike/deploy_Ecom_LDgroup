@@ -7,6 +7,7 @@ import {
 } from '../../services/user-management.service';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import PageMeta from '../../components/common/PageMeta';
 
 // ========================================
 // HELPER FUNCTIONS
@@ -464,12 +465,17 @@ const UserManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Quản lý người dùng
-        </h1>
+    <>
+      <PageMeta
+        title="Quản lý người dùng"
+        description="Quản lý tài khoản và phân quyền người dùng"
+      />
+      <div className="p-4 sm:p-6">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Quản lý người dùng
+          </h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           Quản lý tài khoản, phân quyền và theo dõi hoạt động của người dùng
         </p>
@@ -794,6 +800,7 @@ const UserManagement: React.FC = () => {
         />
       )}
     </div>
+    </>
   );
 };
 

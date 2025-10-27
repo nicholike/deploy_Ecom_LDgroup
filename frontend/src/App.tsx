@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
@@ -48,16 +47,6 @@ import Payment from "./pages/Payment";
 const AppContent: React.FC = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
-
-  useEffect(() => {
-    if (isAdminRoute) {
-      document.body.classList.add("font-outfit-default");
-      document.body.classList.remove("font-fz-poppins");
-    } else {
-      document.body.classList.add("font-fz-poppins");
-      document.body.classList.remove("font-outfit-default");
-    }
-  }, [isAdminRoute]);
 
   return (
     <>

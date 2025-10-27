@@ -6,6 +6,7 @@ import { CategoryService, type Category } from "../services/category.service";
 import { CartService } from "../services/cart.service";
 import { useToast } from "../context/ToastContext";
 import { Header } from "../components/layouts/Header";
+import { useUserName } from "../hooks/useUserName";
 
 type SizeKey = "5ml" | "20ml";
 
@@ -117,6 +118,7 @@ const QuantityInput: React.FC<QuantityInputProps> = ({ value, onChange, disabled
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const userName = useUserName();
 
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -517,7 +519,7 @@ const LandingPage: React.FC = () => {
 
   return (
     <div className="bg-white min-h-screen pb-12 text-[12px]">
-      <Header cartItemCount={cartItemCount} />
+      <Header cartItemCount={cartItemCount} userName={userName} />
 
       <section className="mt-8 flex justify-center px-4">
         <div className="flex w-[95%] flex-row items-center gap-3 md:w-[65%] md:justify-end">

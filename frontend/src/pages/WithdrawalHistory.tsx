@@ -7,6 +7,7 @@ import type { WithdrawalRequest } from "../types/wallet.types";
 import { Modal } from "../components/ui/modal";
 import { Header } from "../components/layouts/Header";
 import PageMeta from "../components/common/PageMeta";
+import { useUserName } from "../hooks/useUserName";
 
 const WALLET_COLOR = "#8B5E1E";
 
@@ -62,6 +63,7 @@ const renderWithdrawalStatusText = (status: string) => {
 
 const WithdrawalHistory: React.FC = () => {
   const { accessToken } = useAuth();
+  const userName = useUserName();
   const [cartItemCount, setCartItemCount] = useState(0);
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +104,7 @@ const WithdrawalHistory: React.FC = () => {
       />
 
       <div className="min-h-screen bg-white pb-12 text-black">
-        <Header cartItemCount={cartItemCount} />
+        <Header cartItemCount={cartItemCount} userName={userName} />
 
         <div className="mt-2 flex justify-center mx-4 md:mx-0">
           <nav className="w-full md:w-[65%] text-[13px] md:text-[14px] flex items-center gap-1 text-[#9b6a2a] font-medium">

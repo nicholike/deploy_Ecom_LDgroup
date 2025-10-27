@@ -12,6 +12,7 @@ import { Modal } from "../components/ui/modal";
 import { authService, type AuthUser } from "../services/authService";
 import { apiClient } from "../services/apiClient";
 import { Header } from "../components/layouts/Header";
+import { useUserName } from "../hooks/useUserName";
 
 const WALLET_COLOR = "#8B5E1E";
 const MIN_WITHDRAW_AMOUNT = 500_000;
@@ -88,6 +89,7 @@ const DEFAULT_WITHDRAW_FORM: WithdrawFormState = {
 const Account: React.FC = () => {
   const { logout, accessToken } = useAuth();
   const navigate = useNavigate();
+  const userName = useUserName();
 
   const [orders, setOrders] = useState<OrderType[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -406,7 +408,7 @@ const loadDownlineOrders = useCallback(async () => {
       <div className="min-h-screen bg-white pb-12 text-black">
         <Header
           cartItemCount={cartItemCount}
-          userName={userProfile ? `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim() : undefined}
+          userName={userName}
         />
 
         <Breadcrumb />

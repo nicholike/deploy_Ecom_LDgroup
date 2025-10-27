@@ -10,6 +10,7 @@ import { useAuth } from "../context/AuthContext";
 import type { PriceTier } from "../types/product.types";
 import { TrashIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import { Header } from "../components/layouts/Header";
+import { useUserName } from "../hooks/useUserName";
 
 type SizeKey = "5ml" | "20ml";
 
@@ -946,6 +947,7 @@ const CartCheckout: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { getToken, loading: authLoading } = useAuth();
+  const userName = useUserName();
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartType | null>(null);
   const [productVariantsMap, setProductVariantsMap] = useState<Record<string, ProductVariantMap>>(
@@ -2043,7 +2045,7 @@ const CartCheckout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white pb-12 text-black">
-      <Header cartItemCount={cartItemCount} />
+      <Header cartItemCount={cartItemCount} userName={userName} />
 
       <div className="mt-2 flex justify-center mx-4 md:mx-0">
         <nav className="w-full md:w-[65%] text-[13px] md:text-[14px] flex items-center gap-1 text-[#9b6a2a] font-medium">

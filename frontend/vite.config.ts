@@ -43,6 +43,18 @@ export default defineConfig({
     force: true,
   },
   build: {
+    // Use terser for minification to enable console removal
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        // Remove all console.* statements in production
+        drop_console: true,
+        // Remove all debugger statements
+        drop_debugger: true,
+        // Remove pure functions (functions with no side effects)
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks: {

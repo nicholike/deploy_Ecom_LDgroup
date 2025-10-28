@@ -352,6 +352,60 @@
 }
 
 /* ===================================
+   DELETE BUTTON (for leaf nodes)
+   =================================== */
+
+.node-delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fee2e2;
+  border: 1.5px solid #fca5a5;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  padding: 0;
+  color: #dc2626;
+  opacity: 0.8;
+}
+
+.node-delete-btn:hover {
+  opacity: 1;
+  background: #fca5a5;
+  border-color: #dc2626;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+.node-delete-btn:active {
+  transform: scale(0.95);
+}
+
+.node-delete-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
+}
+
+.dark .node-delete-btn {
+  background: #7f1d1d;
+  border-color: #991b1b;
+  color: #fca5a5;
+}
+
+.dark .node-delete-btn:hover {
+  background: #991b1b;
+  border-color: #dc2626;
+  color: #fef2f2;
+}
+
+/* ===================================
    NODE CONTENT
    =================================== */
 

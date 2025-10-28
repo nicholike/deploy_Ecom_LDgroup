@@ -5,6 +5,8 @@ import "./mlmTree.css";
 
 interface NodeProps {
   node: UserTreeNodeResponse;
+  onDeleteUser?: (userId: string, username: string) => void;
+  isAdmin?: boolean;
 }
 
 // Function để đếm thành viên theo DEPTH LEVEL (cấp độ tương đối từ node hiện tại)
@@ -40,13 +42,16 @@ const countMembersByDepth = (node: UserTreeNodeResponse): Record<string, number>
   return counts;
 };
 
-const TreeNode: React.FC<NodeProps> = ({ node }) => {
+const TreeNode: React.FC<NodeProps> = ({ node, onDeleteUser, isAdmin = false }) => {
   const children = node.children ?? [];
   const hasChildren = children.length > 0;
   const [isExpanded, setIsExpanded] = useState(true);
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // Check if this node can be deleted (no children and not admin)
+  const canDelete = !hasChildren && node.user.role?.toUpperCase() !== 'ADMIN' && isAdmin;
 
   // Tính toán tổng thành viên theo cấp độ tương đối (depth level)
   const memberStats = useMemo(() => {
@@ -114,6 +119,14 @@ const TreeNode: React.FC<NodeProps> = ({ node }) => {
     setShowTooltip(false);
   };
 
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onDeleteUser) {
+      onDeleteUser(node.user.id, node.user.username || 'Unknown');
+    }
+  };
+
   // Determine role badge color
   const getRoleBadgeClass = (role: string) => {
     switch (role.toLowerCase()) {
@@ -137,6 +150,20 @@ const TreeNode: React.FC<NodeProps> = ({ node }) => {
         onMouseLeave={handleMouseLeave}
       >
         <div className="node-card" onClick={handleCardClick}>
+          {/* Delete Button - Only for leaf nodes */}
+          {canDelete && (
+            <button
+              className="node-delete-btn"
+              onClick={handleDeleteClick}
+              title="Xóa tài khoản (không có nhánh)"
+              aria-label="Xóa tài khoản"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+
           {/* Username */}
           <div className="node-username">{node.user.username || 'Unknown'}</div>
 
@@ -239,7 +266,12 @@ const TreeNode: React.FC<NodeProps> = ({ node }) => {
       {hasChildren && (
         <ul className={`tree-children ${!isExpanded ? 'tree-children-collapsed' : ''}`}>
           {children.map((child) => (
-            <TreeNode key={child.user.id} node={child} />
+            <TreeNode
+              key={child.user.id}
+              node={child}
+              onDeleteUser={onDeleteUser}
+              isAdmin={isAdmin}
+            />
           ))}
         </ul>
       )}
@@ -249,9 +281,11 @@ const TreeNode: React.FC<NodeProps> = ({ node }) => {
 
 interface DiagramProps {
   data: UserTreeNodeResponse[];
+  onDeleteUser?: (userId: string, username: string) => void;
+  isAdmin?: boolean;
 }
 
-const MlmTreeDiagram: React.FC<DiagramProps> = ({ data }) => {
+const MlmTreeDiagram: React.FC<DiagramProps> = ({ data, onDeleteUser, isAdmin = false }) => {
   if (!data.length) {
     return (
       <div className="mlm-tree-empty">
@@ -268,7 +302,12 @@ const MlmTreeDiagram: React.FC<DiagramProps> = ({ data }) => {
     <div className="tree tree-centered">
       <ul>
         {data.map((node) => (
-          <TreeNode key={node.user.id} node={node} />
+          <TreeNode
+            key={node.user.id}
+            node={node}
+            onDeleteUser={onDeleteUser}
+            isAdmin={isAdmin}
+          />
         ))}
       </ul>
     </div>

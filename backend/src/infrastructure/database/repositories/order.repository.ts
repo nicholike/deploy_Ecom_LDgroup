@@ -71,24 +71,6 @@ export class OrderRepository {
         ? new Prisma.Decimal(data.totalAmount)
         : subtotalDecimal.plus(shippingFeeDecimal).plus(taxDecimal).minus(discountDecimal);
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[OrderRepository] Creating order', {
-        orderNumber,
-        userId: data.userId,
-        itemCount: itemRows.length,
-        subtotal: subtotalDecimal.toString(),
-        shippingFee: shippingFeeDecimal.toString(),
-        tax: taxDecimal.toString(),
-        discount: discountDecimal.toString(),
-        totalAmount: totalAmountDecimal.toString(),
-        items: itemRows.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price.toString(),
-          subtotal: item.subtotal.toString(),
-        })),
-      });
-    }
 
     return this.prisma.order.create({
       data: {

@@ -137,4 +137,41 @@ export interface IUserRepository {
    * 🔧 ATOMIC: Decrement quota (prevents race condition)
    */
   decrementQuota(userId: string, amount: number): Promise<void>;
+
+  /**
+   * Get wallet balance for user
+   */
+  getWalletBalance(userId: string): Promise<number>;
+
+  /**
+   * Get user quota information (for purchase limit)
+   */
+  getQuotaInfo(userId: string): Promise<{
+    quota5ml: {
+      limit: number;
+      used: number;
+      remaining: number;
+    };
+    quota20ml: {
+      limit: number;
+      used: number;
+      remaining: number;
+    };
+    quotaSpecial: {
+      limit: number;
+      used: number;
+      remaining: number;
+    };
+    quotaPeriodStart: Date | null;
+    quotaPeriodEnd: Date | null;
+    quotaLimit: number;
+    quotaUsed: number;
+    quotaRemaining: number;
+  } | null>;
+
+  /**
+   * Transfer user to new branch (change sponsor)
+   * Requirements: Wallet MUST be 0 before calling this
+   */
+  transferBranch(userId: string, newSponsorId: string): Promise<void>;
 }

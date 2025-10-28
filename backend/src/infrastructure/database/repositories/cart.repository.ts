@@ -117,8 +117,6 @@ export class CartRepository {
     const cart = await this.getCartByUserId(userId);
     if (!cart) throw new Error('Cart not found');
 
-    console.log(`[CartRepository] updateItemQuantity - userId: ${userId}, itemId: ${itemId}, quantity: ${quantity}`);
-
     // Allow quantity = 0 (don't auto-remove)
     // Frontend will explicitly call removeItem when needed
     const result = await this.prisma.cartItem.update({
@@ -132,8 +130,6 @@ export class CartRepository {
         productVariant: true,
       },
     });
-
-    console.log(`[CartRepository] Updated cart item - new quantity: ${result.quantity}`);
 
     return result;
   }
@@ -285,21 +281,6 @@ export class CartRepository {
       .reduce((sum, item) => sum + (item.priceBreakdown?.totalPrice || 0), 0);
 
     const totalPrice = specialProductsTotal + normalProductsTotal;
-
-    console.log('[CartRepository] Price calculation summary:');
-    console.log('  - Special products total:', specialProductsTotal);
-    console.log('  - Normal products total:', normalProductsTotal);
-    console.log('  - Grand total:', totalPrice);
-    console.log('  - Normal items breakdown:', itemsWithPricing
-      .filter(item => item.priceBreakdown)
-      .map(item => ({
-        product: item.product?.name,
-        quantity: item.quantity,
-        size: item.productVariant?.size,
-        itemPrice: item.priceBreakdown?.totalPrice,
-        pricePerUnit: item.priceBreakdown?.pricePerUnit,
-      }))
-    );
 
     return {
       id: cart.id,

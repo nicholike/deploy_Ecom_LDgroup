@@ -66,9 +66,6 @@ export class PaymentController {
     @Request() req: any,
   ) {
     try {
-      console.log('📥 Received SePay webhook:', JSON.stringify(webhookData, null, 2));
-      console.log('📋 Request headers:', JSON.stringify(req.headers, null, 2));
-
       // ✅ ENFORCE API Key verification in production
       if (process.env.SEPAY_API_KEY && process.env.NODE_ENV === 'production') {
         // Accept multiple header formats from Sepay
@@ -105,8 +102,6 @@ export class PaymentController {
             note: 'Data logged for manual review'
           };
         }
-
-        console.log('✅ SePay webhook authorization verified');
       }
 
       // Process the webhook
@@ -243,8 +238,6 @@ export class PaymentController {
       amount_in: 100000,
       sub_account: '',
     };
-
-    console.log('🧪 Testing webhook with data:', JSON.stringify(testData, null, 2));
 
     try {
       const result = await this.paymentService.processWebhook(testData);

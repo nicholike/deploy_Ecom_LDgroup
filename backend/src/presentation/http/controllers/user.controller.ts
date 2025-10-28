@@ -189,14 +189,90 @@ export class UserController {
     return UserResponseDto.fromDomain(user);
   }
 
+  @Get(':id/delete-check')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Check if user can be deleted and get warnings (Admin only)' })
+  @ApiResponse({ status: 200 })
+  async checkDelete(@Param('id') id: string) {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw new HttpException('Không tìm thấy người dùng', HttpStatus.NOT_FOUND);
+    }
+
+    // Check hard blocks
+    const blocks: string[] = [];
+
+    // Cannot delete admin
+    if (user.role === UserRole.ADMIN) {
+      blocks.push('Không thể xóa tài khoản admin');
+    }
+
+    // Cannot delete if has downline
+    const downlineCount = await this.userRepository.findMany({
+      page: 1,
+      limit: 1,
+      sponsorId: id,
+    });
+
+    // Get actual count from database for accurate number
+    const actualDownlineCount = await this.userRepository.findMany({
+      page: 1,
+      limit: 999999,
+      sponsorId: id,
+    });
+    const activeDownlineCount = actualDownlineCount.data.filter(
+      (u: any) => u.status !== 'INACTIVE' && u.status !== 'REJECTED'
+    ).length;
+
+    if (activeDownlineCount > 0) {
+      blocks.push(`Còn ${activeDownlineCount} tuyến dưới (phải xóa từ dưới lên)`);
+    }
+
+    // Get warnings from handler
+    const warnings = await this.deleteUserHandler.checkDeleteWarnings(id);
+
+    return {
+      success: true,
+      data: {
+        canDelete: blocks.length === 0,
+        blocks,
+        warnings: warnings.warnings,
+        walletBalance: warnings.walletBalance,
+        requireConfirmation: warnings.hasWarnings,
+      },
+    };
+  }
+
   @Delete(':id')
   @Roles(UserRole.ADMIN)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete user (soft delete)' })
-  @ApiResponse({ status: 204 })
-  async delete(@Param('id') id: string): Promise<void> {
-    const command = new DeleteUserCommand(id);
-    await this.deleteUserHandler.execute(command);
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete user (soft delete) - Admin only' })
+  @ApiResponse({ status: 200 })
+  async delete(
+    @Param('id') id: string,
+    @Query('confirmed') confirmed?: string,
+  ) {
+    const isConfirmed = confirmed === 'true';
+    const command = new DeleteUserCommand(id, isConfirmed);
+
+    try {
+      await this.deleteUserHandler.execute(command);
+      return {
+        success: true,
+        message: 'Đã xóa tài khoản thành công',
+      };
+    } catch (error: any) {
+      // Try to parse confirmation required error
+      try {
+        const errorData = JSON.parse(error.message);
+        if (errorData.code === 'CONFIRMATION_REQUIRED') {
+          throw new HttpException(errorData, HttpStatus.PRECONDITION_REQUIRED);
+        }
+      } catch (parseError) {
+        // Not a JSON error, throw original
+      }
+      throw error;
+    }
   }
 
   @Post('quota/:userId/reset')

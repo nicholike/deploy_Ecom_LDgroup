@@ -256,18 +256,10 @@ export class UserManagementController {
   @ApiOperation({ summary: 'Update user information' })
   @ApiResponse({ status: 200 })
   async updateUser(@Param('id') id: string, @Body() updateData: any) {
-    console.log('📥 Update request:', { id, updateData });
-
     const user = await this.userRepository.findById(id);
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
-
-    console.log('📝 Current user before update:', {
-      firstName: user.firstName,
-      lastName: user.lastName,
-      phone: user.phone,
-    });
 
     if (user.role === UserRole.ADMIN) {
       throw new HttpException('Cannot update admin account', HttpStatus.FORBIDDEN);
@@ -280,31 +272,15 @@ export class UserManagementController {
     if (updateData.phone !== undefined) allowedFields.phone = updateData.phone || '';
     if (updateData.avatar !== undefined) allowedFields.avatar = updateData.avatar || '';
 
-    console.log('🔧 Allowed fields to update:', allowedFields);
-
     // If there are fields to update, update the profile
     // Even if values are the same, it's OK (idempotent operation)
     let updatedUser = user;
     if (Object.keys(allowedFields).length > 0) {
       user.updateProfile(allowedFields);
 
-      console.log('📝 User after updateProfile:', {
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-      });
-
       // Save entity to trigger all domain logic and events
       updatedUser = await this.userRepository.save(user);
-
-      console.log('💾 User after save:', {
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        phone: updatedUser.phone,
-      });
     }
-
-    console.log('✅ Returning updated user');
 
     return {
       success: true,

@@ -8,11 +8,13 @@ const MAX_SCALE = 2.5;
 interface MlmTreeViewportProps {
   data: UserTreeNodeResponse[];
   isLoading: boolean;
+  onDeleteUser?: (userId: string, username: string) => void;
+  isAdmin?: boolean;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const MlmTreeViewport: React.FC<MlmTreeViewportProps> = ({ data, isLoading }) => {
+const MlmTreeViewport: React.FC<MlmTreeViewportProps> = ({ data, isLoading, onDeleteUser, isAdmin = false }) => {
   const [scale, setScale] = useState(0.85);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -55,13 +57,13 @@ const MlmTreeViewport: React.FC<MlmTreeViewportProps> = ({ data, isLoading }) =>
 
   const handlePointerDown: React.PointerEventHandler<HTMLDivElement> = (event) => {
     if (!hasData) return;
-    
-    // Don't interfere with clicks on node cards
+
+    // Don't interfere with clicks on node cards, buttons, or delete button
     const target = event.target as HTMLElement;
-    if (target.closest('.node-card') || target.closest('.expand-btn')) {
+    if (target.closest('.node-card') || target.closest('.expand-btn') || target.closest('.node-delete-btn')) {
       return;
     }
-    
+
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     setIsDragging(true);
@@ -213,7 +215,11 @@ const MlmTreeViewport: React.FC<MlmTreeViewportProps> = ({ data, isLoading }) =>
               Chưa có dữ liệu để hiển thị.
             </div>
           ) : (
-            <MlmTreeDiagram data={data} />
+            <MlmTreeDiagram
+              data={data}
+              onDeleteUser={onDeleteUser}
+              isAdmin={isAdmin}
+            />
           )}
         </div>
       </div>

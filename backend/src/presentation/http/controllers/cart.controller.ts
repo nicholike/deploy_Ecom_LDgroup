@@ -107,9 +107,6 @@ export class CartController {
       quotaInfo,
     };
 
-    console.log('[CartController] Returning cart with totalPrice:', response.totalPrice);
-    console.log('[CartController] Cart items count:', response.items?.length || 0);
-
     return response;
   }
 
@@ -238,7 +235,6 @@ export class CartController {
     @Param('itemId') itemId: string,
     @Body() dto: UpdateCartItemDto,
   ) {
-    console.log(`[CartController] PUT /cart/items/${itemId} - userId: ${userId}, quantity: ${dto.quantity}`);
     return this.cartRepository.updateItemQuantity(userId, itemId, dto.quantity);
   }
 

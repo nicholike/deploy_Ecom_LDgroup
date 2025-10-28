@@ -8,6 +8,7 @@ import {
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import PageMeta from '../../components/common/PageMeta';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 // ========================================
 // HELPER FUNCTIONS
@@ -65,6 +66,15 @@ const UserManagement: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [lockReason, setLockReason] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
+
+  // Delete confirmation dialog
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteDialogType, setDeleteDialogType] = useState<'danger' | 'warning'>('warning');
+  const [deleteDialogTitle, setDeleteDialogTitle] = useState('');
+  const [deleteDialogMessage, setDeleteDialogMessage] = useState<React.ReactNode>('');
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Edit form
   const [editForm, setEditForm] = useState({
@@ -230,6 +240,124 @@ const UserManagement: React.FC = () => {
         title: 'Lỗi',
         description: error.message || 'Không thể mở khóa tài khoản',
       });
+    }
+  };
+
+  // Delete user
+  const handleDeleteUser = async (user: User) => {
+    try {
+      // Step 1: Check if can delete
+      const checkResult = await UserManagementService.checkDeleteUser(user.id);
+
+      // Step 2: If has blocks → Show error
+      if (!checkResult.canDelete) {
+        showToast({
+          tone: 'error',
+          title: 'Không thể xóa tài khoản',
+          description: (
+            <div>
+              <p className="font-semibold">Lý do:</p>
+              <ul className="list-disc ml-4 mt-2">
+                {checkResult.blocks.map((block, i) => (
+                  <li key={i}>{block}</li>
+                ))}
+              </ul>
+            </div>
+          ),
+        });
+        return;
+      }
+
+      // Step 3: If has warnings → Show confirmation dialog with wallet info
+      if (checkResult.requireConfirmation) {
+        setUserToDelete(user);
+        setDeleteConfirmed(false);
+        setDeleteDialogType('danger');
+        setDeleteDialogTitle('⚠️ Cảnh báo');
+        setDeleteDialogMessage(
+          <div className="space-y-3">
+            <p>
+              Tài khoản <strong>{user.username}</strong> còn{' '}
+              <strong className="text-red-600 dark:text-red-400">
+                {checkResult.walletBalance.toLocaleString('vi-VN')} VND
+              </strong>{' '}
+              trong ví.
+            </p>
+            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 border border-red-200 dark:border-red-800">
+              <p className="text-red-700 dark:text-red-300 font-semibold text-sm">
+                ⚠️ Số tiền này sẽ bị mất vĩnh viễn khi xóa tài khoản.
+              </p>
+            </div>
+            <p className="text-sm">Bạn có chắc chắn muốn xóa?</p>
+          </div>
+        );
+        setShowDeleteDialog(true);
+      } else {
+        // Step 4: No warnings → Show normal confirmation
+        setUserToDelete(user);
+        setDeleteConfirmed(false);
+        setDeleteDialogType('warning');
+        setDeleteDialogTitle('Xác nhận xóa');
+        setDeleteDialogMessage(
+          <div className="space-y-2">
+            <p>
+              Bạn có chắc chắn muốn xóa tài khoản <strong>{user.username}</strong>?
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Hành động này không thể hoàn tác.
+            </p>
+          </div>
+        );
+        setShowDeleteDialog(true);
+      }
+    } catch (error: any) {
+      console.error('Failed to check delete user:', error);
+      showToast({
+        tone: 'error',
+        title: 'Lỗi',
+        description: error.message || 'Không thể kiểm tra điều kiện xóa',
+      });
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+
+    try {
+      setDeleteLoading(true);
+
+      // Call delete API with confirmed flag
+      await UserManagementService.deleteUser(userToDelete.id, true);
+
+      showToast({
+        tone: 'success',
+        title: 'Thành công',
+        description: `Đã xóa tài khoản ${userToDelete.username}`,
+      });
+
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
+      await loadUsers();
+    } catch (error: any) {
+      console.error('Failed to delete user:', error);
+
+      // Check if error is 428 (confirmation required)
+      if (error.status === 428 || error.statusCode === 428) {
+        const errorData = error.response?.data || error;
+        showToast({
+          tone: 'warning',
+          title: 'Yêu cầu xác nhận',
+          description: errorData.message || 'Cần xác nhận để xóa tài khoản này',
+        });
+      } else {
+        showToast({
+          tone: 'error',
+          title: 'Lỗi',
+          description: error.message || 'Không thể xóa tài khoản',
+        });
+      }
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -717,6 +845,16 @@ const UserManagement: React.FC = () => {
                               Khóa
                             </button>
                           ) : null}
+                          {/* Delete button - only for non-admin users */}
+                          {user.role !== 'ADMIN' && (
+                            <button
+                              onClick={() => handleDeleteUser(user)}
+                              className="rounded-md bg-rose-600 px-2 py-1 text-xs font-medium text-white hover:bg-rose-700"
+                              title="Xóa tài khoản"
+                            >
+                              Xóa
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -799,6 +937,22 @@ const UserManagement: React.FC = () => {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setUserToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title={deleteDialogTitle}
+        message={deleteDialogMessage}
+        confirmText="Xác nhận xóa"
+        cancelText="Hủy"
+        type={deleteDialogType}
+        loading={deleteLoading}
+      />
     </div>
     </>
   );

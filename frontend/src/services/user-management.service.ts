@@ -325,6 +325,47 @@ export const UserManagementService = {
     );
     return response;
   },
+
+  // ========================================
+  // DELETE USER
+  // ========================================
+  async checkDeleteUser(userId: string): Promise<{
+    canDelete: boolean;
+    blocks: string[];
+    warnings: string[];
+    walletBalance: number;
+    requireConfirmation: boolean;
+  }> {
+    const response = await apiClient<{
+      canDelete: boolean;
+      blocks: string[];
+      warnings: string[];
+      walletBalance: number;
+      requireConfirmation: boolean;
+    }>(
+      `/users/${userId}/delete-check`,
+      { method: 'GET', authToken: getAuthToken() }
+    );
+    return response;
+  },
+
+  async deleteUser(userId: string, confirmed: boolean = false): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const url = confirmed
+      ? `/users/${userId}?confirmed=true`
+      : `/users/${userId}`;
+
+    const response = await apiClient<{
+      success: boolean;
+      message: string;
+    }>(url, {
+      method: 'DELETE',
+      authToken: getAuthToken()
+    });
+    return response;
+  },
 };
 
 

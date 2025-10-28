@@ -362,23 +362,27 @@ export class UserRepository implements IUserRepository {
       }
     }
 
+    const whereClause = {
+      ...(descendantIds ? { id: { in: descendantIds } } : {}),
+      ...(role ? { role } : {}),
+      // ✅ Default: exclude INACTIVE and REJECTED users from tree
+      ...(status ? { status } : { status: { notIn: ['INACTIVE', 'REJECTED'] } }),
+    };
+
     const data = await this.prisma.user.findMany({
-      where: {
-        ...(descendantIds ? { id: { in: descendantIds } } : {}),
-        ...(role ? { role } : {}),
-        ...(status ? { status } : {}),
-      } as any,
+      where: whereClause as any,
       orderBy: {
         createdAt: 'asc',
       },
     });
 
     // Always include the requested root even if it was filtered out above.
+    // ✅ But also exclude INACTIVE/REJECTED root
     if (rootId && !data.some((record) => record.id === rootId)) {
       const rootRecord = await this.prisma.user.findUnique({
         where: { id: rootId },
       });
-      if (!rootRecord) {
+      if (!rootRecord || rootRecord.status === 'INACTIVE' || rootRecord.status === 'REJECTED') {
         return [];
       }
       data.unshift(rootRecord);

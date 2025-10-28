@@ -545,15 +545,15 @@ const UserManagement: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      ACTIVE: 'bg-green-100 text-green-800',
-      SUSPENDED: 'bg-red-100 text-red-800',
-      INACTIVE: 'bg-gray-100 text-gray-800',
+      ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      SUSPENDED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      INACTIVE: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
     };
 
     const labels: Record<string, string> = {
       ACTIVE: 'Hoạt động',
       SUSPENDED: 'Bị khóa',
-      INACTIVE: 'Chưa kích hoạt',
+      INACTIVE: 'Đã xóa',
     };
 
     return (
@@ -660,10 +660,10 @@ const UserManagement: React.FC = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#8B5E1E] focus:outline-none focus:ring-1 focus:ring-[#8B5E1E] dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
-              <option value="">Tất cả</option>
+              <option value="">Tất cả (trừ đã xóa)</option>
               <option value="ACTIVE">Hoạt động</option>
               <option value="SUSPENDED">Bị khóa</option>
-              <option value="INACTIVE">Chưa kích hoạt</option>
+              <option value="INACTIVE">Đã xóa / Không hoạt động</option>
             </select>
           </div>
 
@@ -845,16 +845,14 @@ const UserManagement: React.FC = () => {
                               Khóa
                             </button>
                           ) : null}
-                          {/* Delete button - only for non-admin users */}
-                          {user.role !== 'ADMIN' && (
-                            <button
-                              onClick={() => handleDeleteUser(user)}
-                              className="rounded-md bg-rose-600 px-2 py-1 text-xs font-medium text-white hover:bg-rose-700"
-                              title="Xóa tài khoản"
-                            >
-                              Xóa
-                            </button>
-                          )}
+                          {/* Delete button - Show for ALL users (backend will block root admin) */}
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="rounded-md bg-rose-600 px-2 py-1 text-xs font-medium text-white hover:bg-rose-700"
+                            title="Xóa tài khoản"
+                          >
+                            Xóa
+                          </button>
                         </div>
                       </td>
                     </tr>

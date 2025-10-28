@@ -25,9 +25,13 @@ export class DeleteUserHandler {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
 
-    // 2. ⭐ HARD VALIDATION 1: Không cho xóa ADMIN
+    // 2. ⭐ HARD VALIDATION 1: Không cho xóa ROOT ADMIN
+    // Admin khác có thể xóa, chỉ root admin (admin đầu tiên) không được xóa
     if (user.role === UserRole.ADMIN) {
-      throw new BadRequestException('Không thể xóa tài khoản admin');
+      const rootAdmin = await this.userRepository.findRootAdmin();
+      if (rootAdmin && user.id === rootAdmin.id) {
+        throw new BadRequestException('Không thể xóa tài khoản Root Admin (admin đầu tiên)');
+      }
     }
 
     // 3. ⭐ HARD VALIDATION 2: Không có tuyến dưới (CORE LOGIC - CANNOT OVERRIDE)
@@ -127,81 +131,119 @@ export class DeleteUserHandler {
       );
     }
 
-    // 8. ✅ TẤT CẢ VALIDATION PASSED hoặc CONFIRMED → Thực hiện soft delete
-    await this.userRepository.update(command.userId, {
-      status: 'INACTIVE' as any,
-      lockedAt: new Date(),
-      lockedReason: walletBalance > 0
-        ? `Tài khoản đã bị xóa bởi admin. Số dư ví bị mất: ${walletBalance.toLocaleString('vi-VN')} VND`
-        : 'Tài khoản đã bị xóa bởi admin',
-    });
+    // 8. ✅ TẤT CẢ VALIDATION PASSED hoặc CONFIRMED → Thực hiện HARD DELETE
+    // ✅ Anonymize data + Delete user
+    await this.prisma.$transaction(async (tx) => {
+      const userInfo = `${user.username} (${user.email.value})`;
 
-    // 9. ✅ Double-check: Cancel any remaining commissions (safety net)
-    // Note: Should already be cancelled in step 4, this is just a safety check
-    await this.prisma.commission.updateMany({
-      where: {
-        userId: command.userId,
-        status: { notIn: ['PAID', 'CANCELLED'] },
-      },
-      data: {
-        status: 'CANCELLED',
-        notes: 'Hoa hồng tự động hủy do tài khoản bị xóa bởi admin',
-      },
-    });
-
-    // 10. ✅ Hủy pending orders (nếu có)
-    await this.prisma.pendingOrder.updateMany({
-      where: {
-        userId: command.userId,
-        status: 'AWAITING_PAYMENT',
-      },
-      data: {
-        status: 'CANCELLED',
-        cancelledAt: new Date(),
-      },
-    });
-
-    // 11. ✅ Xóa cart
-    const cart = await this.prisma.cart.findUnique({
-      where: { userId: command.userId },
-    });
-
-    if (cart) {
-      await this.prisma.cartItem.deleteMany({
-        where: { cartId: cart.id },
-      });
-    }
-
-    // 12. ✅ Log wallet balance lost (nếu có)
-    if (walletBalance > 0) {
-      const wallet = await this.prisma.wallet.findUnique({
+      // 8.1. ✅ ANONYMIZE Orders - Giữ lại order history nhưng ẩn danh user
+      await tx.order.updateMany({
         where: { userId: command.userId },
-        select: { id: true },
+        data: {
+          userId: null,
+          adminNote: `[Deleted User] ${userInfo}`,
+        },
+      });
+
+      // 8.2. ✅ ANONYMIZE Commissions - User NHẬN hoa hồng
+      await tx.commission.updateMany({
+        where: { userId: command.userId },
+        data: {
+          userId: null,
+          notes: `[Deleted User] Receiver: ${userInfo}`,
+        },
+      });
+
+      // 8.3. ✅ ANONYMIZE Commissions - User TẠO hoa hồng (từ orders của user)
+      await tx.commission.updateMany({
+        where: { fromUserId: command.userId },
+        data: {
+          fromUserId: null,
+          notes: `[Deleted User] Buyer: ${userInfo}`,
+        },
+      });
+
+      // 8.4. ✅ ANONYMIZE Wallet Transactions
+      const wallet = await tx.wallet.findUnique({
+        where: { userId: command.userId },
       });
 
       if (wallet) {
-        await this.prisma.walletTransaction.create({
+        await tx.walletTransaction.updateMany({
+          where: { walletId: wallet.id },
           data: {
-            walletId: wallet.id,
-            type: 'ADMIN_ADJUSTMENT', // Using existing enum value
-            amount: -walletBalance,
-            balanceBefore: walletBalance,
-            balanceAfter: 0,
-            description: `Số dư bị mất do xóa tài khoản: ${walletBalance.toLocaleString('vi-VN')} VND`,
-            metadata: {
-              reason: 'account_deletion',
-              deletedAt: new Date().toISOString(),
-            },
+            description: `[Deleted User] ${userInfo}`,
           },
         });
 
-        // Reset wallet to 0
-        await this.prisma.wallet.update({
-          where: { userId: command.userId },
-          data: { balance: 0 },
+        // Log wallet balance lost if any
+        if (walletBalance > 0) {
+          await tx.walletTransaction.create({
+            data: {
+              walletId: wallet.id,
+              type: 'ADMIN_ADJUSTMENT',
+              amount: -walletBalance,
+              balanceBefore: walletBalance,
+              balanceAfter: 0,
+              description: `[Deleted User] Số dư bị mất do xóa tài khoản: ${walletBalance.toLocaleString('vi-VN')} VND - ${userInfo}`,
+              metadata: {
+                reason: 'account_deletion',
+                deletedAt: new Date().toISOString(),
+              },
+            },
+          });
+        }
+
+        // Delete wallet
+        await tx.wallet.delete({
+          where: { id: wallet.id },
         });
       }
-    }
+
+      // 8.5. ✅ ANONYMIZE Withdrawal Requests
+      await tx.withdrawalRequest.updateMany({
+        where: { userId: command.userId },
+        data: {
+          userId: null,
+          adminNote: `[Deleted User] ${userInfo}`,
+        },
+      });
+
+      // 8.6. ✅ DELETE Pending Orders
+      await tx.pendingOrder.deleteMany({
+        where: { userId: command.userId },
+      });
+
+      // 8.7. ✅ DELETE Cart Items & Cart
+      const cart = await tx.cart.findUnique({
+        where: { userId: command.userId },
+      });
+
+      if (cart) {
+        await tx.cartItem.deleteMany({
+          where: { cartId: cart.id },
+        });
+
+        await tx.cart.delete({
+          where: { id: cart.id },
+        });
+      }
+
+      // 8.8. ✅ DELETE UserTree entries
+      await tx.userTree.deleteMany({
+        where: {
+          OR: [
+            { ancestor: command.userId },
+            { descendant: command.userId },
+          ],
+        },
+      });
+
+      // 8.9. ✅ DELETE User (FINALLY!)
+      await tx.user.delete({
+        where: { id: command.userId },
+      });
+    });
   }
 
   /**

@@ -202,9 +202,15 @@ export default function AdminWithdrawals() {
                       <td className="whitespace-nowrap px-6 py-4">
                         <div>
                           <div className="font-medium text-gray-900 dark:text-white">
-                            {withdrawal.user?.username}
+                            {withdrawal.user ? (
+                              withdrawal.user.username
+                            ) : (
+                              <span className="text-gray-500 italic">🔒 Ẩn danh</span>
+                            )}
                           </div>
-                          <div className="text-sm text-gray-500">{withdrawal.user?.email}</div>
+                          <div className="text-sm text-gray-500">
+                            {withdrawal.user ? withdrawal.user.email : "Người dùng đã xóa"}
+                          </div>
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 font-semibold text-blue-600 dark:text-blue-400">
@@ -300,7 +306,14 @@ export default function AdminWithdrawals() {
             </h3>
 
             <div className="mb-4 space-y-2 text-sm">
-              <p><strong>Người dùng:</strong> {selectedWithdrawal.user?.username}</p>
+              <p>
+                <strong>Người dùng:</strong>{' '}
+                {selectedWithdrawal.user ? (
+                  selectedWithdrawal.user.username
+                ) : (
+                  <span className="text-gray-500 italic">🔒 Ẩn danh (Người dùng đã xóa)</span>
+                )}
+              </p>
               <p><strong>Số tiền:</strong> {formatCurrency(selectedWithdrawal.amount)}</p>
             </div>
 

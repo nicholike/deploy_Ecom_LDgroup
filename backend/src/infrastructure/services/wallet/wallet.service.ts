@@ -186,7 +186,12 @@ export class WalletService {
       adminNote,
     );
 
-    // Send email notification for withdrawal approved
+    // Send email notification for withdrawal approved (only if userId exists)
+    if (!withdrawal.userId) {
+      this.logger.warn(`Withdrawal ${withdrawalId} has no userId (anonymous/deleted user). Skipping email.`);
+      return updated;
+    }
+
     try {
       const user = await this.userRepository.findById(withdrawal.userId);
       if (user) {
@@ -232,6 +237,13 @@ export class WalletService {
       );
     }
 
+    // Check if userId exists (not deleted/anonymous)
+    if (!withdrawal.userId) {
+      throw new BadRequestException(
+        'Không thể hoàn thành yêu cầu rút tiền vì người dùng đã bị xóa. Vui lòng từ chối yêu cầu này.'
+      );
+    }
+
     // Deduct from wallet
     await this.walletRepository.addTransaction({
       userId: withdrawal.userId,
@@ -251,7 +263,12 @@ export class WalletService {
 
     this.logger.log(`Withdrawal ${withdrawalId} completed. Deducted ${withdrawal.amount} from wallet`);
 
-    // Send email notification for withdrawal completed
+    // Send email notification for withdrawal completed (only if userId exists)
+    if (!withdrawal.userId) {
+      this.logger.warn(`Withdrawal ${withdrawalId} has no userId (anonymous/deleted user). Skipping email.`);
+      return completed;
+    }
+
     try {
       const user = await this.userRepository.findById(withdrawal.userId);
       if (user) {

@@ -423,9 +423,9 @@ model Order {
   id          String @id @default(uuid())
   orderNumber String @unique @map("order_number")
 
-  // Customer
-  userId String @map("user_id")
-  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  // Customer (nullable để support xóa user - anonymize)
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Pricing
   subtotal    Decimal @db.Decimal(18, 2)
@@ -556,17 +556,17 @@ model CommissionConfig {
 model Commission {
   id String @id @default(uuid())
 
-  // User receiving commission
-  userId String @map("user_id")
-  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  // User receiving commission (nullable để support xóa user - anonymize)
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Order that generated commission
   orderId String @map("order_id")
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
-  // Downline user who made the purchase
-  fromUserId String @map("from_user_id")
-  fromUser   User   @relation("FromUser", fields: [fromUserId], references: [id], onDelete: Restrict)
+  // Downline user who made the purchase (nullable để support xóa user - anonymize)
+  fromUserId String? @map("from_user_id")
+  fromUser   User?   @relation("FromUser", fields: [fromUserId], references: [id], onDelete: SetNull)
 
   // MLM Level (1=F1, 2=F2, 3=F3, 4=F4)
   level Int
@@ -611,9 +611,9 @@ enum CommissionStatus {
 model WithdrawalRequest {
   id String @id @default(uuid())
 
-  // User requesting withdrawal
-  userId String @map("user_id")
-  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  // User requesting withdrawal (nullable để support xóa user - anonymize)
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Amount
   amount Decimal @db.Decimal(10, 2)

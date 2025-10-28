@@ -249,18 +249,27 @@ export class PaymentService {
       await this.bankTransactionRepository.markAsProcessed(bankTransaction.id, order.id);
 
       // ✅ CLEAR CART - Now that payment is confirmed
-      try {
-        await this.cartRepository.clearCart(order.userId);
-        this.logger.log(`✅ Cart cleared for user ${order.userId}`);
-      } catch (error) {
-        this.logger.error(`Failed to clear cart for user ${order.userId}:`, error);
+      // Only clear cart if userId exists (not deleted/anonymous)
+      if (order.userId) {
+        try {
+          await this.cartRepository.clearCart(order.userId);
+          this.logger.log(`✅ Cart cleared for user ${order.userId}`);
+        } catch (error) {
+          this.logger.error(`Failed to clear cart for user ${order.userId}:`, error);
+        }
+      } else {
+        this.logger.warn(`Order ${order.id} has no userId (anonymous/deleted user). Skipping cart clear.`);
       }
 
       // ✅ UPDATE QUOTA BY SIZE - Now that payment is confirmed
       // 🔧 FIX: Use atomic increment to prevent race condition
-      try {
-        const user = await this.userRepository.findById(order.userId);
-        if (user && user.role !== UserRole.ADMIN) {
+      // Only update quota if userId exists (not deleted/anonymous)
+      if (!order.userId) {
+        this.logger.warn(`Order ${order.id} has no userId (anonymous/deleted user). Skipping quota update.`);
+      } else {
+        try {
+          const user = await this.userRepository.findById(order.userId);
+          if (user && user.role !== UserRole.ADMIN) {
           // Calculate quantities by size from pending order items
           let qty5ml = 0;
           let qty20ml = 0;
@@ -304,33 +313,39 @@ export class PaymentService {
           if (totalQuantity > 0) {
             await this.userRepository.incrementQuota(order.userId, totalQuantity);
           }
+          }
+        } catch (error) {
+          this.logger.error(`Failed to update quota for user ${order.userId}:`, error);
         }
-      } catch (error) {
-        this.logger.error(`Failed to update quota for user ${order.userId}:`, error);
       }
 
-      // Create notification for user
-      await this.notificationRepository.create({
-        userId: order.userId,
-        type: NotificationType.PAYMENT_RECEIVED,
-        title: 'Thanh toán thành công',
-        message: `Đơn hàng ${order.orderNumber} đã được tạo và thanh toán thành công. Số tiền: ${transactionAmount.toLocaleString('vi-VN')} VNĐ`,
-        actionUrl: `/orders/${order.id}`,
-        actionText: 'Xem đơn hàng',
-        metadata: {
-          orderId: order.id,
-          pendingOrderId: pendingOrder.id,
-          transactionId: bankTransaction.id,
-          amount: transactionAmount,
-        },
-      });
+      // Create notification for user (only if userId exists)
+      if (order.userId) {
+        await this.notificationRepository.create({
+          userId: order.userId,
+          type: NotificationType.PAYMENT_RECEIVED,
+          title: 'Thanh toán thành công',
+          message: `Đơn hàng ${order.orderNumber} đã được tạo và thanh toán thành công. Số tiền: ${transactionAmount.toLocaleString('vi-VN')} VNĐ`,
+          actionUrl: `/orders/${order.id}`,
+          actionText: 'Xem đơn hàng',
+          metadata: {
+            orderId: order.id,
+            pendingOrderId: pendingOrder.id,
+            transactionId: bankTransaction.id,
+            amount: transactionAmount,
+          },
+        });
+      } else {
+        this.logger.warn(`Order ${order.id} has no userId (anonymous/deleted user). Skipping notification.`);
+      }
 
       this.logger.log(`✅ Order ${order.orderNumber} payment confirmed and fully processed`);
 
-      // Send email notification for payment confirmation
-      try {
-        const user = await this.userRepository.findById(order.userId);
-        if (user) {
+      // Send email notification for payment confirmation (only if userId exists)
+      if (order.userId) {
+        try {
+          const user = await this.userRepository.findById(order.userId);
+          if (user) {
           const emailSent = await this.emailService.sendOrderConfirmedEmail(user.email.value, {
             username: user.username,
             orderNumber: order.orderNumber,
@@ -342,11 +357,14 @@ export class PaymentService {
             this.logger.log(`✅ Sent payment confirmation email to ${user.email.value}`);
           } else {
             this.logger.warn(`⚠️ Failed to send payment confirmation email (SMTP blocked). Payment confirmed successfully.`);
+            }
           }
+        } catch (error) {
+          this.logger.error(`Unexpected error in email sending:`, error);
+          // Don't fail the request if email fails
         }
-      } catch (error) {
-        this.logger.error(`Unexpected error in email sending:`, error);
-        // Don't fail the request if email fails
+      } else {
+        this.logger.warn(`Order ${order.id} has no userId (anonymous/deleted user). Skipping email notification.`);
       }
 
       return {

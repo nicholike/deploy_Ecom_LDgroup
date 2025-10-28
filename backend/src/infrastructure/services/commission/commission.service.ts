@@ -244,21 +244,28 @@ export class CommissionService {
           'Order cancelled - commission refunded',
         );
 
-        // Deduct from wallet (negative amount)
-        // ⚠️ This CAN make wallet negative if user already withdrew
-        // This is INTENTIONAL - business logic to prevent fraud
-        await this.walletRepository.addTransaction({
-          userId: commission.userId,
-          type: WalletTransactionType.COMMISSION_REFUND,
-          amount: -Number(commission.commissionAmount), // Negative to deduct
-          orderId,
-          commissionId: commission.id,
-          description: `Commission refund for cancelled order ${orderId}`,
-        });
+        // Only deduct from wallet if userId exists (not deleted/anonymous)
+        if (commission.userId) {
+          // Deduct from wallet (negative amount)
+          // ⚠️ This CAN make wallet negative if user already withdrew
+          // This is INTENTIONAL - business logic to prevent fraud
+          await this.walletRepository.addTransaction({
+            userId: commission.userId,
+            type: WalletTransactionType.COMMISSION_REFUND,
+            amount: -Number(commission.commissionAmount), // Negative to deduct
+            orderId,
+            commissionId: commission.id,
+            description: `Commission refund for cancelled order ${orderId}`,
+          });
 
-        this.logger.log(
-          `✅ Refunded ${commission.commissionAmount} from wallet of user ${commission.userId}`,
-        );
+          this.logger.log(
+            `✅ Refunded ${commission.commissionAmount} from wallet of user ${commission.userId}`,
+          );
+        } else {
+          this.logger.warn(
+            `Commission ${commission.id} has no userId (anonymous/deleted user). Skipped wallet refund.`,
+          );
+        }
       }
 
       this.logger.log(

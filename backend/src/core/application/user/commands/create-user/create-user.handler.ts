@@ -28,17 +28,10 @@ export class CreateUserHandler {
     let sponsorId: string | undefined = command.sponsorId;
 
     if (command.role === 'ADMIN') {
-      // For ADMIN accounts, find the root admin (first admin created)
-      // New admins will be under the root admin in MLM tree
-      const rootAdmin = await this.userRepository.findRootAdmin();
-
-      if (rootAdmin) {
-        // If root admin exists, new admin becomes child of root admin
-        sponsorId = rootAdmin.id;
-      } else {
-        // This is the first admin (root admin), no sponsor needed
-        sponsorId = undefined;
-      }
+      // ✅ ALL ADMIN accounts have no sponsor (sponsorId = null)
+      // ONLY the root admin (first admin) will be in MLM tree
+      // Other admins have full permissions but are NOT in MLM tree
+      sponsorId = undefined;
     } else {
       const sponsor = await this.userRepository.findById(command.sponsorId);
       if (!sponsor) {

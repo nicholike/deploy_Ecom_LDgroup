@@ -373,12 +373,17 @@ export class OrderRepository {
             );
           } else {
             this.logger.log(`Order ${id} completed. Calculating commissions asynchronously...`);
-            await this.commissionService.calculateCommissionsForOrder(
-              id,
-              userId,
-              Number(totalAmount),
-              orderNumber,
-            );
+            // Only calculate commissions if userId exists (not deleted/anonymous)
+            if (userId) {
+              await this.commissionService.calculateCommissionsForOrder(
+                id,
+                userId,
+                Number(totalAmount),
+                orderNumber,
+              );
+            } else {
+              this.logger.warn(`Order ${id} has no userId (anonymous/deleted user). Skipping commission calculation.`);
+            }
             this.logger.log(`✅ Commissions calculated for order ${id}`);
           }
         }
@@ -533,9 +538,15 @@ export class OrderRepository {
         }
 
         try {
+          // Only return quota if userId exists (not deleted/anonymous)
+          if (!order.userId) {
+            this.logger.log(`Order ${orderId} has no userId (anonymous/deleted user). Skipping quota return.`);
+            return;
+          }
+
           const user = await tx.user.findUnique({
             where: { id: order.userId },
-            select: { 
+            select: {
               quotaUsed: true,
               quota5mlUsed: true,
               quota20mlUsed: true,

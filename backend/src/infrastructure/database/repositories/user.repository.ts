@@ -58,8 +58,12 @@ export class UserRepository implements IUserRepository {
       where.role = options.role;
     }
 
+    // ✅ Default: Exclude INACTIVE and REJECTED users (similar to MLM tree)
+    // Only include them if explicitly requested via status filter
     if (options.status) {
       where.status = options.status;
+    } else {
+      where.status = { notIn: ['INACTIVE', 'REJECTED'] };
     }
 
     if (options.sponsorId) {
@@ -171,8 +175,10 @@ export class UserRepository implements IUserRepository {
         },
       });
 
-      // ONLY create UserTree entries for ACTIVE users
-      // PENDING users will have tree created when approved via ApproveUserHandler
+      // ✅ ONLY create UserTree entries for:
+      // 1. Root Admin (first admin) - in MLM tree
+      // 2. Regular users (F1-F6) - in MLM tree
+      // 3. Skip other admins (admin #2+) - NOT in MLM tree
       if (saved.status === UserStatus.ACTIVE) {
         const selfEntryExists = await this.prisma.userTree.findUnique({
           where: {
@@ -184,37 +190,59 @@ export class UserRepository implements IUserRepository {
         });
 
         if (!selfEntryExists) {
-          await this.prisma.userTree.create({
-            data: {
-              ancestor: saved.id,
-              descendant: saved.id,
-              level: 0,
-            },
-          });
+          let shouldCreateTree = true;
 
-          // Create tree entries for all ancestors
-          if (saved.sponsorId) {
-            const ancestorTrees = await this.prisma.userTree.findMany({
-              where: { descendant: saved.sponsorId },
+          // ✅ If this is an ADMIN, only create tree for ROOT ADMIN (first admin)
+          if (saved.role === UserRole.ADMIN) {
+            // Check if any admin already exists in UserTree
+            const existingAdminInTree = await this.prisma.userTree.findFirst({
+              where: {
+                level: 0, // Self-entry
+                ancestorUser: {
+                  role: UserRole.ADMIN,
+                },
+              },
             });
 
-            const treesToCreate = ancestorTrees.some((entry) => entry.ancestor === saved.sponsorId)
-              ? ancestorTrees
-              : [
-                  ...ancestorTrees,
-                  {
-                    ancestor: saved.sponsorId,
-                    descendant: saved.sponsorId,
-                    level: 0,
-                  },
-                ];
+            // If an admin already exists in tree, don't create tree for this admin
+            if (existingAdminInTree) {
+              shouldCreateTree = false;
+            }
+          }
 
-            for (const ancestorTree of treesToCreate) {
-              await this.createTreeLinkSafe({
-                ancestor: ancestorTree.ancestor,
+          if (shouldCreateTree) {
+            await this.prisma.userTree.create({
+              data: {
+                ancestor: saved.id,
                 descendant: saved.id,
-                level: ancestorTree.level + 1,
+                level: 0,
+              },
+            });
+
+            // Create tree entries for all ancestors
+            if (saved.sponsorId) {
+              const ancestorTrees = await this.prisma.userTree.findMany({
+                where: { descendant: saved.sponsorId },
               });
+
+              const treesToCreate = ancestorTrees.some((entry) => entry.ancestor === saved.sponsorId)
+                ? ancestorTrees
+                : [
+                    ...ancestorTrees,
+                    {
+                      ancestor: saved.sponsorId,
+                      descendant: saved.sponsorId,
+                      level: 0,
+                    },
+                  ];
+
+              for (const ancestorTree of treesToCreate) {
+                await this.createTreeLinkSafe({
+                  ancestor: ancestorTree.ancestor,
+                  descendant: saved.id,
+                  level: ancestorTree.level + 1,
+                });
+              }
             }
           }
         }
@@ -392,6 +420,19 @@ export class UserRepository implements IUserRepository {
       return [];
     }
 
+    // ✅ EXCLUDE ALL admins EXCEPT the root admin (first admin in UserTree)
+    // Get the root admin (first admin created with UserTree entry)
+    const rootAdmin = await this.findRootAdmin();
+
+    // Filter out all admins except root admin
+    const filteredData = data.filter((record) => {
+      if (record.role === UserRole.ADMIN) {
+        // Only keep THE root admin (first admin)
+        return rootAdmin && record.id === rootAdmin.id;
+      }
+      return true; // Keep all non-admin users
+    });
+
     const nodes = new Map<string, UserTreeNode>();
 
     const ensureNode = (user: User): UserTreeNode => {
@@ -401,7 +442,7 @@ export class UserRepository implements IUserRepository {
       return nodes.get(user.id)!;
     };
 
-    data.forEach((record) => {
+    filteredData.forEach((record) => {
       const domainUser = this.toDomain(record);
       ensureNode(domainUser);
     });

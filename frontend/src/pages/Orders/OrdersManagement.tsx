@@ -131,12 +131,13 @@ export default function OrdersManagement() {
 
     filteredOrders.forEach((order) => {
       const user = order.user;
-      const userId = user?.id ?? "unknown";
+      const userId = user?.id ?? "anonymous";
       const branchLabel = user?.role ?? "Chưa xác định";
-      const userLabel =
-        user?.firstName || user?.lastName
+      const userLabel = user
+        ? (user?.firstName || user?.lastName
           ? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim()
-          : user?.username ?? user?.email ?? "Không xác định";
+          : user?.username ?? user?.email ?? "Không xác định")
+        : "🔒 Ẩn danh (Người dùng đã xóa)";
 
       if (!groups.has(userId)) {
         const sponsorUsername = user?.sponsor?.username || null;
@@ -671,20 +672,30 @@ const OrderDetailModal: React.FC<{ order: Order; onClose: () => void }> = ({ ord
               <div>
                 <span className="text-gray-600 dark:text-gray-400">Họ tên:</span>
                 <p className="font-semibold text-gray-900 dark:text-white">
-                  {order.user?.firstName || order.user?.lastName
-                    ? `${order.user?.firstName ?? ""} ${order.user?.lastName ?? ""}`.trim()
-                    : order.user?.username ?? "Không xác định"}
+                  {order.user ? (
+                    order.user.firstName || order.user.lastName
+                      ? `${order.user.firstName ?? ""} ${order.user.lastName ?? ""}`.trim()
+                      : order.user.username ?? "Không xác định"
+                  ) : (
+                    <span className="text-gray-500 italic">🔒 Ẩn danh (Người dùng đã xóa)</span>
+                  )}
                 </p>
               </div>
               <div>
                 <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                <p className="font-semibold text-gray-900 dark:text-white">{order.user?.email ?? "—"}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">
+                  {order.user?.email ?? <span className="text-gray-500 italic">—</span>}
+                </p>
               </div>
               <div>
                 <span className="text-gray-600 dark:text-gray-400">Cấp độ:</span>
-                <span className="ml-2 inline-flex items-center rounded px-2 py-0.5 text-[10px] sm:text-xs font-medium bg-[#8B5E1E]/10 text-[#8B5E1E]">
-                  {order.user?.role ?? "—"}
-                </span>
+                {order.user ? (
+                  <span className="ml-2 inline-flex items-center rounded px-2 py-0.5 text-[10px] sm:text-xs font-medium bg-[#8B5E1E]/10 text-[#8B5E1E]">
+                    {order.user.role ?? "—"}
+                  </span>
+                ) : (
+                  <span className="ml-2 text-gray-500 italic">—</span>
+                )}
               </div>
             </div>
           </div>

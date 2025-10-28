@@ -202,9 +202,12 @@ export class UserController {
     // Check hard blocks
     const blocks: string[] = [];
 
-    // Cannot delete admin
+    // Cannot delete ROOT ADMIN (other admins can be deleted)
     if (user.role === UserRole.ADMIN) {
-      blocks.push('Không thể xóa tài khoản admin');
+      const rootAdmin = await this.userRepository.findRootAdmin();
+      if (rootAdmin && user.id === rootAdmin.id) {
+        blocks.push('Không thể xóa tài khoản Root Admin (admin đầu tiên)');
+      }
     }
 
     // Cannot delete if has downline
